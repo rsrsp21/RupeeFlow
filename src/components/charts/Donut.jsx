@@ -40,7 +40,7 @@ export default function Donut({ spend }) {
             </path>
           ))}
         </svg>
-        <div className="donut-center"><span><b>{rupees(total)}</b>this month</span></div>
+        <div className="donut-center"><span><b>{rupees(total)}</b>This month</span></div>
       </div>
       <div className="legend">
         {arcs.map((a) => (

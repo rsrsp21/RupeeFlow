@@ -177,7 +177,7 @@ export default function Budgets() {
                     <div className="budget-row-top">
                       <span className="budget-row-name">
                         {b.category}
-                        {b.carry_forward ? <span className="tx-tag">carries</span> : null}
+                        {b.carry_forward ? <span className="tx-tag">Carries</span> : null}
                       </span>
                       <span className="budget-row-nums">{rupees(spent)} <em>/ {rupees(eff)}</em></span>
                     </div>

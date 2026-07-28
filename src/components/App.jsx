@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Plus, Mic, ScanLine, PenLine, Type } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { CATEGORIES, rupees } from '@/lib/client/constants';
-import AuthView from './AuthView';
+import Landing from './Landing';
 import Dashboard from './views/Dashboard';
 import Ledger from './views/Ledger';
 import Budgets from './views/Budgets';
@@ -23,14 +23,17 @@ import { Nav } from './Nav';
 const UICtx = createContext(null);
 export const useUI = () => useContext(UICtx);
 
-// Mini FABs stagger in on open; on close they all retreat together, quickly,
-// so the cluster doesn't feel like it's lagging behind the "+" as it un-rotates.
-// Their transform is driven ONLY by these variants — no CSS transition on
-// .fab.mini's transform — otherwise the two animation systems fight and stutter.
-// Springs (not duration/easing tweens) are what make Framer Motion feel smooth —
-// physically-driven motion instead of a fixed timing curve.
+// The mini FABs stay mounted at all times and just toggle between these two
+// variants — no AnimatePresence/mount-unmount involved. That was the source
+// of the remaining "stuck, then drops" close feel: while exiting, the flex
+// column-reverse layout still reserved full space for all three buttons
+// until they actually unmounted, so the layout and the animation settled at
+// different moments. A pure animate-prop toggle removes that mismatch.
 const FAB_ITEM = {
-  hidden: { opacity: 0, y: 14, scale: 0.5 },
+  hidden: {
+    opacity: 0, y: 14, scale: 0.5,
+    transition: { type: 'spring', stiffness: 620, damping: 38, mass: 0.5, opacity: { duration: 0.1 } },
+  },
   visible: (i) => ({
     opacity: 1, y: 0, scale: 1,
     transition: {
@@ -38,10 +41,6 @@ const FAB_ITEM = {
       opacity: { duration: 0.14, delay: i * 0.04 },
     },
   }),
-  exit: {
-    opacity: 0, y: 14, scale: 0.5,
-    transition: { type: 'spring', stiffness: 560, damping: 32, mass: 0.5, opacity: { duration: 0.1 } },
-  },
 };
 const FAB_ROTATE = { type: 'spring', stiffness: 500, damping: 26, mass: 0.5 };
 const FAB_TAP = { scale: 0.9 };
@@ -75,7 +74,7 @@ export default function App() {
   }, [fabOpen]);
 
   if (!store.booted) return null;
-  if (!store.token) return <AuthView />;
+  if (!store.token) return <Landing />;
 
   const openTx = (arg) => setTxModal(arg || {});
   const openBudget = (category = '') => setBudgetModal({ category });
@@ -133,16 +132,15 @@ export default function App() {
 
         {/* + expands into Voice / Scan / Prompt / Manual and morphs into an X; tap again or pick one to close */}
         <div className={`fab-cluster ${fabOpen ? 'open' : ''}`} ref={fabRef}>
-          <AnimatePresence>
-            {fabOpen && fabActions.map(({ key, Icon, title, onClick }, i) => (
-              <motion.button key={key} className="fab mini" title={title}
-                custom={i} variants={FAB_ITEM} initial="hidden" animate="visible" exit="exit"
-                whileHover={FAB_HOVER} whileTap={FAB_TAP}
-                onClick={onClick}>
-                <Icon size={18} strokeWidth={1.9} />
-              </motion.button>
-            ))}
-          </AnimatePresence>
+          {fabActions.map(({ key, Icon, title, onClick }, i) => (
+            <motion.button key={key} className="fab mini" title={title}
+              custom={i} variants={FAB_ITEM} initial="hidden" animate={fabOpen ? 'visible' : 'hidden'}
+              style={{ pointerEvents: fabOpen ? 'auto' : 'none' }}
+              whileHover={fabOpen ? FAB_HOVER : undefined} whileTap={fabOpen ? FAB_TAP : undefined}
+              onClick={onClick}>
+              <Icon size={18} strokeWidth={1.9} />
+            </motion.button>
+          ))}
           <button className="fab main-fab" title={fabOpen ? 'Close' : 'Add entry'} onClick={() => setFabOpen((v) => !v)}>
             <motion.span className="fab-plus" animate={{ rotate: fabOpen ? 45 : 0 }} transition={FAB_ROTATE}>
               <Plus size={22} strokeWidth={2.2} />

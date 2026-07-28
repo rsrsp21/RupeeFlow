@@ -212,7 +212,7 @@ export default function Insights() {
                         <div className="recurring-body">
                           <div className="recurring-label">
                             {r.label}
-                            {r.cancel_candidate && <span className="badge expense">review</span>}
+                            {r.cancel_candidate && <span className="badge expense">Review</span>}
                           </div>
                           <div className="recurring-meta">{r.cadence} · {r.occurrences}× seen · {r.note}</div>
                         </div>

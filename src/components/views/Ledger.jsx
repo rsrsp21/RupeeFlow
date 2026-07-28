@@ -85,14 +85,24 @@ export default function Ledger() {
   const totals = store.totals(list);
   const net = totals.inc - totals.exp;
 
-  // stats
-  const dayCount = Math.max(1, Math.round((Math.min(end, Date.now()) - start) / DAY_MS));
-  const avgPerDay = allTime ? 0 : Math.round(totals.exp / dayCount);
+  // Avg/day is always a trailing-7-day figure, independent of the selected
+  // period — computed from `kind`/`start` it would just echo that single
+  // day's own total back when viewing "Day", which isn't a useful average.
+  const weekAvg = useMemo(() => {
+    const since = Date.now() - 7 * DAY_MS;
+    const spent = store.live()
+      .filter((t) => t.type === 'expense' && t.occurred_at >= since)
+      .reduce((s, t) => s + t.amount, 0);
+    return Math.round(spent / 7);
+  }, [store, store.txs]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const biggest = list.filter((t) => t.type === 'expense').sort((a, b) => b.amount - a.amount)[0];
 
-  // trend buckets over the period (expenses)
+  // trend buckets over the period (expenses) — skipped for "Day": occurred_at's
+  // time-of-day is often just whenever the entry was logged, not the real time,
+  // so an hour-by-hour breakdown there would be misleading.
   const buckets = useMemo(() => {
-    if (allTime) return [];
+    if (allTime || kind === 'day') return [];
     return bucketsFor(kind, start).map((b) => ({
       ...b,
       value: periodTx.filter((t) => t.type === 'expense' && t.occurred_at >= b.start && t.occurred_at < b.end)
@@ -171,15 +181,13 @@ export default function Ledger() {
               {net >= 0 ? '+' : '−'}{rupees(Math.abs(net))}
             </b>
           </div>
-          {!allTime && (
-            <div className="stat">
-              <span className="stat-k">Avg / day</span>
-              <b className="stat-v">{rupees(avgPerDay)}</b>
-            </div>
-          )}
+          <div className="stat">
+            <span className="stat-k">Avg / day (7d)</span>
+            <b className="stat-v">{rupees(weekAvg)}</b>
+          </div>
         </div>
 
-        {!allTime && buckets.some((b) => b.value > 0) && (
+        {!allTime && kind !== 'day' && buckets.some((b) => b.value > 0) && (
           <div className="period-trend"><TrendBars buckets={buckets} height={52} /></div>
         )}
 
