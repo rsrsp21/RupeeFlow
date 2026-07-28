@@ -35,6 +35,15 @@ export async function idbAll(store) {
   });
 }
 
+export async function idbDelete(store, key) {
+  const db = await open();
+  return new Promise((res) => {
+    const t = db.transaction(store, 'readwrite');
+    t.objectStore(store).delete(key);
+    t.oncomplete = res;
+  });
+}
+
 export async function idbClear(store) {
   const db = await open();
   return new Promise((res) => {

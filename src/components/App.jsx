@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Plus, Mic, ScanLine, PenLine, Type } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { CATEGORIES, rupees } from '@/lib/client/constants';
-import { readSharedText } from '@/lib/client/shareTarget';
+import { readSharedPayload } from '@/lib/client/shareTarget';
 import Landing from './Landing';
 import Dashboard from './views/Dashboard';
 import Ledger from './views/Ledger';
@@ -75,25 +75,21 @@ export default function App() {
     return () => document.removeEventListener('pointerdown', onDown);
   }, [fabOpen]);
 
-  // Share Target: another app shared text into us (see manifest.webmanifest).
-  // If signed in, open the quick-add-by-text prompt immediately; otherwise
-  // stash it and pick it up right after the user logs in.
+  // Share Target: another app shared text and/or a receipt photo into us
+  // (see manifest.webmanifest + the POST handler in sw.js). Only consumed
+  // once signed in — until then the payload stays in IndexedDB and the
+  // ?share=1 marker stays in the URL, so it survives the login step.
   useEffect(() => {
-    if (!store.booted) return;
-    const text = readSharedText();
-    if (!text) return;
-    if (store.token) { setShareText(text); setPromptOpen(true); }
-    else sessionStorage.setItem('rf_pending_share', text);
-  }, [store.booted]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!store.token) return;
-    const pending = sessionStorage.getItem('rf_pending_share');
-    if (!pending) return;
-    sessionStorage.removeItem('rf_pending_share');
-    setShareText(pending);
-    setPromptOpen(true);
-  }, [store.token]);
+    if (!store.booted || !store.token) return;
+    let cancelled = false;
+    (async () => {
+      const payload = await readSharedPayload();
+      if (cancelled || !payload) return;
+      if (payload.image) scanReceipt(payload.image);
+      else { setShareText(payload.text); setPromptOpen(true); }
+    })();
+    return () => { cancelled = true; };
+  }, [store.booted, store.token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!store.booted) return null;
   if (!store.token) return <Landing />;

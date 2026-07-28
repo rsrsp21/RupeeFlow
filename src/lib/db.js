@@ -37,7 +37,15 @@ CREATE TABLE IF NOT EXISTS budgets (
   carry_forward INTEGER NOT NULL DEFAULT 0,
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (user_id, month, category)
-);`;
+);
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  endpoint TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id);`;
 
 function endpoint() {
   const acct = process.env.CLOUDFLARE_ACCOUNT_ID;

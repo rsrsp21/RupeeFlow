@@ -124,6 +124,33 @@ Framer Motion throughout. Two flavors, used deliberately:
 - **Nav**: sidebar on desktop (icon + label rail, collapsible), becomes a
   fixed bottom tab bar under 760px.
 
+## PWA capabilities
+
+Declared in `public/manifest.webmanifest`, implemented in `public/sw.js`:
+
+- **Offline** — network-first for pages, stale-while-revalidate for static
+  assets, cache-first for CDN libs. `/api/*` deliberately bypasses the SW so
+  auth and sync are never served stale.
+- **Background Sync** (`sync-outbox` tag) — queued offline entries get pushed
+  by the SW even if the app was closed before reconnecting. The auth token is
+  mirrored into IndexedDB's `meta` store because a SW can't read
+  `localStorage`.
+- **Share Target** (POST, multipart) — other apps can share text *or* a
+  receipt image into RupeeFlow. The SW stashes the payload in IndexedDB and
+  redirects to `/?share=1`; the app consumes it once on boot (text opens the
+  quick-add prompt, an image goes straight into the receipt scanner).
+- **Push notifications** — a daily "nothing logged yet" nudge and
+  budget-overspend alerts, sent by `POST /api/cron/notify` (bearer
+  `CRON_SECRET`, scheduled in `vercel.json` for 14:30 UTC / 20:00 IST).
+  Requires `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`; without them the feature
+  simply stays off. Subscriptions live in the `push_subscriptions` table and
+  are pruned automatically when a push returns 404/410.
+- **Shortcuts** and **launch_handler: focus-existing** so app shortcuts and
+  notification taps reuse the open window instead of spawning duplicates.
+
+Cron times are UTC. `/api/cron/notify` computes "today" and "this month" in
+IST to match the client, which derives them from the user's local timezone.
+
 ## Layout breakpoint
 
 Single breakpoint at **760px** (`@media (max-width: 760px)`) switches the

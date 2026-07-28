@@ -8,6 +8,9 @@ const sora = Sora({ subsets: ['latin'], variable: '--font-display', display: 'sw
 const description = 'AI-powered ₹ expense tracker: speak or scan an expense, get a real budget with pacing, and a weekly review that actually helps.';
 
 export const metadata = {
+  // Absolute base for OG/Twitter image URLs — without it Next falls back to
+  // localhost and shared links preview a broken image.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   title: `RupeeFlow: ${TAGLINE}`,
   description,
   manifest: '/manifest.webmanifest',

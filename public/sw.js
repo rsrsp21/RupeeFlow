@@ -22,6 +22,25 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
+
+  // Share Target (POST multipart, see manifest.webmanifest): another app
+  // shared text and/or a receipt photo into us. Stash it in IndexedDB and
+  // redirect to the app, which picks it up on boot.
+  if (e.request.method === 'POST' && url.pathname === '/share-target') {
+    e.respondWith((async () => {
+      try {
+        const form = await e.request.formData();
+        const text = ['share_title', 'share_text', 'share_url']
+          .map((k) => form.get(k)).filter(Boolean).join(' ').trim();
+        const image = form.getAll('share_files').find((f) => f && f.size && f.type.startsWith('image/'));
+        const db = await idbOpen();
+        await idbPut(db, 'meta', { k: 'shared', v: { text, image: image || null, at: Date.now() } });
+      } catch {}
+      return Response.redirect(new URL('/?share=1', self.location.origin).href, 303);
+    })());
+    return;
+  }
+
   if (e.request.method !== 'GET') return;
   if (url.pathname.startsWith('/api/')) return;
 
@@ -86,6 +105,13 @@ function idbClearStore(db, store) {
     t.oncomplete = resolve;
   });
 }
+function idbPut(db, store, val) {
+  return new Promise((resolve, reject) => {
+    const t = db.transaction(store, 'readwrite');
+    t.objectStore(store).put(val);
+    t.oncomplete = resolve; t.onerror = () => reject(t.error);
+  });
+}
 
 async function pushOutbox() {
   const db = await idbOpen();
@@ -104,4 +130,29 @@ async function pushOutbox() {
 
 self.addEventListener('sync', (e) => {
   if (e.tag === 'sync-outbox') e.waitUntil(pushOutbox());
+});
+
+// ── Push notifications (payloads come from /api/cron/notify) ──
+self.addEventListener('push', (e) => {
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; } catch { data = { body: e.data && e.data.text() }; }
+  e.waitUntil(self.registration.showNotification(data.title || 'RupeeFlow', {
+    body: data.body || '',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: data.tag || 'rupeeflow',       // same tag replaces, never stacks duplicates
+    data: { url: data.url || '/' },
+  }));
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const target = e.notification.data && e.notification.data.url ? e.notification.data.url : '/';
+  e.waitUntil((async () => {
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of clients) {
+      if ('focus' in c) { try { await c.navigate(target); } catch {} return c.focus(); }
+    }
+    return self.clients.openWindow(target);
+  })());
 });

@@ -27,8 +27,14 @@
   },
   "launch_handler": { "client_mode": "focus-existing" },
   "share_target": {
-    "action": "/?share=1",
-    "method": "GET",
-    "params": { "title": "share_title", "text": "share_text", "url": "share_url" }
+    "action": "/share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "share_title",
+      "text": "share_text",
+      "url": "share_url",
+      "files": [{ "name": "share_files", "accept": ["image/*"] }]
+    }
   }
 }

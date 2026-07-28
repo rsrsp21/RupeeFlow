@@ -1,9 +1,10 @@
 
 'use client';
 import { useEffect, useState } from 'react';
-import { Download, LogOut, RefreshCw, Plus, Wallet, Trash2, Pencil, Check, X } from 'lucide-react';
+import { Download, LogOut, RefreshCw, Plus, Wallet, Trash2, Pencil, Check, X, Bell } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees } from '@/lib/client/constants';
+import { pushSupported, currentSubscription, enablePush, disablePush } from '@/lib/client/pushClient';
 import { useUI } from '../App';
 
 export default function Settings() {
@@ -33,6 +34,8 @@ export default function Settings() {
           <input type="checkbox" className="switch" checked={dark} onChange={(e) => toggleTheme(e.target.checked)} />
         </label>
       </div>
+
+      <NotificationsCard />
 
       <AccountsCard />
 
@@ -106,6 +109,52 @@ function NameRow() {
       <button className="icon-btn" onClick={startEdit} title={store.name ? 'Edit name' : 'Add name'}>
         <Pencil size={14} />
       </button>
+    </div>
+  );
+}
+
+function NotificationsCard() {
+  const store = useStore();
+  const [on, setOn] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const supported = pushSupported();
+
+  // Reflect the browser's actual state — the user may have revoked
+  // permission or cleared site data since they last turned this on.
+  useEffect(() => {
+    if (!supported) return;
+    currentSubscription().then((s) => setOn(!!s && Notification.permission === 'granted')).catch(() => {});
+  }, [supported]);
+
+  async function toggle(want) {
+    setBusy(true);
+    try {
+      if (want) { await enablePush(store.api); setOn(true); store.toast('Notifications on'); }
+      else { await disablePush(store.api); setOn(false); store.toast('Notifications off'); }
+    } catch (e) {
+      setOn(false);
+      store.toast(e.message);
+    }
+    setBusy(false);
+  }
+
+  return (
+    <div className="card">
+      <div className="card-head"><h3><Bell size={13} style={{ verticalAlign: '-2px' }} /> Notifications</h3></div>
+      <p className="muted small" style={{ marginBottom: 12 }}>
+        A daily nudge if you haven’t logged anything, and an alert when a budget goes over.
+      </p>
+      {supported ? (
+        <label className="row-setting">
+          <span>Push notifications</span>
+          <input type="checkbox" className="switch" checked={on} disabled={busy}
+            onChange={(e) => toggle(e.target.checked)} />
+        </label>
+      ) : (
+        <p className="muted small">
+          This browser doesn’t support push notifications. On iPhone, install RupeeFlow to your home screen first.
+        </p>
+      )}
     </div>
   );
 }
