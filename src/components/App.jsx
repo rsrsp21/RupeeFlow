@@ -67,6 +67,10 @@ export default function App() {
   useEffect(() => { setCollapsed(localStorage.getItem('rf_nav') === 'collapsed'); }, []);
   const toggleNav = (v) => { setCollapsed(v); localStorage.setItem('rf_nav', v ? 'collapsed' : 'open'); };
 
+  // Switching views shouldn't carry over the previous page's scroll position —
+  // .main isn't its own scroll container, the window is, so it doesn't reset itself.
+  useEffect(() => { window.scrollTo(0, 0); }, [view]);
+
   // close the FAB cluster on outside tap
   useEffect(() => {
     if (!fabOpen) return;
