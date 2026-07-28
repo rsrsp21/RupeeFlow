@@ -64,6 +64,12 @@ export async function register(email, password, name) {
   return { token: await signJWT({ sub: id, email }), email, name };
 }
 
+export async function updateName(userId, name) {
+  name = (name || '').trim().slice(0, 80);
+  await q('UPDATE users SET name = ? WHERE id = ?', [name, userId]);
+  return { name };
+}
+
 export async function login(email, password) {
   if (!email || !password) throw new HttpError('Email and password required', 400);
   const { rows } = await q('SELECT * FROM users WHERE email = ?', [email.toLowerCase()]);

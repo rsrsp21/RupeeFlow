@@ -120,6 +120,12 @@ export function StoreProvider({ children }) {
     setToken(data.token); setEmail(data.email); setName(data.name || '');
   }, []);
 
+  const saveName = useCallback(async (nameIn) => {
+    const { name: saved } = await api('/auth/profile', { method: 'PUT', body: JSON.stringify({ name: nameIn }) });
+    localStorage.setItem('rf_name', saved || '');
+    setName(saved || '');
+  }, [api]);
+
   const logout = useCallback(() => {
     localStorage.removeItem('rf_token');
     localStorage.removeItem('rf_email');
@@ -263,7 +269,7 @@ export function StoreProvider({ children }) {
 
   const value = {
     token, email, name, booted, txs, budgets, accounts, syncState, lastSync, toastMsg,
-    api, toast, syncNow, saveTx, saveBudget, saveAccounts, authenticate, logout,
+    api, toast, syncNow, saveTx, saveBudget, saveAccounts, authenticate, saveName, logout,
     live, totals, inMonth, catSpend, effectiveBudget, projects, accountBalances, buildSummary,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

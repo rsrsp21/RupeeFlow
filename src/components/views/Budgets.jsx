@@ -200,12 +200,21 @@ export default function Budgets() {
       {/* ── quick add for uncovered categories ── */}
       {uncovered.length > 0 && (
         <div className="card">
-          <h3>Not budgeted yet</h3>
-          <div className="chips">
-            {uncovered.map(([c, v]) => (
-              <button key={c} className="chip" onClick={() => openBudget(c)}>
-                <CategoryIcon category={c} size={11} /> {c} · {rupees(v)} spent
-              </button>
+          <div className="card-head">
+            <h3>Not budgeted yet</h3>
+            <span className="muted small">{uncovered.length} {uncovered.length === 1 ? 'category' : 'categories'}</span>
+          </div>
+          <div className="budget-rows">
+            {uncovered.map(([c, v], i) => (
+              <motion.div className="budget-row unbudgeted" key={c} onClick={() => openBudget(c)}
+                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
+                <CategoryIcon category={c} size={14} />
+                <div className="budget-row-body">
+                  <span className="budget-row-name">{c}</span>
+                  <span className="unbudgeted-spent">{rupees(v)} spent this month</span>
+                </div>
+                <span className="add-budget-cta"><Plus size={13} strokeWidth={2.2} /> Set budget</span>
+              </motion.div>
             ))}
           </div>
         </div>

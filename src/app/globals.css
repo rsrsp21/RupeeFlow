@@ -608,6 +608,16 @@ input::placeholder { color: var(--muted); }
 .budget-row-nums em { font-style: normal; color: var(--muted); }
 .budget-row-left { font-size: .78rem; font-variant-numeric: tabular-nums; color: var(--green); width: 62px; text-align: right; }
 .budget-row-left.over { color: var(--red); }
+.budget-row.unbudgeted {
+  border: 1px dashed var(--line-strong); border-radius: var(--radius-sm); padding: 11px 13px; transition: all .15s;
+}
+.budget-row.unbudgeted:hover { border-color: var(--muted); background: var(--surface-2); }
+.budget-row.unbudgeted .budget-row-body { display: flex; flex-direction: column; gap: 2px; }
+.unbudgeted-spent { font-size: .74rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.add-budget-cta {
+  display: inline-flex; align-items: center; gap: 4px; font-size: .74rem; font-weight: 600;
+  color: var(--accent-text); flex-shrink: 0; white-space: nowrap;
+}
 .budget-track { position: relative; }
 .pace-marker {
   position: absolute; top: -2px; width: 1.5px; height: 9px;
@@ -628,6 +638,8 @@ input::placeholder { color: var(--muted); }
 .acct-row .icon-btn:disabled:hover { background: none; color: var(--muted); }
 .acct-add { display: flex; gap: 8px; margin-top: 14px; }
 .acct-add input { flex: 1; }
+.name-edit { display: flex; gap: 6px; align-items: center; padding: 4px 0; }
+.name-edit input { flex: 1; }
 .tx-acct {
   font-size: .67rem; color: var(--muted); border: 1px solid var(--line);
   padding: 0 6px; border-radius: 4px;

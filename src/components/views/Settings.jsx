@@ -1,6 +1,7 @@
+
 'use client';
 import { useEffect, useState } from 'react';
-import { Download, LogOut, RefreshCw, Plus, Wallet, Trash2 } from 'lucide-react';
+import { Download, LogOut, RefreshCw, Plus, Wallet, Trash2, Pencil, Check, X } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees } from '@/lib/client/constants';
 import { useUI } from '../App';
@@ -59,9 +60,53 @@ export default function Settings() {
 
       <div className="card">
         <h3>Account</h3>
+        <NameRow />
         <button className="btn danger-ghost" onClick={store.logout}><LogOut size={14} /> Sign out</button>
       </div>
     </section>
+  );
+}
+
+function NameRow() {
+  const store = useStore();
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(store.name || '');
+  const [busy, setBusy] = useState(false);
+
+  function startEdit() {
+    setVal(store.name || '');
+    setEditing(true);
+  }
+
+  async function save(e) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await store.saveName(val.trim());
+      setEditing(false);
+      store.toast(val.trim() ? 'Name updated' : 'Name cleared');
+    } catch (err) { store.toast(err.message); }
+    setBusy(false);
+  }
+
+  if (editing) {
+    return (
+      <form className="name-edit" onSubmit={save}>
+        <input autoFocus placeholder="Your name" maxLength={80}
+          value={val} onChange={(e) => setVal(e.target.value)} />
+        <button className="icon-btn" type="submit" disabled={busy} title="Save"><Check size={15} /></button>
+        <button className="icon-btn" type="button" onClick={() => setEditing(false)} title="Cancel"><X size={15} /></button>
+      </form>
+    );
+  }
+
+  return (
+    <div className="row-setting">
+      <span>{store.name || <span className="muted">No name set</span>}</span>
+      <button className="icon-btn" onClick={startEdit} title={store.name ? 'Edit name' : 'Add name'}>
+        <Pencil size={14} />
+      </button>
+    </div>
   );
 }
 
