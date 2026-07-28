@@ -67,15 +67,25 @@ async function rawQuery(sql, params = []) {
   return results[results.length - 1] || { results: [], meta: {} };
 }
 
-let ready;
-async function ensureSchema() {
-  if (!ready) ready = rawQuery(SCHEMA).catch((e) => { ready = null; throw e; });
-  await ready;
+let schemaRun;
+function ensureSchema() {
+  if (!schemaRun) schemaRun = rawQuery(SCHEMA).catch((e) => { schemaRun = null; throw e; });
+  return schemaRun;
 }
 
 // q(sql, params) → { rows, meta } — SQLite dialect, `?` placeholders.
+//
+// Serverless-friendly: we do NOT pre-check the schema on every cold start
+// (that would add a round-trip to each new instance). Instead we run the
+// query directly and only create tables if the database says they're missing.
 export async function q(sql, params = []) {
-  await ensureSchema();
-  const r = await rawQuery(sql, params);
-  return { rows: r.results || [], meta: r.meta || {} };
+  try {
+    const r = await rawQuery(sql, params);
+    return { rows: r.results || [], meta: r.meta || {} };
+  } catch (e) {
+    if (!/no such table|no such column/i.test(e.message)) throw e;
+    await ensureSchema();
+    const r = await rawQuery(sql, params);
+    return { rows: r.results || [], meta: r.meta || {} };
+  }
 }

@@ -2,10 +2,15 @@
 // Runtime caching: pages network-first (cache fallback), static assets
 // stale-while-revalidate, CDN libs cache-first. API calls skip the SW —
 // the app itself queues mutations in IndexedDB while offline.
-const CACHE = 'rupeeflow-next-v1';
+const CACHE = 'rupeeflow-next-v2';
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/'])).then(() => self.skipWaiting()));
+  e.waitUntil(
+    caches.open(CACHE)
+      .then((c) => c.addAll(['/', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png']))
+      .catch(() => {})   // a missing optional asset must not block install
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', (e) => {

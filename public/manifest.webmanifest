@@ -1,12 +1,22 @@
 {
-  "name": "RupeeFlow",
+  "name": "RupeeFlow — budget & expense tracker",
   "short_name": "RupeeFlow",
-  "description": "Effortless ₹ budget & expense tracking with AI",
+  "description": "Minimalist ₹ budget and expense tracking with AI voice entry, receipt scanning and insights. Works offline.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#0e1116",
-  "theme_color": "#0e1116",
+  "orientation": "portrait-primary",
+  "background_color": "#0a0a0b",
+  "theme_color": "#0a0a0b",
+  "categories": ["finance", "productivity"],
   "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
     { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Add expense", "short_name": "Add", "url": "/?action=add" },
+    { "name": "Ledger", "short_name": "Ledger", "url": "/?view=ledger" }
   ]
 }

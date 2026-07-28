@@ -27,8 +27,8 @@ export default function TxModal({ state, onClose }) {
   const [note, setNote] = useState(existing?.note ?? pre.note ?? '');
   const [category, setCategory] = useState(existing?.category || pre.category || 'Food & Dining');
   const [project, setProject] = useState(existing?.project ?? pre.project ?? '');
-  const [account, setAccount] = useState(existing?.account || 'Cash');
-  const [toAccount, setToAccount] = useState(existing?.to_account || 'Bank');
+  const [account, setAccount] = useState(existing?.account || store.accounts[0] || 'Cash');
+  const [toAccount, setToAccount] = useState(existing?.to_account || store.accounts[1] || 'Bank');
   const [date, setDate] = useState(() => {
     const d = new Date(Number(existing?.occurred_at ?? pre.occurred_at ?? Date.now()));
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -107,16 +107,25 @@ export default function TxModal({ state, onClose }) {
               {store.projects().map((p) => <option key={p} value={p} />)}
             </datalist>
           </div>
-          <div className="form-row">
-            <select value={account} onChange={(e) => setAccount(e.target.value)}>
-              {ACCOUNTS.map((a) => <option key={a}>{a}</option>)}
-            </select>
-            {type === 'transfer' && (
-              <select value={toAccount} onChange={(e) => setToAccount(e.target.value)}>
-                {ACCOUNTS.map((a) => <option key={a}>{a}</option>)}
+          <div className="form-row labelled">
+            <label>
+              <span>{type === 'transfer' ? 'From account' : type === 'income' ? 'Into account' : 'Paid from'}</span>
+              <select value={account} onChange={(e) => setAccount(e.target.value)}>
+                {store.accounts.map((a) => <option key={a}>{a}</option>)}
               </select>
+            </label>
+            {type === 'transfer' && (
+              <label>
+                <span>To account</span>
+                <select value={toAccount} onChange={(e) => setToAccount(e.target.value)}>
+                  {store.accounts.map((a) => <option key={a}>{a}</option>)}
+                </select>
+              </label>
             )}
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <label>
+              <span>Date</span>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </label>
           </div>
           <div className="btn-row">
             {existing && <button type="button" className="btn danger-ghost" onClick={remove}>Delete</button>}

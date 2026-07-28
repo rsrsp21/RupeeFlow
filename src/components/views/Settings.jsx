@@ -1,10 +1,13 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { Download, LogOut, RefreshCw, Plus, Wallet, Trash2 } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
-import { monthKey, rupees } from '@/lib/client/constants';
+import { rupees } from '@/lib/client/constants';
+import { useUI } from '../App';
 
 export default function Settings() {
   const store = useStore();
+  const { openExport } = useUI();
   const [dark, setDark] = useState(true);
   useEffect(() => { setDark(document.documentElement.dataset.theme === 'dark'); }, []);
 
@@ -14,51 +17,7 @@ export default function Settings() {
     localStorage.setItem('rf_theme', v ? 'dark' : 'light');
   }
 
-  function exportCSV() {
-    const rows = [['Date', 'Type', 'Amount (INR)', 'Category', 'Note', 'Project', 'Account', 'To Account', 'Source']];
-    for (const t of store.live().sort((a, b) => a.occurred_at - b.occurred_at)) {
-      rows.push([new Date(Number(t.occurred_at)).toISOString().slice(0, 10), t.type, (t.amount / 100).toFixed(2),
-        t.category, t.note, t.project, t.account, t.to_account, t.source]);
-    }
-    const csv = rows.map((r) => r.map((v) => (/[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v)).join(',')).join('\n');
-    download(new Blob(['﻿' + csv], { type: 'text/csv' }), `rupeeflow-${monthKey()}.csv`);
-    store.toast('CSV exported ✓');
-  }
-
-  async function exportPDF() {
-    store.toast('Building PDF…');
-    try {
-      if (!window.jspdf) {
-        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
-        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js');
-      }
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      const monthList = store.live().filter((t) => store.inMonth(t));
-      const { inc, exp } = store.totals(monthList);
-      doc.setFontSize(20); doc.text('RupeeFlow — Monthly Report', 14, 20);
-      doc.setFontSize(11); doc.setTextColor(120);
-      doc.text(`${new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}  ·  ${store.email}`, 14, 28);
-      doc.setTextColor(0);
-      doc.text(`Income: Rs ${(inc / 100).toLocaleString('en-IN')}    Expenses: Rs ${(exp / 100).toLocaleString('en-IN')}    Net: Rs ${((inc - exp) / 100).toLocaleString('en-IN')}`, 14, 38);
-      doc.autoTable({
-        startY: 46, head: [['Category', 'Spent (Rs)']],
-        body: Object.entries(store.catSpend()).sort((a, b) => b[1] - a[1])
-          .map(([c, v]) => [c, (v / 100).toLocaleString('en-IN')]),
-        theme: 'striped', headStyles: { fillColor: [14, 159, 110] },
-      });
-      doc.autoTable({
-        startY: doc.lastAutoTable.finalY + 8,
-        head: [['Date', 'Type', 'Amount (Rs)', 'Category', 'Note', 'Project']],
-        body: monthList.sort((a, b) => b.occurred_at - a.occurred_at)
-          .map((t) => [new Date(Number(t.occurred_at)).toLocaleDateString('en-IN'), t.type,
-            (t.amount / 100).toLocaleString('en-IN'), t.category, t.note, t.project]),
-        theme: 'grid', styles: { fontSize: 8 }, headStyles: { fillColor: [14, 159, 110] },
-      });
-      doc.save(`rupeeflow-report-${monthKey()}.pdf`);
-      store.toast('PDF report exported ✓');
-    } catch { store.toast('PDF failed (needs internet once to load library)'); }
-  }
+  const counts = store.live().length;
 
   return (
     <section className="view">
@@ -74,39 +33,97 @@ export default function Settings() {
         </label>
       </div>
 
+      <AccountsCard />
+
       <div className="card">
-        <h3>Export</h3>
-        <div className="btn-row">
-          <button className="btn ghost" onClick={exportCSV}>Export CSV</button>
-          <button className="btn ghost" onClick={exportPDF}>Export PDF report</button>
+        <div className="card-head">
+          <h3>Export &amp; backup</h3>
         </div>
+        <p className="muted small" style={{ marginBottom: 12 }}>
+          {counts} entries available. Choose format, timeline, filters and columns in the export builder.
+        </p>
+        <button className="btn ghost" onClick={openExport}><Download size={14} /> Open export builder</button>
       </div>
 
       <div className="card">
         <h3>Sync</h3>
-        <p className="muted">
+        <p className="muted small" style={{ marginBottom: 12 }}>
           {store.lastSync
             ? `Last synced ${new Date(store.lastSync).toLocaleTimeString('en-IN')} · auto-syncs every few seconds`
             : 'Waiting for first sync…'}
         </p>
-        <button className="btn ghost" onClick={() => { store.toast('Syncing…'); store.syncNow(); }}>Sync now</button>
+        <button className="btn ghost" onClick={() => { store.toast('Syncing…'); store.syncNow(); }}>
+          <RefreshCw size={14} /> Sync now
+        </button>
       </div>
 
       <div className="card">
         <h3>Account</h3>
-        <button className="btn danger-ghost" onClick={store.logout}>Sign out</button>
+        <button className="btn danger-ghost" onClick={store.logout}><LogOut size={14} /> Sign out</button>
       </div>
     </section>
   );
 }
 
-const loadScript = (src) => new Promise((res, rej) => {
-  const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej;
-  document.head.appendChild(s);
-});
+function AccountsCard() {
+  const store = useStore();
+  const [adding, setAdding] = useState('');
+  const balances = store.accountBalances();
+  const usage = {};
+  for (const t of store.live()) {
+    usage[t.account] = (usage[t.account] || 0) + 1;
+    if (t.to_account) usage[t.to_account] = (usage[t.to_account] || 0) + 1;
+  }
 
-function download(blob, name) {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = name; a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  async function add(e) {
+    e.preventDefault();
+    const name = adding.trim();
+    if (!name) return;
+    if (store.accounts.some((a) => a.toLowerCase() === name.toLowerCase())) {
+      return store.toast('That account already exists');
+    }
+    await store.saveAccounts([...store.accounts, name]);
+    setAdding('');
+    store.toast(`Added ${name}`);
+  }
+
+  async function remove(name) {
+    if (usage[name]) return store.toast(`${name} is used by ${usage[name]} entries — can't remove`);
+    if (store.accounts.length <= 1) return store.toast('Keep at least one account');
+    await store.saveAccounts(store.accounts.filter((a) => a !== name));
+    store.toast(`Removed ${name}`);
+  }
+
+  return (
+    <div className="card">
+      <div className="card-head"><h3><Wallet size={13} style={{ verticalAlign: '-2px' }} /> Accounts</h3></div>
+      <p className="muted small" style={{ marginBottom: 12 }}>
+        Balances are derived from your ledger — income adds, expenses subtract, transfers move between accounts.
+      </p>
+
+      <div className="acct-list">
+        {store.accounts.map((a) => {
+          const bal = balances[a] || 0;
+          return (
+            <div className="acct-row" key={a}>
+              <span className="acct-name">{a}</span>
+              <span className="acct-count">{usage[a] || 0} entries</span>
+              <b className="acct-bal" style={{ color: bal < 0 ? 'var(--red)' : bal > 0 ? 'var(--green)' : 'var(--muted)' }}>
+                {bal < 0 ? '−' : ''}{rupees(Math.abs(bal))}
+              </b>
+              <button className="icon-btn" onClick={() => remove(a)} title="Remove account" disabled={!!usage[a]}>
+                <Trash2 size={14} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      <form className="acct-add" onSubmit={add}>
+        <input placeholder="Add an account (e.g. HDFC, Paytm, Wife's card)"
+          value={adding} onChange={(e) => setAdding(e.target.value)} />
+        <button className="btn ghost" type="submit"><Plus size={14} /> Add</button>
+      </form>
+    </div>
+  );
 }

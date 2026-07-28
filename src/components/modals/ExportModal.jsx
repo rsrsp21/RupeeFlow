@@ -1,0 +1,179 @@
+'use client';
+// Export builder — pick format, timeline, filters, grouping and columns.
+import { useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import { FileText, FileSpreadsheet, Braces, Check, Sparkles } from 'lucide-react';
+import { useStore } from '@/lib/client/store';
+import { CATEGORIES, rupees } from '@/lib/client/constants';
+import {
+  RANGES, COLUMNS, selectRows, toCSV, toPDF, summarize, download,
+} from '@/lib/client/exporters';
+import { backdropMotion, panelMotion } from './TxModal';
+
+const DEFAULT_COLS = ['date', 'type', 'amount', 'category', 'note', 'project', 'account'];
+
+export default function ExportModal({ onClose }) {
+  const store = useStore();
+  const [format, setFormat] = useState('pdf');
+  const [range, setRange] = useState('month');
+  const [type, setType] = useState('');
+  const [category, setCategory] = useState('');
+  const [project, setProject] = useState('');
+  const [groupBy, setGroupBy] = useState('category');
+  const [cols, setCols] = useState(DEFAULT_COLS);
+  const [includeSummary, setIncludeSummary] = useState(true);
+  const [includeTransactions, setIncludeTransactions] = useState(true);
+  const [withAI, setWithAI] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const opts = { range, type, category, project, groupBy, columns: cols, includeSummary, includeTransactions };
+  const rows = useMemo(() => selectRows(store.live(), opts), [store.txs, range, type, category, project]); // eslint-disable-line
+  const totals = store.totals(rows);
+
+  const toggleCol = (c) =>
+    setCols((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...DEFAULT_COLS, ...Object.keys(COLUMNS)]
+      .filter((k, i, a) => a.indexOf(k) === i).filter((k) => prev.includes(k) || k === c)));
+
+  async function run() {
+    if (!rows.length) return store.toast('Nothing to export in that range');
+    setBusy(true);
+    try {
+      const stamp = new Date().toISOString().slice(0, 10);
+      if (format === 'csv') {
+        const csv = includeSummary && !includeTransactions
+          ? ['Group,Entries,Spent (INR),Received (INR)',
+             ...summarize(rows, groupBy).map((g) => `${JSON.stringify(g.key)},${g.count},${(g.expense / 100).toFixed(2)},${(g.income / 100).toFixed(2)}`)].join('\n')
+          : toCSV(rows, cols);
+        download(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }), `rupeeflow-${range}-${stamp}.csv`);
+      } else if (format === 'json') {
+        download(new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' }), `rupeeflow-${range}-${stamp}.json`);
+      } else {
+        let aiSummary = '';
+        if (withAI) {
+          store.toast('Writing AI summary…');
+          try {
+            const { insight } = await store.api('/ai/insights', {
+              method: 'POST', body: JSON.stringify({ summary: store.buildSummary(365) }),
+            });
+            aiSummary = insight;
+          } catch { /* export still proceeds without it */ }
+        }
+        await toPDF(rows, { ...opts, aiSummary }, { email: store.email });
+      }
+      store.toast(`Exported ${rows.length} entries`);
+      onClose();
+    } catch (e) {
+      store.toast('Export failed: ' + e.message);
+    }
+    setBusy(false);
+  }
+
+  return (
+    <motion.div className="modal-backdrop" {...backdropMotion}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <motion.div className="modal export-modal" {...panelMotion}>
+        <div className="modal-head">
+          <h3>Export data</h3>
+          <button className="icon-btn" onClick={onClose}>✕</button>
+        </div>
+
+        <div className="export-body">
+          <div className="field">
+            <span className="field-label">Format</span>
+            <div className="fmt-grid">
+              {[['pdf', 'PDF report', FileText], ['csv', 'CSV / Excel', FileSpreadsheet], ['json', 'JSON backup', Braces]]
+                .map(([k, label, Icon]) => (
+                  <button key={k} className={`fmt-card ${format === k ? 'on' : ''}`} onClick={() => setFormat(k)}>
+                    <Icon size={17} strokeWidth={1.8} />
+                    <span>{label}</span>
+                  </button>
+                ))}
+            </div>
+          </div>
+
+          <div className="field">
+            <span className="field-label">Timeline</span>
+            <div className="pill-grid">
+              {Object.entries(RANGES).map(([k, v]) => (
+                <button key={k} className={`pill-btn ${range === k ? 'on' : ''}`} onClick={() => setRange(k)}>{v.label}</button>
+              ))}
+            </div>
+          </div>
+
+          <div className="field">
+            <span className="field-label">Filters</span>
+            <div className="form-row">
+              <select value={type} onChange={(e) => setType(e.target.value)}>
+                <option value="">All types</option><option value="expense">Expenses only</option>
+                <option value="income">Income only</option><option value="transfer">Transfers only</option>
+              </select>
+              <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option value="">All categories</option>
+                {Object.keys(CATEGORIES).map((c) => <option key={c}>{c}</option>)}
+              </select>
+              <select value={project} onChange={(e) => setProject(e.target.value)}>
+                <option value="">All projects</option>
+                {store.projects().map((p) => <option key={p}>{p}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {format !== 'json' && (
+            <div className="field">
+              <span className="field-label">Summarise by</span>
+              <div className="pill-grid">
+                {[['category', 'Category'], ['month', 'Month'], ['day', 'Day'], ['project', 'Project'], ['account', 'Account']]
+                  .map(([k, label]) => (
+                    <button key={k} className={`pill-btn ${groupBy === k ? 'on' : ''}`} onClick={() => setGroupBy(k)}>{label}</button>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {format !== 'json' && (
+            <div className="field">
+              <span className="field-label">Include</span>
+              <label className="row-setting compact">
+                <span>Summary table</span>
+                <input type="checkbox" className="switch" checked={includeSummary} onChange={(e) => setIncludeSummary(e.target.checked)} />
+              </label>
+              <label className="row-setting compact">
+                <span>Every transaction</span>
+                <input type="checkbox" className="switch" checked={includeTransactions} onChange={(e) => setIncludeTransactions(e.target.checked)} />
+              </label>
+              {format === 'pdf' && (
+                <label className="row-setting compact">
+                  <span><Sparkles size={13} style={{ verticalAlign: '-2px' }} /> AI written summary page</span>
+                  <input type="checkbox" className="switch" checked={withAI} onChange={(e) => setWithAI(e.target.checked)} />
+                </label>
+              )}
+            </div>
+          )}
+
+          {format !== 'json' && includeTransactions && (
+            <div className="field">
+              <span className="field-label">Columns</span>
+              <div className="pill-grid">
+                {Object.entries(COLUMNS).map(([k, v]) => (
+                  <button key={k} className={`pill-btn ${cols.includes(k) ? 'on' : ''}`}
+                    onClick={() => setCols((p) => p.includes(k) ? p.filter((x) => x !== k) : [...p, k])}>
+                    {cols.includes(k) && <Check size={11} strokeWidth={2.6} />} {v.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="export-foot">
+          <div className="export-preview">
+            <b>{rows.length}</b> entries · <b>{rupees(totals.exp)}</b> spent · <b>{rupees(totals.inc)}</b> received
+          </div>
+          <button className="btn primary" onClick={run} disabled={busy || !rows.length}>
+            {busy ? 'Preparing…' : `Export ${format.toUpperCase()}`}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}

@@ -3,7 +3,7 @@
 // pull cursor + polling for near-real-time cross-device updates).
 import { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react';
 import { idbPut, idbAll, idbClear } from './idb';
-import { monthKey } from './constants';
+import { monthKey, ACCOUNTS as DEFAULT_ACCOUNTS } from './constants';
 
 const Ctx = createContext(null);
 export const useStore = () => useContext(Ctx);
@@ -16,6 +16,7 @@ export function StoreProvider({ children }) {
   const [booted, setBooted] = useState(false);
   const [txs, setTxs] = useState({});           // id → transaction
   const [budgets, setBudgets] = useState([]);
+  const [accounts, setAccounts] = useState(DEFAULT_ACCOUNTS);
   const [syncState, setSyncState] = useState('offline'); // offline|pending|online|error
   const [lastSync, setLastSync] = useState(0);
   const [toastMsg, setToastMsg] = useState('');
@@ -33,6 +34,10 @@ export function StoreProvider({ children }) {
 
   // ── API helper ──
   const api = useCallback(async (path, opts = {}) => {
+    // AI endpoints need the network; fail with a clear message instead of a raw fetch error
+    if (typeof navigator !== 'undefined' && !navigator.onLine && path.startsWith('/ai/')) {
+      throw new Error('AI features need an internet connection');
+    }
     const res = await fetch(`/api${path}`, {
       ...opts,
       headers: { 'content-type': 'application/json', authorization: `Bearer ${tokenRef.current}`, ...(opts.headers || {}) },
@@ -133,6 +138,8 @@ export function StoreProvider({ children }) {
         const metas = await idbAll('meta');
         cursor.current = metas.find((m) => m.k === 'cursor')?.v || 0;
         setBudgets(metas.find((m) => m.k === 'budgets')?.v || []);
+        const savedAccounts = metas.find((m) => m.k === 'accounts')?.v;
+        if (savedAccounts?.length) setAccounts(savedAccounts);
       }
       setBooted(true);
     })();
@@ -197,6 +204,30 @@ export function StoreProvider({ children }) {
   };
   const projects = () => [...new Set(live().map((t) => t.project).filter(Boolean))].sort();
 
+  // ── accounts ──
+  const saveAccounts = useCallback(async (list) => {
+    const clean = [...new Set(list.map((a) => String(a).trim()).filter(Boolean))];
+    setAccounts(clean);
+    await idbPut('meta', { k: 'accounts', v: clean });
+  }, []);
+
+  // Balance per account, derived from the ledger: income in, expense out,
+  // transfers move between the two named accounts.
+  const accountBalances = useCallback(() => {
+    const map = {};
+    for (const a of accounts) map[a] = 0;
+    for (const t of live()) {
+      const amt = Number(t.amount);
+      if (t.type === 'income') map[t.account] = (map[t.account] || 0) + amt;
+      else if (t.type === 'expense') map[t.account] = (map[t.account] || 0) - amt;
+      else if (t.type === 'transfer') {
+        map[t.account] = (map[t.account] || 0) - amt;
+        map[t.to_account] = (map[t.to_account] || 0) + amt;
+      }
+    }
+    return map;
+  }, [accounts, txs]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // AI summary for insights/Q&A — built from real ledger data
   const buildSummary = (daysBack = 35) => {
     const cut = Date.now() - daysBack * 86400000;
@@ -227,9 +258,9 @@ export function StoreProvider({ children }) {
   };
 
   const value = {
-    token, email, booted, txs, budgets, syncState, lastSync, toastMsg,
-    api, toast, syncNow, saveTx, saveBudget, authenticate, logout,
-    live, totals, inMonth, catSpend, effectiveBudget, projects, buildSummary,
+    token, email, booted, txs, budgets, accounts, syncState, lastSync, toastMsg,
+    api, toast, syncNow, saveTx, saveBudget, saveAccounts, authenticate, logout,
+    live, totals, inMonth, catSpend, effectiveBudget, projects, accountBalances, buildSummary,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -71,6 +71,39 @@ Write a concise weekly insight: 1) biggest spending categories and week-over-wee
   }], { asJson: false, temperature: 0.6 });
 }
 
+// Structured multi-card coaching: savings ideas, risks, wins, forecast note.
+export function coachCards(summary) {
+  return gemini([{
+    text: `You are a precise personal-finance analyst for an Indian professional. All amounts in ₹.
+Data (JSON): ${JSON.stringify(summary)}
+
+Return ONLY JSON: {"headline":"one-line verdict on this month, max 12 words","score":0-100,"score_reason":"max 12 words","cards":[{"kind":"save|risk|win|watch","title":"max 7 words","detail":"max 24 words, cite a real ₹ figure from the data","impact_rupees":number_or_null}]}
+Give 3–5 cards. "save" = a concrete cut with rupee impact; "risk" = overspending or budget danger; "win" = something genuinely good; "watch" = a trend to monitor. Be specific to the numbers — never generic advice. score = financial health this month (higher is better).`,
+  }], { temperature: 0.45 });
+}
+
+// Suggest monthly budgets per category from actual history.
+export function budgetSuggestions(summary) {
+  return gemini([{
+    text: `You set realistic monthly budgets for an Indian professional. All amounts in ₹.
+Spending history (JSON): ${JSON.stringify(summary)}
+
+Return ONLY JSON: {"overall_rupees":number,"reasoning":"max 20 words","categories":[{"category":"exact category name from the data","suggested_rupees":number,"current_avg_rupees":number,"rationale":"max 12 words"}]}
+Suggest budgets for the 5–7 categories they actually spend on. Base them on real averages: trim discretionary categories ~10-15%, keep essentials (Rent, Bills & Utilities, Health, EMI & Loans) at actual levels. Round to sensible numbers (nearest 100 or 500). overall_rupees should be achievable, not punitive.`,
+  }], { temperature: 0.3 });
+}
+
+// Detect recurring/subscription-like spending from the raw entry list.
+export function detectRecurring(entries) {
+  return gemini([{
+    text: `Find recurring or subscription-like spending in this Indian user's transactions (amounts in ₹).
+Transactions (JSON): ${JSON.stringify(entries)}
+
+Return ONLY JSON: {"recurring":[{"label":"what it is","category":"category","typical_rupees":number,"cadence":"monthly|weekly|yearly|irregular","occurrences":number,"annual_cost_rupees":number,"cancel_candidate":true|false,"note":"max 12 words"}]}
+Group by merchant/purpose, not exact amount. Only include things appearing 2+ times with a rough rhythm. cancel_candidate = true for discretionary subscriptions they might not need. Return an empty array if nothing recurs.`,
+  }], { temperature: 0.25 });
+}
+
 export function askQuestion(question, summary) {
   return gemini([{
     text: `You are RupeeFlow's finance assistant. Answer using ONLY this user's data (amounts in ₹, JSON):

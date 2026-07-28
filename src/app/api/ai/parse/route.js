@@ -1,3 +1,6 @@
+// Gemini calls can exceed Vercel's 10s default — raise the ceiling.
+export const maxDuration = 60;
+
 import { requireUser, jsonRes, errRes, HttpError } from '@/lib/auth';
 import { parseText } from '@/lib/gemini';
 

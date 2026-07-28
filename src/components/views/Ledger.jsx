@@ -1,161 +1,286 @@
 'use client';
-// Ledger: day-pager view (‹ day ›) by default; searching or filtering switches
-// to results grouped under date headers.
+// Ledger — period switcher (Day/Week/Month/Year), period totals + trend,
+// deep filters, and date-grouped entries with per-day subtotals.
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, SlidersHorizontal, X, Download } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
-import { CATEGORIES, rupees } from '@/lib/client/constants';
+import { CATEGORIES, rupees, toPaise } from '@/lib/client/constants';
+import {
+  PERIODS, DAY_MS, periodStart, periodEnd, shiftPeriod, periodLabel, bucketsFor, startOfDay,
+} from '@/lib/client/period';
 import TxItem from '../TxItem';
+import TrendBars from '../charts/TrendBars';
+import { useUI } from '../App';
 
-const DAY_MS = 86400000;
-const startOfDay = (t = Date.now()) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+const SORTS = {
+  recent: { label: 'Newest first', fn: (a, b) => b.occurred_at - a.occurred_at },
+  oldest: { label: 'Oldest first', fn: (a, b) => a.occurred_at - b.occurred_at },
+  high: { label: 'Highest amount', fn: (a, b) => b.amount - a.amount },
+  low: { label: 'Lowest amount', fn: (a, b) => a.amount - b.amount },
+};
 
-function dayLabel(dayStart) {
+function dayHeading(dayStart) {
   const today = startOfDay();
   if (dayStart === today) return 'Today';
   if (dayStart === today - DAY_MS) return 'Yesterday';
-  if (dayStart === today + DAY_MS) return 'Tomorrow';
-  return new Date(dayStart).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(dayStart).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' });
 }
 
 export default function Ledger() {
   const store = useStore();
+  const { openExport } = useUI();
+  const [kind, setKind] = useState('day');
+  const [start, setStart] = useState(() => periodStart('day'));
   const [q, setQ] = useState('');
   const [type, setType] = useState('');
   const [cat, setCat] = useState('');
   const [proj, setProj] = useState('');
-  const [day, setDay] = useState(() => startOfDay());
+  const [account, setAccount] = useState('');
+  const [minAmt, setMinAmt] = useState('');
+  const [maxAmt, setMaxAmt] = useState('');
+  const [sort, setSort] = useState('recent');
+  const [showFilters, setShowFilters] = useState(false);
+  const [allTime, setAllTime] = useState(false);
 
+  const end = periodEnd(kind, start);
   const projects = store.projects();
-  const filtersActive = Boolean(q || type || cat || proj);
 
-  // shared filter pass (without date)
-  const filtered = useMemo(() => {
-    let l = store.live();
+  function switchKind(k) {
+    setKind(k);
+    setStart(periodStart(k));
+    setAllTime(false);
+  }
+
+  const extraFilters = [type, cat, proj, account, minAmt, maxAmt].filter(Boolean).length;
+  const activeFilters = extraFilters + (q ? 1 : 0);
+
+  function clearFilters() {
+    setQ(''); setType(''); setCat(''); setProj(''); setAccount(''); setMinAmt(''); setMaxAmt('');
+  }
+
+  // period slice (or all time)
+  const periodTx = useMemo(() => {
+    const all = store.live();
+    return allTime ? all : all.filter((t) => t.occurred_at >= start && t.occurred_at < end);
+  }, [store, store.txs, start, end, allTime]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // filters
+  const list = useMemo(() => {
+    let l = periodTx;
     if (type) l = l.filter((t) => t.type === type);
     if (cat) l = l.filter((t) => t.category === cat);
     if (proj) l = l.filter((t) => t.project === proj);
+    if (account) l = l.filter((t) => t.account === account || t.to_account === account);
+    const lo = toPaise(minAmt), hi = toPaise(maxAmt);
+    if (Number.isFinite(lo)) l = l.filter((t) => t.amount >= lo);
+    if (Number.isFinite(hi)) l = l.filter((t) => t.amount <= hi);
     if (q) {
       const s = q.toLowerCase();
       l = l.filter((t) => `${t.note} ${t.category} ${t.project} ${t.account}`.toLowerCase().includes(s));
     }
-    return l.sort((a, b) => b.occurred_at - a.occurred_at);
-  }, [store, store.txs, q, type, cat, proj]); // eslint-disable-line react-hooks/exhaustive-deps
+    return [...l].sort(SORTS[sort].fn);
+  }, [periodTx, q, type, cat, proj, account, minAmt, maxAmt, sort]);
 
-  // ── day mode ──
-  const dayList = filtered.filter((t) => t.occurred_at >= day && t.occurred_at < day + DAY_MS);
-  const dayTotals = store.totals(dayList);
-  const earliest = filtered.length ? startOfDay(Math.min(...filtered.map((t) => Number(t.occurred_at)))) : startOfDay();
-  const latest = Math.max(startOfDay(), filtered.length ? startOfDay(Math.max(...filtered.map((t) => Number(t.occurred_at)))) : 0);
+  const totals = store.totals(list);
+  const net = totals.inc - totals.exp;
 
-  // ── results mode: group by date ──
+  // stats
+  const dayCount = Math.max(1, Math.round((Math.min(end, Date.now()) - start) / DAY_MS));
+  const avgPerDay = allTime ? 0 : Math.round(totals.exp / dayCount);
+  const biggest = list.filter((t) => t.type === 'expense').sort((a, b) => b.amount - a.amount)[0];
+
+  // trend buckets over the period (expenses)
+  const buckets = useMemo(() => {
+    if (allTime) return [];
+    return bucketsFor(kind, start).map((b) => ({
+      ...b,
+      value: periodTx.filter((t) => t.type === 'expense' && t.occurred_at >= b.start && t.occurred_at < b.end)
+        .reduce((s, t) => s + t.amount, 0),
+    }));
+  }, [kind, start, periodTx, allTime]);
+
+  // group by day
   const groups = useMemo(() => {
-    if (!filtersActive) return [];
     const map = new Map();
-    for (const t of filtered.slice(0, 400)) {
+    for (const t of list.slice(0, 500)) {
       const k = startOfDay(Number(t.occurred_at));
       if (!map.has(k)) map.set(k, []);
       map.get(k).push(t);
     }
-    return [...map.entries()];
-  }, [filtered, filtersActive]);
+    const arr = [...map.entries()];
+    if (sort === 'oldest') arr.sort((a, b) => a[0] - b[0]); else arr.sort((a, b) => b[0] - a[0]);
+    return arr;
+  }, [list, sort]);
 
-  const overall = store.totals(filtered);
+  const atNow = start >= periodStart(kind);
 
   return (
     <section className="view">
       <header className="view-head">
         <div>
           <h2>Ledger</h2>
-          <p className="sub">
-            {filtersActive
-              ? `${filtered.length} matches · in ${rupees(overall.inc)} · out ${rupees(overall.exp)}`
-              : 'Browse day by day, or search everything'}
-          </p>
+          <p className="sub">{list.length} {list.length === 1 ? 'entry' : 'entries'}{activeFilters ? ' · filtered' : ''}</p>
+        </div>
+        <div className="head-actions">
+          <div className="seg period-seg">
+            {PERIODS.map((k) => (
+              <button key={k} className={kind === k && !allTime ? 'on' : ''} onClick={() => switchKind(k)}>
+                {k[0].toUpperCase() + k.slice(1)}
+              </button>
+            ))}
+            <button className={allTime ? 'on' : ''} onClick={() => setAllTime(true)}>All</button>
+          </div>
+          <button className="btn ghost" onClick={openExport} title="Export"><Download size={15} /></button>
         </div>
       </header>
 
-      <div className="filters card">
-        <input type="search" className="search" placeholder="Search notes, categories, projects…"
-          value={q} onChange={(e) => setQ(e.target.value)} />
-        <div className="filter-row">
-          <select value={type} onChange={(e) => setType(e.target.value)}>
-            <option value="">All types</option><option value="expense">Expense</option>
-            <option value="income">Income</option><option value="transfer">Transfer</option>
-          </select>
-          <select value={cat} onChange={(e) => setCat(e.target.value)}>
-            <option value="">All categories</option>
-            {Object.keys(CATEGORIES).map((c) => <option key={c}>{c}</option>)}
-          </select>
-          <select value={proj} onChange={(e) => setProj(e.target.value)}>
-            <option value="">All projects</option>
-            {projects.map((p) => <option key={p}>{p}</option>)}
-          </select>
+      {/* ── period summary ── */}
+      <div className="card period-card">
+        <div className="period-nav">
+          <button className="day-arrow" disabled={allTime} onClick={() => setStart((s) => shiftPeriod(kind, s, -1))} title="Previous">
+            <ChevronLeft size={17} strokeWidth={2} />
+          </button>
+          <AnimatePresence mode="wait">
+            <motion.div className="period-title" key={allTime ? 'all' : `${kind}-${start}`}
+              initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.14 }}>
+              <div className="day-label">{allTime ? 'All time' : periodLabel(kind, start)}</div>
+              {!allTime && !atNow && (
+                <button className="today-jump" onClick={() => setStart(periodStart(kind))}>Jump to current</button>
+              )}
+            </motion.div>
+          </AnimatePresence>
+          <button className="day-arrow" disabled={allTime || atNow} onClick={() => setStart((s) => shiftPeriod(kind, s, 1))} title="Next">
+            <ChevronRight size={17} strokeWidth={2} />
+          </button>
         </div>
+
+        <div className="stat-row">
+          <div className="stat">
+            <span className="stat-k">Spent</span>
+            <b className="stat-v out">{rupees(totals.exp)}</b>
+          </div>
+          <div className="stat">
+            <span className="stat-k">Received</span>
+            <b className="stat-v in">{rupees(totals.inc)}</b>
+          </div>
+          <div className="stat">
+            <span className="stat-k">Net</span>
+            <b className="stat-v" style={{ color: net >= 0 ? 'var(--green)' : 'var(--red)' }}>
+              {net >= 0 ? '+' : '−'}{rupees(Math.abs(net))}
+            </b>
+          </div>
+          {!allTime && (
+            <div className="stat">
+              <span className="stat-k">Avg / day</span>
+              <b className="stat-v">{rupees(avgPerDay)}</b>
+            </div>
+          )}
+        </div>
+
+        {!allTime && buckets.some((b) => b.value > 0) && (
+          <div className="period-trend"><TrendBars buckets={buckets} height={52} /></div>
+        )}
+
+        {biggest && (
+          <p className="period-note">
+            Largest: <b>{biggest.note || biggest.category}</b> · {rupees(biggest.amount)}
+          </p>
+        )}
       </div>
 
-      {filtersActive ? (
-        /* ── grouped results ── */
-        <ul className="tx-list card">
-          {groups.length ? groups.map(([k, items]) => {
-            const g = store.totals(items);
-            return (
-              <li key={k}>
-                <div className="date-head">
-                  <span>{dayLabel(k)}</span>
-                  <span>
-                    {g.inc > 0 && <b style={{ color: 'var(--accent)' }}>+{rupees(g.inc)} </b>}
-                    {g.exp > 0 && <b style={{ color: 'var(--red)' }}>−{rupees(g.exp)}</b>}
-                  </span>
-                </div>
-                <ul className="tx-list">{items.map((t, i) => <TxItem key={t.id} t={t} index={i} />)}</ul>
-              </li>
-            );
-          }) : <li className="empty">Nothing matches. Try clearing filters.</li>}
-        </ul>
-      ) : (
-        /* ── day pager ── */
-        <>
-          <div className="day-nav">
-            <button className="day-arrow" title="Previous day"
-              disabled={day <= earliest}
-              onClick={() => setDay((d) => d - DAY_MS)}>
-              <ChevronLeft size={17} strokeWidth={2} />
-            </button>
-            <AnimatePresence mode="wait">
-              <motion.div className="day-center" key={day}
-                initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.14, ease: 'easeOut' }}>
-                <div className="day-label">{dayLabel(day)}</div>
-                <div className="day-sub">
-                  <span>{dayList.length ? `${dayList.length} ${dayList.length === 1 ? 'entry' : 'entries'}` : 'No entries'}</span>
-                  {dayTotals.inc > 0 && <b className="in">+{rupees(dayTotals.inc)}</b>}
-                  {dayTotals.exp > 0 && <b className="out">−{rupees(dayTotals.exp)}</b>}
-                </div>
-                {day !== startOfDay() && (
-                  <button className="today-jump" onClick={() => setDay(startOfDay())}>Back to today</button>
-                )}
-              </motion.div>
-            </AnimatePresence>
-            <button className="day-arrow" title="Next day"
-              disabled={day >= latest}
-              onClick={() => setDay((d) => d + DAY_MS)}>
-              <ChevronRight size={17} strokeWidth={2} />
-            </button>
-          </div>
+      {/* ── search + filters ── */}
+      <div className="card filters">
+        <div className="filter-top">
+          <input type="search" className="search" placeholder="Search notes, categories, projects…"
+            value={q} onChange={(e) => setQ(e.target.value)} />
+          <button className={`btn ghost filter-toggle ${extraFilters ? 'has' : ''}`} onClick={() => setShowFilters((v) => !v)}>
+            <SlidersHorizontal size={15} strokeWidth={1.9} />
+            Filters{extraFilters ? ` · ${extraFilters}` : ''}
+          </button>
+        </div>
 
-          <AnimatePresence mode="wait">
-            <motion.ul className="tx-list card" key={`list-${day}`}
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              transition={{ duration: 0.12 }}>
-              {dayList.length
-                ? dayList.map((t, i) => <TxItem key={t.id} t={t} index={i} />)
-                : <li className="empty">Nothing on {dayLabel(day).toLowerCase()}.</li>}
-            </motion.ul>
-          </AnimatePresence>
-        </>
-      )}
+        <AnimatePresence initial={false}>
+          {showFilters && (
+            <motion.div className="filter-panel"
+              initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}>
+              <div className="filter-grid">
+                <label><span>Type</span>
+                  <select value={type} onChange={(e) => setType(e.target.value)}>
+                    <option value="">Any</option><option value="expense">Expense</option>
+                    <option value="income">Income</option><option value="transfer">Transfer</option>
+                  </select>
+                </label>
+                <label><span>Category</span>
+                  <select value={cat} onChange={(e) => setCat(e.target.value)}>
+                    <option value="">Any</option>
+                    {Object.keys(CATEGORIES).map((c) => <option key={c}>{c}</option>)}
+                  </select>
+                </label>
+                <label><span>Project</span>
+                  <select value={proj} onChange={(e) => setProj(e.target.value)}>
+                    <option value="">Any</option>
+                    {projects.map((p) => <option key={p}>{p}</option>)}
+                  </select>
+                </label>
+                <label><span>Account</span>
+                  <select value={account} onChange={(e) => setAccount(e.target.value)}>
+                    <option value="">Any</option>
+                    {store.accounts.map((a) => <option key={a}>{a}</option>)}
+                  </select>
+                </label>
+                <label><span>Min ₹</span>
+                  <input inputMode="decimal" placeholder="0" value={minAmt} onChange={(e) => setMinAmt(e.target.value)} />
+                </label>
+                <label><span>Max ₹</span>
+                  <input inputMode="decimal" placeholder="Any" value={maxAmt} onChange={(e) => setMaxAmt(e.target.value)} />
+                </label>
+                <label><span>Sort</span>
+                  <select value={sort} onChange={(e) => setSort(e.target.value)}>
+                    {Object.entries(SORTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                  </select>
+                </label>
+              </div>
+              {activeFilters > 0 && (
+                <button className="btn ghost clear-filters" onClick={clearFilters}>
+                  <X size={14} strokeWidth={2} /> Clear all filters
+                </button>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── grouped entries ── */}
+      <div className="card list-card">
+        <AnimatePresence mode="wait">
+          <motion.ul className="tx-list" key={`${kind}-${start}-${allTime}-${sort}`}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
+            {groups.length ? groups.map(([k, items]) => {
+              const g = store.totals(items);
+              return (
+                <li key={k}>
+                  <div className="date-head">
+                    <span>{dayHeading(k)}</span>
+                    <span>
+                      {g.inc > 0 && <b style={{ color: 'var(--green)' }}>+{rupees(g.inc)}</b>}
+                      {g.inc > 0 && g.exp > 0 && '  '}
+                      {g.exp > 0 && <b style={{ color: 'var(--red)' }}>−{rupees(g.exp)}</b>}
+                    </span>
+                  </div>
+                  <ul className="tx-list">{items.map((t, i) => <TxItem key={t.id} t={t} index={i} />)}</ul>
+                </li>
+              );
+            }) : (
+              <li className="empty">
+                {activeFilters ? 'No entries match these filters.' : `No entries in ${allTime ? 'your ledger' : periodLabel(kind, start).toLowerCase()} yet.`}
+              </li>
+            )}
+          </motion.ul>
+        </AnimatePresence>
+      </div>
     </section>
   );
 }

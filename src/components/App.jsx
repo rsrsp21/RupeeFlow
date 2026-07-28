@@ -14,6 +14,9 @@ import Settings from './views/Settings';
 import TxModal from './modals/TxModal';
 import VoiceModal from './modals/VoiceModal';
 import BudgetModal from './modals/BudgetModal';
+import ExportModal from './modals/ExportModal';
+import OfflineBanner from './OfflineBanner';
+import InstallPrompt from './InstallPrompt';
 import { Nav } from './Nav';
 
 const UICtx = createContext(null);
@@ -27,15 +30,14 @@ export default function App() {
   const [txModal, setTxModal] = useState(null);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [budgetModal, setBudgetModal] = useState(null);
-  const [fabOpen, setFabOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const fileRef = useRef(null);
   const fabRef = useRef(null);
 
-  useEffect(() => {
-    const close = (e) => { if (fabRef.current && !fabRef.current.contains(e.target)) setFabOpen(false); };
-    document.addEventListener('click', close);
-    return () => document.removeEventListener('click', close);
-  }, []);
+  // remember sidebar preference
+  useEffect(() => { setCollapsed(localStorage.getItem('rf_nav') === 'collapsed'); }, []);
+  const toggleNav = (v) => { setCollapsed(v); localStorage.setItem('rf_nav', v ? 'collapsed' : 'open'); };
 
   if (!store.booted) return null;
   if (!store.token) return <AuthView />;
@@ -66,13 +68,13 @@ export default function App() {
     } catch (e) { store.toast('Receipt scan failed: ' + e.message); }
   }
 
-  const ui = { view, setView, openTx, openBudget };
+  const ui = { view, setView, openTx, openBudget, openExport: () => setExportOpen(true) };
   const ActiveView = VIEWS[view] || Dashboard;
 
   return (
     <UICtx.Provider value={ui}>
-      <div className="app">
-        <Nav view={view} setView={setView} />
+      <div className={`app ${collapsed ? 'nav-collapsed' : ''}`}>
+        <Nav view={view} setView={setView} collapsed={collapsed} setCollapsed={toggleNav} />
         <main className="main">
           <AnimatePresence mode="wait">
             <motion.div
@@ -87,41 +89,17 @@ export default function App() {
           </AnimatePresence>
         </main>
 
+        {/* + always opens manual entry; voice and scan sit above it, always visible */}
         <div className="fab-cluster" ref={fabRef}>
-          <motion.button
-            className="fab main-fab" title="Add entry"
-            animate={{ rotate: fabOpen ? 45 : 0 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-            onClick={() => { if (fabOpen) { setFabOpen(false); openTx(); } else setFabOpen(true); }}
-          >
+          <button className="fab main-fab" title="Add entry manually" onClick={() => openTx()}>
             <Plus size={22} strokeWidth={2.2} />
-          </motion.button>
-          <AnimatePresence>
-            {fabOpen && (
-              <>
-                <motion.button
-                  key="scan" className="fab mini" title="Scan a receipt"
-                  initial={{ opacity: 0, y: 12, scale: 0.8 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 12, scale: 0.8 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 32 }}
-                  onClick={() => { setFabOpen(false); fileRef.current?.click(); }}
-                >
-                  <ScanLine size={18} strokeWidth={1.9} />
-                </motion.button>
-                <motion.button
-                  key="voice" className="fab mini" title="Speak an expense"
-                  initial={{ opacity: 0, y: 12, scale: 0.8 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 12, scale: 0.8 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 32, delay: 0.04 }}
-                  onClick={() => { setFabOpen(false); setVoiceOpen(true); }}
-                >
-                  <Mic size={18} strokeWidth={1.9} />
-                </motion.button>
-              </>
-            )}
-          </AnimatePresence>
+          </button>
+          <button className="fab mini" title="Scan a receipt" onClick={() => fileRef.current?.click()}>
+            <ScanLine size={18} strokeWidth={1.9} />
+          </button>
+          <button className="fab mini" title="Speak an expense" onClick={() => setVoiceOpen(true)}>
+            <Mic size={18} strokeWidth={1.9} />
+          </button>
         </div>
         <input type="file" ref={fileRef} accept="image/*" capture="environment" hidden
           onChange={(e) => { if (e.target.files[0]) scanReceipt(e.target.files[0]); e.target.value = ''; }} />
@@ -130,8 +108,11 @@ export default function App() {
           {txModal && <TxModal key="tx" state={txModal} onClose={() => setTxModal(null)} />}
           {voiceOpen && <VoiceModal key="voice" onClose={() => setVoiceOpen(false)} />}
           {budgetModal && <BudgetModal key="budget" category={budgetModal.category} onClose={() => setBudgetModal(null)} />}
+          {exportOpen && <ExportModal key="export" onClose={() => setExportOpen(false)} />}
         </AnimatePresence>
 
+        <OfflineBanner />
+        <InstallPrompt />
         <div className={`toast ${store.toastMsg ? 'show' : ''}`}>{store.toastMsg}</div>
       </div>
     </UICtx.Provider>

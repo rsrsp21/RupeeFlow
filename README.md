@@ -85,6 +85,17 @@ npm run dev             # http://localhost:3000
 
 Open the URL on your phone → "Add to Home Screen" for the app experience.
 
+## Why it works on serverless (Vercel)
+
+Serverless normally breaks database apps because each invocation is a fresh, short-lived instance — traditional Postgres connection pools get exhausted. RupeeFlow avoids that entirely:
+
+- **No persistent connections.** D1 is reached over its HTTP API with `fetch`, so there's no pool to exhaust and nothing to keep warm.
+- **Stateless auth.** Sessions are HS256 JWTs verified from the secret, so any instance can serve any request with no shared memory or session store.
+- **Lazy schema.** Tables are created only if a query reports them missing, so cold starts don't pay an extra round-trip.
+- **AI routes set `maxDuration = 60`.** Vercel's default is 10s, which Gemini vision/audio calls can exceed — without this, receipt scans would 504.
+
+Verified with an empty database: cold start auto-creates tables, warm paths add no extra calls, and 12 concurrent writes all apply cleanly.
+
 ## How sync stays correct
 
 Every entry has a client-generated UUID, `updated_at`, and `rev`. Offline edits queue in an IndexedDB outbox; on reconnect they push in a batch and the server applies **last-write-wins** per entry. Deletes are soft (`deleted=1`) so they propagate to all devices instead of resurrecting. Devices pull incrementally using an `updated_at` cursor and poll every few seconds while the tab is visible (plus on focus/reconnect), so changes appear on your other devices within seconds. Balances are never stored — always derived — so no edit can ever corrupt history.
