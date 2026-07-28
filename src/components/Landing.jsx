@@ -1,9 +1,11 @@
 'use client';
-// Marketing landing page shown to signed-out visitors: hero, feature
-// highlights, then the actual sign-in/sign-up form at the bottom.
-import { motion } from 'framer-motion';
+// Marketing landing page shown to signed-out visitors: hero and feature
+// highlights, with sign-in/sign-up opening as a modal rather than a section.
+import { useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Mic, ScanLine, Sparkles, Target, WifiOff, ShieldCheck, ArrowRight } from 'lucide-react';
 import { TAGLINE } from '@/lib/client/constants';
+import { backdropMotion, panelMotion } from './modals/TxModal';
 import AuthView from './AuthView';
 import ThemeToggle from './ThemeToggle';
 import InstallPrompt from './InstallPrompt';
@@ -20,7 +22,7 @@ const FEATURES = [
 const PREVIEW_BARS = [38, 62, 45, 80, 55, 96, 70];
 
 export default function Landing() {
-  const scrollToAuth = () => document.getElementById('auth')?.scrollIntoView({ behavior: 'smooth' });
+  const [authOpen, setAuthOpen] = useState(false);
 
   return (
     <div className="landing">
@@ -31,7 +33,7 @@ export default function Landing() {
         </div>
         <div className="landing-nav-actions">
           <ThemeToggle />
-          <button className="btn ghost sm" onClick={scrollToAuth}>Sign in</button>
+          <button className="btn ghost sm" onClick={() => setAuthOpen(true)}>Sign in</button>
         </div>
       </header>
 
@@ -44,7 +46,7 @@ export default function Landing() {
             get a real budget with pacing, and a weekly review that actually says something useful.
           </p>
           <div className="landing-cta">
-            <button className="btn primary" style={{ width: 'auto' }} onClick={scrollToAuth}>
+            <button className="btn primary" style={{ width: 'auto' }} onClick={() => setAuthOpen(true)}>
               Get started free <ArrowRight size={15} />
             </button>
             <span className="muted small">Free · No card required · Installs as an app</span>
@@ -84,10 +86,6 @@ export default function Landing() {
         ))}
       </section>
 
-      <section id="auth" className="landing-auth">
-        <AuthView />
-      </section>
-
       <footer className="landing-footer">
         <div className="landing-brand">
           <svg viewBox="0 0 48 48" width="20" height="20"><use href="/icon.svg#mark" /></svg>
@@ -98,6 +96,17 @@ export default function Landing() {
       </footer>
 
       <InstallPrompt top />
+
+      <AnimatePresence>
+        {authOpen && (
+          <motion.div className="modal-backdrop" {...backdropMotion}
+            onClick={(e) => { if (e.target === e.currentTarget) setAuthOpen(false); }}>
+            <motion.div {...panelMotion}>
+              <AuthView onClose={() => setAuthOpen(false)} />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
