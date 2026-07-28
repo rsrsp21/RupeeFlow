@@ -554,14 +554,12 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px;
   font-variant-numeric: tabular-nums;
 }
-.trend-col.peak .trend-val { color: var(--accent-text); }
 .trend-bar {
   position: relative; width: 100%; border-radius: 6px 6px 3px 3px;
   display: block; transition: background .15s;
   background: color-mix(in srgb, var(--accent) 38%, var(--surface-2));
 }
 .trend-bar.zero { background: var(--line); }
-.trend-bar.peak { background: var(--accent); }
 .trend-col:hover .trend-bar { background: var(--accent); }
 .trend-tip {
   position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%) translateY(4px);
@@ -569,14 +567,9 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
   padding: 4px 8px; border-radius: 6px; white-space: nowrap; pointer-events: none;
   opacity: 0; transition: opacity .12s ease, transform .12s ease; z-index: 5;
 }
+/* when a static value label sits above the bar, push the hover tooltip up past it */
+.trend-col.has-value .trend-tip { bottom: calc(100% + 20px); }
 .trend-col:hover .trend-tip { opacity: 1; transform: translateX(-50%) translateY(0); }
-.trend-avg-line {
-  position: absolute; left: 0; right: 0; border-top: 1.5px dashed var(--muted); opacity: .55; z-index: 1;
-}
-.trend-avg-line span {
-  position: absolute; right: 0; top: -15px; font-size: .6rem; font-weight: 600;
-  color: var(--muted); background: var(--surface); padding: 0 4px 0 6px; white-space: nowrap;
-}
 .trend-labels {
   display: flex; margin-top: 6px; width: 100%;
 }
@@ -584,7 +577,6 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
   flex: 1; min-width: 0; text-align: center; font-size: .62rem;
   color: var(--muted); white-space: nowrap; overflow: hidden;
 }
-.trend-labels span.peak { color: var(--accent-text); font-weight: 700; }
 
 /* ═══ KPI strip (dashboard hero) ═══ */
 .kpi-strip {
