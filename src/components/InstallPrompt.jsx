@@ -10,7 +10,7 @@ import { Download, X, Share } from 'lucide-react';
 // opts out forever; just seeing it starts this softer cooldown too.
 const SNOOZE_MS = 3 * 24 * 60 * 60 * 1000;
 
-export default function InstallPrompt({ top = false }) {
+export default function InstallPrompt() {
   const [deferred, setDeferred] = useState(null);
   const [showIOS, setShowIOS] = useState(false);
   const [dismissed, setDismissed] = useState(true);
@@ -60,8 +60,8 @@ export default function InstallPrompt({ top = false }) {
   return (
     <AnimatePresence>
       {visible && (
-        <motion.div className={`install-prompt ${top ? 'top' : ''}`}
-          initial={{ opacity: 0, y: top ? -20 : 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: top ? -20 : 20 }}
+        <motion.div className="install-prompt"
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
           transition={{ type: 'spring', stiffness: 400, damping: 32 }}>
           <div className="install-body">
             <b>Install RupeeFlow</b>

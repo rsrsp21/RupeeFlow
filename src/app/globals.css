@@ -843,10 +843,6 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
   padding: 11px 12px 11px 16px; border-radius: 14px; box-shadow: var(--shadow-lg);
   max-width: calc(100vw - 28px); width: max-content;
 }
-/* On the landing page there's no bottom tab bar to sit above, and a long
-   scrolling page makes a bottom-fixed banner easy to miss — anchor to the
-   top there instead, just under the sticky nav. */
-.install-prompt.top { top: calc(70px + env(safe-area-inset-top)); bottom: auto; }
 .install-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .install-body b { font-size: .84rem; }
 .install-body span { font-size: .73rem; color: var(--muted); }

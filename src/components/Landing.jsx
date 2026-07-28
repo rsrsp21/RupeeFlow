@@ -8,7 +8,6 @@ import { TAGLINE } from '@/lib/client/constants';
 import { backdropMotion, panelMotion } from './modals/TxModal';
 import AuthView from './AuthView';
 import ThemeToggle from './ThemeToggle';
-import InstallPrompt from './InstallPrompt';
 
 const FEATURES = [
   { Icon: Mic, title: 'Speak an expense', body: 'Say it naturally, like "450 lunch, 120 auto to office," and AI splits it into categorized entries.' },
@@ -21,7 +20,9 @@ const FEATURES = [
 
 const PREVIEW_BARS = [38, 62, 45, 80, 55, 96, 70];
 
-const APK_URL = 'https://github.com/rsrsp21/RupeeFlow/releases/latest/download/RupeeFlow.apk';
+// Served straight from public/. GitHub Release assets aren't an option:
+// the repo is private, so anonymous downloads 404.
+const APK_URL = '/RupeeFlow.apk';
 
 export default function Landing() {
   const [authOpen, setAuthOpen] = useState(false);
@@ -54,7 +55,7 @@ export default function Landing() {
               </button>
               {/* Always resolves to the newest release asset named RupeeFlow.apk,
                   so shipping a new build means publishing a release, not redeploying. */}
-              <a className="btn ghost" href={APK_URL} target="_blank" rel="noopener noreferrer">
+              <a className="btn ghost" href={APK_URL} download>
                 <Download size={15} /> Download for Android
               </a>
             </div>
@@ -103,8 +104,6 @@ export default function Landing() {
         <p>{TAGLINE}</p>
         <p className="muted small">© {new Date().getFullYear()} RupeeFlow · Created by Sri Ram Sai Pavan Relangi</p>
       </footer>
-
-      <InstallPrompt top />
 
       <AnimatePresence>
         {authOpen && (
