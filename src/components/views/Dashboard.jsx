@@ -5,7 +5,7 @@ import { useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, Wallet, CalendarDays,
-  Flame, PiggyBank, Target, ArrowRight,
+  Flame, PiggyBank, Target, ArrowRight, Check,
 } from 'lucide-react';
 import ThemeToggle from '../ThemeToggle';
 import { useStore } from '@/lib/client/store';
@@ -144,11 +144,11 @@ export default function Dashboard() {
             <div className="budget-track">
               <div className={`budget-fill ${mt.exp > overall ? 'over' : ''}`} style={{ width: `${pct}%` }} />
             </div>
-            <p className="budget-line">
+            <div className={`pace-tag ${mt.exp > overall ? 'warn' : 'good'}`}>
               {mt.exp > overall
-                ? `Over budget by ${rupees(mt.exp - overall)}`
-                : `${rupees(overall - mt.exp)} left of ${rupees(overall)} · projected ${rupees(stats.projected)}`}
-            </p>
+                ? <><TrendingUp size={12} strokeWidth={2.6} /> Over budget by {rupees(mt.exp - overall)}</>
+                : <><Check size={12} strokeWidth={2.6} /> {rupees(overall - mt.exp)} left of {rupees(overall)} · projected {rupees(stats.projected)}</>}
+            </div>
           </>
         )}
         {!overall && (

@@ -46,7 +46,9 @@ export default function Budgets() {
       const out = await store.api('/ai/budget-suggest', {
         method: 'POST', body: JSON.stringify({ summary: store.buildSummary(120) }),
       });
-      setSuggestions(out);
+      const clean = sanitizeSuggestions(out);
+      if (!clean) throw new Error('response had no usable budget suggestions');
+      setSuggestions(clean);
     } catch (e) { store.toast('Could not generate: ' + e.message); }
     setLoadingSuggest(false);
   }
@@ -59,11 +61,16 @@ export default function Budgets() {
 
   async function applyAll() {
     if (!suggestions) return;
-    await store.saveBudget({ month: mk, category: '', amount: Math.round(suggestions.overall_rupees * 100), carry_forward: 0 });
+    const applied_ = [];
+    if (suggestions.overall_rupees > 0) {
+      await store.saveBudget({ month: mk, category: '', amount: Math.round(suggestions.overall_rupees * 100), carry_forward: 0 });
+      applied_.push('');
+    }
     for (const c of suggestions.categories || []) {
       await store.saveBudget({ month: mk, category: c.category, amount: Math.round(c.suggested_rupees * 100), carry_forward: 0 });
+      applied_.push(c.category);
     }
-    setApplied(['', ...(suggestions.categories || []).map((c) => c.category)]);
+    setApplied(applied_);
     store.toast('All suggested budgets applied');
   }
 
@@ -133,21 +140,31 @@ export default function Budgets() {
             </div>
             <p className="suggest-reason">{suggestions.reasoning}</p>
 
-            <div className="suggest-row overall">
-              <span><Target size={13} /> Overall monthly</span>
-              <b>{rupees(Math.round(suggestions.overall_rupees * 100))}</b>
-              <button className="btn ghost sm" disabled={applied.includes('')}
-                onClick={() => applyOne('', suggestions.overall_rupees)}>
-                {applied.includes('') ? <><Check size={12} /> Set</> : 'Apply'}
-              </button>
-            </div>
+            {suggestions.overall_rupees > 0 && (
+              <div className="suggest-row overall">
+                <Target size={14} />
+                <div className="suggest-row-body">
+                  <div className="suggest-row-top">
+                    <span className="suggest-row-name">Overall monthly</span>
+                    <span className="suggest-row-amt">{rupees(Math.round(suggestions.overall_rupees * 100))}</span>
+                  </div>
+                </div>
+                <button className="btn ghost sm" disabled={applied.includes('')}
+                  onClick={() => applyOne('', suggestions.overall_rupees)}>
+                  {applied.includes('') ? <><Check size={12} /> Set</> : 'Apply'}
+                </button>
+              </div>
+            )}
 
             {(suggestions.categories || []).map((c) => (
               <div className="suggest-row" key={c.category}>
-                <span><CategoryIcon category={c.category} size={12} /> {c.category}</span>
-                <div className="suggest-nums">
-                  <b>{rupees(Math.round(c.suggested_rupees * 100))}</b>
-                  <em>now {rupees(Math.round((c.current_avg_rupees || 0) * 100))} · {c.rationale}</em>
+                <CategoryIcon category={c.category} size={14} />
+                <div className="suggest-row-body">
+                  <div className="suggest-row-top">
+                    <span className="suggest-row-name">{c.category}</span>
+                    <span className="suggest-row-amt">{rupees(Math.round(c.suggested_rupees * 100))}</span>
+                  </div>
+                  <p className="suggest-row-note">now {rupees(Math.round((c.current_avg_rupees || 0) * 100))} · {c.rationale}</p>
                 </div>
                 <button className="btn ghost sm" disabled={applied.includes(c.category)}
                   onClick={() => applyOne(c.category, c.suggested_rupees)}>
@@ -222,6 +239,36 @@ export default function Budgets() {
       )}
     </section>
   );
+}
+
+// Gemini's output is free-form text coerced to JSON — guard against invented
+// category names, non-numeric or duplicate entries before it ever reaches render.
+function sanitizeSuggestions(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const seen = new Set();
+  const categories = (Array.isArray(raw.categories) ? raw.categories : [])
+    .filter((c) => c && typeof c.category === 'string' && CATEGORIES[c.category] && !seen.has(c.category))
+    .map((c) => {
+      seen.add(c.category);
+      return {
+        category: c.category,
+        suggested_rupees: Number(c.suggested_rupees),
+        current_avg_rupees: Number.isFinite(Number(c.current_avg_rupees)) ? Number(c.current_avg_rupees) : 0,
+        rationale: typeof c.rationale === 'string' ? c.rationale.slice(0, 120) : '',
+      };
+    })
+    .filter((c) => Number.isFinite(c.suggested_rupees) && c.suggested_rupees > 0)
+    .slice(0, 8);
+
+  const overall = Number(raw.overall_rupees);
+  const overall_rupees = Number.isFinite(overall) && overall > 0 ? overall : 0;
+  if (!overall_rupees && !categories.length) return null;
+
+  return {
+    overall_rupees,
+    reasoning: typeof raw.reasoning === 'string' ? raw.reasoning.slice(0, 200) : '',
+    categories,
+  };
 }
 
 function BudgetRing({ used, expected, over }) {

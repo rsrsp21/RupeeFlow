@@ -277,7 +277,7 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
   margin-bottom: 16px;
 }
 .card h3 { font-size: .8rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
-.card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 12px; margin-bottom: 6px; }
 .card-head h3 { margin-bottom: 0; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
@@ -711,15 +711,17 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .suggest-card { border-color: var(--accent); }
 .suggest-reason { font-size: .8rem; color: var(--muted); margin-bottom: 14px; }
 .suggest-row {
-  display: flex; align-items: center; gap: 12px; padding: 9px 0;
+  display: flex; align-items: center; gap: 12px; padding: 10px 0;
   border-bottom: 1px solid var(--line); font-size: .84rem;
 }
 .suggest-row:last-child { border-bottom: none; }
 .suggest-row.overall { font-weight: 600; }
-.suggest-row > span:first-child { display: inline-flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
-.suggest-nums { text-align: right; }
-.suggest-nums b { display: block; font-variant-numeric: tabular-nums; }
-.suggest-nums em { font-style: normal; font-size: .68rem; color: var(--muted); }
+.suggest-row-body { flex: 1; min-width: 0; }
+.suggest-row-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.suggest-row-name { min-width: 0; overflow-wrap: anywhere; }
+.suggest-row-amt { font-variant-numeric: tabular-nums; flex-shrink: 0; white-space: nowrap; }
+.suggest-row-note { font-size: .72rem; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+.suggest-row .btn { flex-shrink: 0; }
 
 .budget-rows { display: flex; flex-direction: column; gap: 15px; }
 .budget-row { display: flex; align-items: center; gap: 12px; cursor: pointer; }
@@ -862,7 +864,7 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
   .insight-strip { grid-template-columns: 1fr; }
   .stat-row { grid-template-columns: 1fr 1fr; }
   .filter-grid { grid-template-columns: 1fr 1fr; }
-  .head-actions { width: 100%; }
+  .view-head .head-actions { width: 100%; }
   .coach-grid { grid-template-columns: 1fr; }
   .budget-hero-main { flex-direction: column; align-items: flex-start; gap: 14px; }
   .budget-hero-stats { grid-template-columns: 1fr; }
