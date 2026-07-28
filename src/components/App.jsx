@@ -2,7 +2,7 @@
 // App shell: auth gate, nav, animated view transitions, FAB cluster, modals, toast.
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Mic, ScanLine } from 'lucide-react';
+import { Plus, Mic, ScanLine, PenLine } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { CATEGORIES, rupees } from '@/lib/client/constants';
 import AuthView from './AuthView';
@@ -32,12 +32,21 @@ export default function App() {
   const [budgetModal, setBudgetModal] = useState(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [fabOpen, setFabOpen] = useState(false);
   const fileRef = useRef(null);
   const fabRef = useRef(null);
 
   // remember sidebar preference
   useEffect(() => { setCollapsed(localStorage.getItem('rf_nav') === 'collapsed'); }, []);
   const toggleNav = (v) => { setCollapsed(v); localStorage.setItem('rf_nav', v ? 'collapsed' : 'open'); };
+
+  // close the FAB cluster on outside tap
+  useEffect(() => {
+    if (!fabOpen) return;
+    const onDown = (e) => { if (!fabRef.current?.contains(e.target)) setFabOpen(false); };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [fabOpen]);
 
   if (!store.booted) return null;
   if (!store.token) return <AuthView />;
@@ -89,16 +98,36 @@ export default function App() {
           </AnimatePresence>
         </main>
 
-        {/* + always opens manual entry; voice and scan sit above it, always visible */}
-        <div className="fab-cluster" ref={fabRef}>
-          <button className="fab main-fab" title="Add entry manually" onClick={() => openTx()}>
-            <Plus size={22} strokeWidth={2.2} />
-          </button>
-          <button className="fab mini" title="Scan a receipt" onClick={() => fileRef.current?.click()}>
-            <ScanLine size={18} strokeWidth={1.9} />
-          </button>
-          <button className="fab mini" title="Speak an expense" onClick={() => setVoiceOpen(true)}>
-            <Mic size={18} strokeWidth={1.9} />
+        {/* + expands into Manual / Scan / Voice and morphs into an X; tap again or pick one to close */}
+        <div className={`fab-cluster ${fabOpen ? 'open' : ''}`} ref={fabRef}>
+          <AnimatePresence>
+            {fabOpen && (
+              <>
+                <motion.button className="fab mini" title="Speak an expense"
+                  initial={{ opacity: 0, y: 10, scale: .6 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: .6 }}
+                  transition={{ duration: 0.15 }}
+                  onClick={() => { setFabOpen(false); setVoiceOpen(true); }}>
+                  <Mic size={18} strokeWidth={1.9} />
+                </motion.button>
+                <motion.button className="fab mini" title="Scan a receipt"
+                  initial={{ opacity: 0, y: 10, scale: .6 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: .6 }}
+                  transition={{ duration: 0.15, delay: 0.03 }}
+                  onClick={() => { setFabOpen(false); fileRef.current?.click(); }}>
+                  <ScanLine size={18} strokeWidth={1.9} />
+                </motion.button>
+                <motion.button className="fab mini" title="Add entry manually"
+                  initial={{ opacity: 0, y: 10, scale: .6 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: .6 }}
+                  transition={{ duration: 0.15, delay: 0.06 }}
+                  onClick={() => { setFabOpen(false); openTx(); }}>
+                  <PenLine size={18} strokeWidth={1.9} />
+                </motion.button>
+              </>
+            )}
+          </AnimatePresence>
+          <button className="fab main-fab" title={fabOpen ? 'Close' : 'Add entry'} onClick={() => setFabOpen((v) => !v)}>
+            <motion.span className="fab-plus" animate={{ rotate: fabOpen ? 45 : 0 }} transition={{ duration: 0.2 }}>
+              <Plus size={22} strokeWidth={2.2} />
+            </motion.span>
           </button>
         </div>
         <input type="file" ref={fileRef} accept="image/*" capture="environment" hidden

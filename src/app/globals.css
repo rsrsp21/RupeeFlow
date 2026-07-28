@@ -329,6 +329,7 @@ input::placeholder { color: var(--muted); }
 .fab:active { transform: scale(.95); }
 .main-fab { width: 52px; height: 52px; background: var(--text); color: var(--bg); }
 .fab.mini { width: 44px; height: 44px; background: var(--surface); color: var(--text); border: 1px solid var(--line-strong); }
+.fab-plus { display: inline-flex; }
 
 /* ── modals ── */
 .modal-backdrop {
@@ -716,6 +717,8 @@ input::placeholder { color: var(--muted); }
   .grid-2 { grid-template-columns: 1fr; }
   .filter-row { grid-template-columns: 1fr 1fr 1fr; }
   .fab-cluster { bottom: 84px; right: 18px; }
+  .install-prompt { bottom: calc(78px + env(safe-area-inset-bottom)); }
+  input, select { font-size: 16px; }   /* prevent iOS Safari auto-zoom on focus */
   .view-head { flex-direction: column; align-items: stretch; gap: 12px; }
   .period-seg { width: 100%; }
   .period-seg button { flex: 1; padding: 7px 4px; }
