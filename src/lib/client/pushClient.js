@@ -19,7 +19,11 @@ export async function currentSubscription() {
   return reg.pushManager.getSubscription();
 }
 
-export async function enablePush(api) {
+// Resolves as soon as the browser subscription itself is live (permission +
+// PushManager, both fast) — the D1 write is fired in the background instead
+// of making the toggle wait on that round-trip. `onSyncFailed` fires (and
+// the local subscription is rolled back) only if the save actually fails.
+export async function enablePush(api, onSyncFailed) {
   if (!pushSupported()) throw new Error('This browser does not support notifications');
 
   const permission = await Notification.requestPermission();
@@ -37,15 +41,21 @@ export async function enablePush(api) {
       applicationServerKey: urlBase64ToUint8Array(key),
     });
 
-  await api('/push/subscribe', { method: 'POST', body: JSON.stringify({ subscription: sub.toJSON() }) });
+  api('/push/subscribe', { method: 'POST', body: JSON.stringify({ subscription: sub.toJSON() }) })
+    .catch(async (e) => {
+      await sub.unsubscribe().catch(() => {});
+      onSyncFailed?.(e);
+    });
+
   return sub;
 }
 
 export async function disablePush(api) {
   const sub = await currentSubscription();
   if (!sub) return;
-  // Drop it server-side first — if unsubscribe() succeeds but the DELETE
-  // fails we'd keep pushing to a dead endpoint until it 410s.
-  await api('/push/subscribe', { method: 'DELETE', body: JSON.stringify({ endpoint: sub.endpoint }) }).catch(() => {});
+  // Unsubscribe locally first so the toggle doesn't wait on the D1 delete —
+  // if that background call fails, the dead endpoint just gets pruned on
+  // its next 404/410 anyway (see sendToUser in lib/push.js).
   await sub.unsubscribe();
+  api('/push/subscribe', { method: 'DELETE', body: JSON.stringify({ endpoint: sub.endpoint }) }).catch(() => {});
 }

@@ -129,8 +129,15 @@ function NotificationsCard() {
   async function toggle(want) {
     setBusy(true);
     try {
-      if (want) { await enablePush(store.api); setOn(true); store.toast('Notifications on'); }
-      else { await disablePush(store.api); setOn(false); store.toast('Notifications off'); }
+      if (want) {
+        await enablePush(store.api, () => {
+          setOn(false);
+          store.toast("Couldn't save that — check your connection and try again");
+        });
+        setOn(true); store.toast('Notifications on');
+      } else {
+        await disablePush(store.api); setOn(false); store.toast('Notifications off');
+      }
     } catch (e) {
       setOn(false);
       store.toast(e.message);
