@@ -8,6 +8,7 @@
   --accent: #0d9488; --accent-soft: #0d948814; --accent-text: #0f766e;
   --red: #dc2626; --red-soft: #dc262612;
   --green: #059669; --green-soft: #05966912;
+  --amber: #d97706; --amber-soft: #d9770614; --amber-text: #b45309;
   --shadow: 0 1px 2px rgb(0 0 0 / .04);
   --shadow-lg: 0 4px 24px rgb(0 0 0 / .08);
   --radius: 14px; --radius-sm: 9px;
@@ -18,6 +19,7 @@
   --accent: #2dd4bf; --accent-soft: #2dd4bf14; --accent-text: #5eead4;
   --red: #f87171; --red-soft: #f8717114;
   --green: #34d399; --green-soft: #34d39914;
+  --amber: #fbbf24; --amber-soft: #fbbf2414; --amber-text: #fcd34d;
   --shadow: 0 1px 2px rgb(0 0 0 / .3);
   --shadow-lg: 0 8px 40px rgb(0 0 0 / .5);
 }
@@ -72,13 +74,14 @@ svg { flex-shrink: 0; }
 .badge.transfer { color: var(--muted); background: var(--surface-2); }
 
 /* ── inputs ── */
-input, select {
+input, select, textarea {
   font: inherit; color: var(--text); background: var(--surface);
   border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
   padding: 9px 12px; outline: none; transition: border-color .15s, box-shadow .15s;
 }
-input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-input::placeholder { color: var(--muted); }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+input::placeholder, textarea::placeholder { color: var(--muted); }
+textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 
 /* ── buttons ── */
 .btn {
@@ -285,7 +288,12 @@ input::placeholder { color: var(--muted); }
 .budget-nums { font-size: .74rem; color: var(--muted); margin-top: 9px; display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
 
 /* ── insights ── */
-.insight-card { line-height: 1.65; font-size: .9rem; white-space: pre-wrap; }
+.insight-card { line-height: 1.65; font-size: .9rem; }
+/* markdown blocks (weekly review + AI chat bubbles) */
+.insight-card > :not(:first-child), .bubble.ai > :not(:first-child) { margin-top: 8px; }
+.insight-card ul, .insight-card ol, .bubble.ai ul, .bubble.ai ol { padding-left: 20px; }
+.insight-card li, .bubble.ai li { margin-bottom: 4px; }
+.insight-card li:last-child, .bubble.ai li:last-child { margin-bottom: 0; }
 .chat {
   display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;
   max-height: 300px; overflow-y: auto; overscroll-behavior: contain; padding-right: 6px;
@@ -440,12 +448,13 @@ input::placeholder { color: var(--muted); }
   border-left: 2px solid var(--line-strong);
   border-radius: var(--radius-sm); padding: 13px 14px;
 }
-.insight-tile.warn { border-left-color: var(--red); }
-.insight-tile.good { border-left-color: var(--green); }
-.insight-tile.neutral { border-left-color: var(--accent); }
+.insight-tile.warn { background: var(--red-soft); border-left-color: var(--red); }
+.insight-tile.good { background: var(--green-soft); border-left-color: var(--green); }
+.insight-tile.neutral { background: var(--accent-soft); border-left-color: var(--accent); }
 .insight-ico { color: var(--muted); display: grid; place-items: center; margin-top: 1px; }
 .insight-tile.warn .insight-ico { color: var(--red); }
 .insight-tile.good .insight-ico { color: var(--green); }
+.insight-tile.neutral .insight-ico { color: var(--accent-text); }
 .insight-title { font-size: .84rem; font-weight: 600; line-height: 1.35; }
 .insight-body { font-size: .76rem; color: var(--muted); margin-top: 3px; line-height: 1.45; }
 
@@ -541,16 +550,20 @@ input::placeholder { color: var(--muted); }
   background: var(--bg); border: 1px solid var(--line);
   border-left: 2px solid var(--line-strong); border-radius: var(--radius-sm); padding: 12px 13px;
 }
-.coach-card.good { border-left-color: var(--green); }
-.coach-card.warn { border-left-color: var(--red); }
-.coach-card.neutral { border-left-color: var(--accent); }
+/* each kind gets its own hue, not just a border stripe, so the grid reads at a glance */
+.coach-card.win { background: var(--green-soft); border-left-color: var(--green); }
+.coach-card.risk { background: var(--red-soft); border-left-color: var(--red); }
+.coach-card.save { background: var(--accent-soft); border-left-color: var(--accent); }
+.coach-card.watch { background: var(--amber-soft); border-left-color: var(--amber); }
 .coach-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
 .coach-kind {
   display: inline-flex; align-items: center; gap: 5px; font-size: .63rem; font-weight: 650;
   text-transform: uppercase; letter-spacing: .07em; color: var(--muted);
 }
-.coach-card.good .coach-kind { color: var(--green); }
-.coach-card.warn .coach-kind { color: var(--red); }
+.coach-card.win .coach-kind { color: var(--green); }
+.coach-card.risk .coach-kind { color: var(--red); }
+.coach-card.save .coach-kind { color: var(--accent-text); }
+.coach-card.watch .coach-kind { color: var(--amber-text); }
 .coach-impact { font-size: .78rem; font-weight: 650; font-variant-numeric: tabular-nums; }
 .coach-title { font-size: .85rem; font-weight: 600; line-height: 1.35; }
 .coach-detail { font-size: .76rem; color: var(--muted); margin-top: 4px; line-height: 1.5; }

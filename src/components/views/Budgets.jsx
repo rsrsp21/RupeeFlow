@@ -3,7 +3,7 @@
 // and one-tap AI budget suggestions from real spending history.
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Sparkles, Check, RefreshCw, Target, TrendingUp } from 'lucide-react';
+import { Plus, Sparkles, Check, RefreshCw, Target, TrendingUp, X } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees, monthKey, CATEGORIES } from '@/lib/client/constants';
 import { DAY_MS, startOfMonth } from '@/lib/client/period';
@@ -128,6 +128,7 @@ export default function Budgets() {
               <div className="head-actions">
                 <button className="btn ghost sm" onClick={suggest} disabled={loadingSuggest}><RefreshCw size={12} /> Redo</button>
                 <button className="btn primary sm" style={{ width: 'auto' }} onClick={applyAll}>Apply all</button>
+                <button className="icon-btn" onClick={() => setSuggestions(null)} title="Dismiss suggestions"><X size={15} /></button>
               </div>
             </div>
             <p className="suggest-reason">{suggestions.reasoning}</p>

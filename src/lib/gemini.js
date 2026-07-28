@@ -82,7 +82,7 @@ export function weeklyInsights(summary) {
   return gemini([{
     text: `You are a sharp, friendly personal-finance coach for a busy Indian professional. All amounts in ₹.
 Weekly data (JSON): ${JSON.stringify(summary)}
-Write a concise weekly insight: 1) biggest spending categories and week-over-week change, 2) anything unusual or likely unnecessary, 3) budget status, 4) ONE specific actionable tip. Max 130 words, plain text, no markdown headers, may use ₹ figures. Be specific to the data, never generic.`,
+Write a concise weekly insight covering: biggest spending categories and week-over-week change, anything unusual or likely unnecessary, budget status, and ONE specific actionable tip. Max 130 words. Format with lightweight markdown — **bold** the key ₹ figures and category names, use a short bullet list ("- ") if you're covering multiple points. No headers (#). Be specific to the data, never generic.`,
   }], { asJson: false, temperature: 0.6 });
 }
 
@@ -124,6 +124,6 @@ export function askQuestion(question, summary) {
     text: `You are RupeeFlow's finance assistant. Answer using ONLY this user's data (amounts in ₹, JSON):
 ${JSON.stringify(summary || {})}
 Question: "${question}"
-Answer in under 100 words, specific numbers from the data, plain text. If the data can't answer it, say so briefly.`,
+Answer in under 100 words with specific numbers from the data. **Bold** key ₹ figures, and use a short bullet list ("- ") if listing more than two items. If the data can't answer it, say so briefly.`,
   }], { asJson: false, temperature: 0.4 });
 }

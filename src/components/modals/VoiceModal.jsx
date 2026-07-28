@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Mic } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
-import { CATEGORIES, rupees } from '@/lib/client/constants';
+import { rupees } from '@/lib/client/constants';
+import { applyParsedTransactions } from '@/lib/client/applyParsed';
 import { backdropMotion, panelMotion } from './TxModal';
 
 export default function VoiceModal({ onClose }) {
@@ -43,40 +44,10 @@ export default function VoiceModal({ onClose }) {
         method: 'POST',
         body: JSON.stringify({ audio: b64, mimeType: rec.mimeType, projects: store.projects() }),
       });
-      await addEntries(out);
+      const { added, sum } = await applyParsedTransactions(store, out, 'voice');
+      store.toast(added ? `Added ${added} ${added > 1 ? 'entries' : 'entry'} · ${rupees(sum)} ✓` : `Heard: "${out?.transcript || '…'}" — no amounts found`);
     } catch (e) { store.toast('Could not process audio: ' + e.message); }
     onClose();
-  }
-
-  async function addEntries(out) {
-    const entries = out?.transactions || [];
-    if (!entries.length) { store.toast(`Heard: "${out?.transcript || '…'}" — no amounts found`); return; }
-    let added = 0, sum = 0;
-    for (const e of entries) {
-      const amount = Math.round((Number(e.amount_rupees) || 0) * 100);
-      if (amount <= 0) continue;
-      // spoken dates ("on 26th July", "yesterday") come back as YYYY-MM-DD
-      let occurred = Date.now();
-      if (e.date && /^\d{4}-\d{2}-\d{2}$/.test(e.date)) {
-        const t = new Date(e.date + 'T12:00:00').getTime();
-        if (Number.isFinite(t)) occurred = t;
-      } else if (e.occurred_at_offset_days) {
-        occurred += (Number(e.occurred_at_offset_days) || 0) * 86400000;
-      }
-      await store.saveTx({
-        id: crypto.randomUUID(),
-        type: ['expense', 'income', 'transfer'].includes(e.type) ? e.type : 'expense',
-        amount,
-        category: CATEGORIES[e.category] ? e.category : 'Other',
-        note: String(e.note || '').slice(0, 200),
-        project: String(e.project || '').slice(0, 60),
-        account: 'Cash', to_account: '',
-        occurred_at: occurred,
-        created_at: Date.now(), updated_at: Date.now(), rev: 1, deleted: 0, source: 'voice',
-      });
-      added++; sum += amount;
-    }
-    store.toast(added ? `Added ${added} ${added > 1 ? 'entries' : 'entry'} · ${rupees(sum)} ✓` : 'No valid amounts found');
   }
 
   return (

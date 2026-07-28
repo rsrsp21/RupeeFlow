@@ -10,12 +10,13 @@ import {
 import { useStore } from '@/lib/client/store';
 import { rupees } from '@/lib/client/constants';
 import CategoryIcon from '../CategoryIcon';
+import Markdown from '../Markdown';
 
 const KIND_META = {
-  save: { icon: TrendingDown, tone: 'good', label: 'Save' },
-  risk: { icon: AlertTriangle, tone: 'warn', label: 'Risk' },
-  win: { icon: Trophy, tone: 'good', label: 'Win' },
-  watch: { icon: Eye, tone: 'neutral', label: 'Watch' },
+  save: { icon: TrendingDown, tone: 'save', label: 'Save' },
+  risk: { icon: AlertTriangle, tone: 'risk', label: 'Risk' },
+  win: { icon: Trophy, tone: 'win', label: 'Win' },
+  watch: { icon: Eye, tone: 'watch', label: 'Watch' },
 };
 
 const CHIPS = [
@@ -209,7 +210,7 @@ export default function Insights() {
               </button>
             </div>
             {loadingWeekly ? <div className="skeleton-block short" />
-              : weekly ? <p className="insight-card">{weekly}</p>
+              : weekly ? <div className="insight-card"><Markdown text={weekly} /></div>
               : <p className="empty">A written summary of your week, with one concrete tip.</p>}
           </div>
 
@@ -221,7 +222,8 @@ export default function Insights() {
                 {chat.map((m, i) => (
                   <motion.div key={i} className={`bubble ${m.who}`}
                     initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
-                    {m.pending ? <span className="typing"><i /><i /><i /></span> : m.text}
+                    {m.pending ? <span className="typing"><i /><i /><i /></span>
+                      : m.who === 'ai' ? <Markdown text={m.text} /> : m.text}
                   </motion.div>
                 ))}
               </div>

@@ -2,7 +2,7 @@
 // App shell: auth gate, nav, animated view transitions, FAB cluster, modals, toast.
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Mic, ScanLine, PenLine } from 'lucide-react';
+import { Plus, Mic, ScanLine, PenLine, Type } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { CATEGORIES, rupees } from '@/lib/client/constants';
 import AuthView from './AuthView';
@@ -13,6 +13,7 @@ import Insights from './views/Insights';
 import Settings from './views/Settings';
 import TxModal from './modals/TxModal';
 import VoiceModal from './modals/VoiceModal';
+import PromptModal from './modals/PromptModal';
 import BudgetModal from './modals/BudgetModal';
 import ExportModal from './modals/ExportModal';
 import OfflineBanner from './OfflineBanner';
@@ -53,6 +54,7 @@ export default function App() {
   const [view, setView] = useState('dashboard');
   const [txModal, setTxModal] = useState(null);
   const [voiceOpen, setVoiceOpen] = useState(false);
+  const [promptOpen, setPromptOpen] = useState(false);
   const [budgetModal, setBudgetModal] = useState(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -107,6 +109,7 @@ export default function App() {
   const fabActions = [
     { key: 'voice', Icon: Mic, title: 'Speak an expense', onClick: () => { setFabOpen(false); setVoiceOpen(true); } },
     { key: 'scan', Icon: ScanLine, title: 'Scan a receipt', onClick: () => { setFabOpen(false); fileRef.current?.click(); } },
+    { key: 'prompt', Icon: Type, title: 'Add by typing a sentence', onClick: () => { setFabOpen(false); setPromptOpen(true); } },
     { key: 'manual', Icon: PenLine, title: 'Add entry manually', onClick: () => { setFabOpen(false); openTx(); } },
   ];
 
@@ -128,7 +131,7 @@ export default function App() {
           </AnimatePresence>
         </main>
 
-        {/* + expands into Manual / Scan / Voice and morphs into an X; tap again or pick one to close */}
+        {/* + expands into Voice / Scan / Prompt / Manual and morphs into an X; tap again or pick one to close */}
         <div className={`fab-cluster ${fabOpen ? 'open' : ''}`} ref={fabRef}>
           <AnimatePresence>
             {fabOpen && fabActions.map(({ key, Icon, title, onClick }, i) => (
@@ -152,6 +155,7 @@ export default function App() {
         <AnimatePresence>
           {txModal && <TxModal key="tx" state={txModal} onClose={() => setTxModal(null)} />}
           {voiceOpen && <VoiceModal key="voice" onClose={() => setVoiceOpen(false)} />}
+          {promptOpen && <PromptModal key="prompt" onClose={() => setPromptOpen(false)} />}
           {budgetModal && <BudgetModal key="budget" category={budgetModal.category} onClose={() => setBudgetModal(null)} />}
           {exportOpen && <ExportModal key="export" onClose={() => setExportOpen(false)} />}
         </AnimatePresence>
