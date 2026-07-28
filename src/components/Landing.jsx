@@ -3,11 +3,12 @@
 // highlights, with sign-in/sign-up opening as a modal rather than a section.
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Mic, ScanLine, Sparkles, Target, WifiOff, ShieldCheck, ArrowRight, Download } from 'lucide-react';
+import { Mic, ScanLine, Sparkles, Target, WifiOff, ShieldCheck, ArrowRight } from 'lucide-react';
 import { TAGLINE } from '@/lib/client/constants';
 import { backdropMotion, panelMotion } from './modals/TxModal';
 import AuthView from './AuthView';
 import ThemeToggle from './ThemeToggle';
+import InstallPrompt from './InstallPrompt';
 
 const FEATURES = [
   { Icon: Mic, title: 'Speak an expense', body: 'Say it naturally, like "450 lunch, 120 auto to office," and AI splits it into categorized entries.' },
@@ -19,10 +20,6 @@ const FEATURES = [
 ];
 
 const PREVIEW_BARS = [38, 62, 45, 80, 55, 96, 70];
-
-// Served straight from public/. GitHub Release assets aren't an option:
-// the repo is private, so anonymous downloads 404.
-const APK_URL = '/RupeeFlow.apk';
 
 export default function Landing() {
   const [authOpen, setAuthOpen] = useState(false);
@@ -49,17 +46,10 @@ export default function Landing() {
             get a real budget with pacing, and a weekly review that actually says something useful.
           </p>
           <div className="landing-cta">
-            <div className="landing-cta-row">
-              <button className="btn primary" style={{ width: 'auto' }} onClick={() => setAuthOpen(true)}>
-                Get started free <ArrowRight size={15} />
-              </button>
-              {/* Always resolves to the newest release asset named RupeeFlow.apk,
-                  so shipping a new build means publishing a release, not redeploying. */}
-              <a className="btn ghost" href={APK_URL} download>
-                <Download size={15} /> Download for Android
-              </a>
-            </div>
-            <span className="muted small">Free · No card required · Works offline</span>
+            <button className="btn primary" style={{ width: 'auto' }} onClick={() => setAuthOpen(true)}>
+              Get started free <ArrowRight size={15} />
+            </button>
+            <span className="muted small">Free · No card required · Installs as an app</span>
           </div>
         </motion.div>
 
@@ -115,6 +105,8 @@ export default function Landing() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <InstallPrompt />
     </div>
   );
 }

@@ -1,16 +1,11 @@
 'use client';
-// AI hub — health score, coach cards, recurring/subscription radar,
-// weekly narrative, and ask-anything chat.
+// AI hub — health score/coach cards, weekly narrative, and ask-anything chat.
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import {
-  Sparkles, TrendingDown, AlertTriangle, Trophy, Eye, RefreshCw,
-  Repeat, Send, Gauge, ScrollText,
-} from 'lucide-react';
+import { Sparkles, TrendingDown, AlertTriangle, Trophy, Eye, RefreshCw, Send, Gauge, ScrollText } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees } from '@/lib/client/constants';
 import { loadDaily, saveDaily } from '@/lib/client/dailyCache';
-import CategoryIcon from '../CategoryIcon';
 import Markdown from '../Markdown';
 
 const KIND_META = {
@@ -34,8 +29,6 @@ export default function Insights() {
   // shouldn't throw away an analysis that already cost an API call.
   const [coach, setCoach] = useState(() => loadDaily('rf_ai_coach'));
   const [loadingCoach, setLoadingCoach] = useState(false);
-  const [recurring, setRecurring] = useState(() => loadDaily('rf_ai_recurring'));
-  const [loadingRec, setLoadingRec] = useState(false);
   const [weekly, setWeekly] = useState(() => loadDaily('rf_ai_weekly') || '');
   const [loadingWeekly, setLoadingWeekly] = useState(false);
   const [chat, setChat] = useState(() => loadDaily('rf_ai_chat') || []);
@@ -43,7 +36,6 @@ export default function Insights() {
   const [asking, setAsking] = useState(false);
 
   useEffect(() => { if (coach) saveDaily('rf_ai_coach', coach); }, [coach]);
-  useEffect(() => { if (recurring) saveDaily('rf_ai_recurring', recurring); }, [recurring]);
   useEffect(() => { if (weekly) saveDaily('rf_ai_weekly', weekly); }, [weekly]);
   useEffect(() => { if (chat.length && !chat[chat.length - 1]?.pending) saveDaily('rf_ai_chat', chat); }, [chat]);
 
@@ -58,40 +50,6 @@ export default function Insights() {
       setCoach(out);
     } catch (e) { store.toast('Analysis failed: ' + e.message); }
     setLoadingCoach(false);
-  }
-
-  async function runRecurring() {
-    setLoadingRec(true);
-    try {
-      // Pre-group client-side (same note+category, 2+ occurrences) so Gemini
-      // gets ~40 compact candidates to classify instead of hundreds of raw
-      // transactions to search through itself — far fewer input/output tokens.
-      const groups = new Map();
-      for (const t of store.live()) {
-        if (t.type !== 'expense') continue;
-        const label = (t.note || t.category).trim();
-        const key = `${label.toLowerCase()}|${t.category}`;
-        if (!groups.has(key)) groups.set(key, { label, category: t.category, rupees: [], dates: [] });
-        const g = groups.get(key);
-        g.rupees.push(t.amount / 100);
-        g.dates.push(new Date(Number(t.occurred_at)).toISOString().slice(0, 10));
-      }
-      const entries = [...groups.values()]
-        .filter((g) => g.rupees.length >= 2)
-        .map((g) => ({
-          label: g.label, category: g.category, occurrences: g.rupees.length,
-          avg_rupees: Math.round(g.rupees.reduce((s, r) => s + r, 0) / g.rupees.length),
-          min_rupees: Math.round(Math.min(...g.rupees)), max_rupees: Math.round(Math.max(...g.rupees)),
-          dates: g.dates.sort().slice(-8),
-        }))
-        .sort((a, b) => b.occurrences - a.occurrences)
-        .slice(0, 40);
-
-      if (!entries.length) { setRecurring([]); setLoadingRec(false); return; }
-      const out = await store.api('/ai/recurring', { method: 'POST', body: JSON.stringify({ entries }) });
-      setRecurring(out.recurring || []);
-    } catch (e) { store.toast('Scan failed: ' + e.message); }
-    setLoadingRec(false);
   }
 
   async function runWeekly() {
@@ -119,8 +77,6 @@ export default function Insights() {
     }
     setAsking(false);
   }
-
-  const annualRecurring = recurring?.reduce((s, r) => s + (Number(r.annual_cost_rupees) || 0), 0) || 0;
 
   return (
     <section className="view">
@@ -182,50 +138,6 @@ export default function Insights() {
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
-
-          {/* ── recurring radar ── */}
-          <div className="card">
-            <div className="card-head">
-              <h3><Repeat size={13} style={{ verticalAlign: '-2px' }} /> Subscription &amp; recurring radar</h3>
-              <button className="btn ghost sm" onClick={runRecurring} disabled={loadingRec}>
-                <RefreshCw size={13} className={loadingRec ? 'spin' : ''} />
-                {recurring ? 'Rescan' : 'Scan'}
-              </button>
-            </div>
-
-            {!recurring && !loadingRec && <p className="empty">Scan your history to surface repeating charges and their yearly cost.</p>}
-            {loadingRec && <div className="skeleton-block" />}
-
-            {recurring && !loadingRec && (
-              recurring.length ? (
-                <>
-                  <div className="recurring-total">
-                    Detected <b>{recurring.length}</b> recurring items · about <b>{rupees(Math.round(annualRecurring * 100))}</b> a year
-                  </div>
-                  <div className="recurring-list">
-                    {recurring.map((r, i) => (
-                      <motion.div key={i} className="recurring-row"
-                        initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.22, delay: i * 0.04 }}>
-                        <CategoryIcon category={r.category} size={13} />
-                        <div className="recurring-body">
-                          <div className="recurring-label">
-                            {r.label}
-                            {r.cancel_candidate && <span className="badge expense">Review</span>}
-                          </div>
-                          <div className="recurring-meta">{r.cadence} · {r.occurrences}× seen · {r.note}</div>
-                        </div>
-                        <div className="recurring-cost">
-                          <b>{rupees(Math.round((r.typical_rupees || 0) * 100))}</b>
-                          <span>{rupees(Math.round((r.annual_cost_rupees || 0) * 100))}/yr</span>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                </>
-              ) : <p className="empty">No clear recurring pattern found yet.</p>
-            )}
           </div>
 
           {/* ── weekly narrative ── */}

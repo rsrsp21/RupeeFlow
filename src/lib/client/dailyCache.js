@@ -1,5 +1,5 @@
 // Persist a value in localStorage, valid until local midnight — used for AI
-// results (coach, recurring, weekly review, chat) so switching views doesn't
+// results (coach, weekly review, chat) so switching views doesn't
 // throw away an analysis the user already paid an API call for, but it also
 // doesn't linger stale forever (a Refresh/Rescan button always overrides it).
 const todayKey = () => new Date().toDateString();

@@ -6,10 +6,3 @@ out/
 .env*.local
 .vercel
 *.tsbuildinfo
-
-# The APK is served from public/ (repo is private, so GitHub Release assets
-# wouldn't be publicly downloadable). The AAB is Play-Store-only, and the
-# signing key must never be committed.
-*.aab
-*.keystore
-*.jks

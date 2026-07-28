@@ -162,9 +162,7 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .landing-title { font-size: clamp(1.7rem, 3.6vw, 2.7rem); line-height: 1.16; margin-top: 0; margin-bottom: 16px; }
 .landing-sub { color: var(--muted); font-size: 1rem; line-height: 1.6; max-width: 480px; margin: 0 0 28px; }
 .landing-cta { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
-.landing-cta-row { display: flex; flex-wrap: wrap; gap: 10px; }
-.landing-cta .btn { padding: 12px 22px; font-size: .92rem; }
-.landing-cta .btn.ghost { text-decoration: none; }
+.landing-cta .btn.primary { padding: 12px 22px; font-size: .92rem; }
 .landing-preview {
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 22px; box-shadow: var(--shadow-lg); justify-self: center; width: 100%; max-width: 340px;
@@ -218,7 +216,6 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
   .landing-hero { grid-template-columns: 1fr; text-align: center; padding-top: 40px; }
   .landing-sub { margin-inline: auto; }
   .landing-cta { align-items: center; }
-  .landing-cta-row { justify-content: center; }
   .landing-preview { max-width: 380px; }
 }
 @media (max-width: 760px) {
@@ -686,21 +683,6 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .coach-impact { font-size: .78rem; font-weight: 650; font-variant-numeric: tabular-nums; }
 .coach-title { font-size: .85rem; font-weight: 600; line-height: 1.35; }
 .coach-detail { font-size: .76rem; color: var(--muted); margin-top: 4px; line-height: 1.5; }
-
-.recurring-total {
-  font-size: .8rem; color: var(--muted); padding: 9px 12px; margin-bottom: 12px;
-  background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm);
-}
-.recurring-total b { color: var(--text); }
-.recurring-list { display: flex; flex-direction: column; gap: 2px; }
-.recurring-row { display: flex; align-items: center; gap: 11px; padding: 9px 6px; border-bottom: 1px solid var(--line); }
-.recurring-row:last-child { border-bottom: none; }
-.recurring-body { flex: 1; min-width: 0; }
-.recurring-label { font-size: .85rem; font-weight: 550; display: flex; align-items: center; gap: 7px; }
-.recurring-meta { font-size: .72rem; color: var(--muted); margin-top: 2px; }
-.recurring-cost { text-align: right; }
-.recurring-cost b { display: block; font-size: .85rem; font-variant-numeric: tabular-nums; }
-.recurring-cost span { font-size: .68rem; color: var(--muted); }
 
 /* ═══ budgets ═══ */
 .budget-hero { padding: 22px; }
