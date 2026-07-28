@@ -1,5 +1,6 @@
 // PBKDF2-SHA256 password hashing + HS256 JWT — Web Crypto, zero dependencies.
 import { q } from './db.js';
+import { passwordIssues } from './passwordRules.js';
 
 const te = new TextEncoder();
 const td = new TextDecoder();
@@ -52,7 +53,10 @@ export async function requireUser(request) {
 
 export async function register(email, password, name) {
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new HttpError('Valid email required', 400);
-  if (!password || password.length < 8) throw new HttpError('Password must be at least 8 characters', 400);
+  const issues = passwordIssues(password);
+  if (issues.length) {
+    throw new HttpError(`Password needs ${issues.map((s) => s[0].toLowerCase() + s.slice(1)).join(', ')}`, 400);
+  }
   email = email.toLowerCase();
   name = (name || '').trim().slice(0, 80) || email.split('@')[0];
   const { rows } = await q('SELECT id FROM users WHERE email = ?', [email]);

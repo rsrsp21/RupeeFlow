@@ -118,6 +118,15 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .logo-lockup h1 { font-size: 1.35rem; margin-top: 12px; }
 .tagline { color: var(--muted); font-size: .85rem; margin-top: 3px; }
 .auth input { width: 100%; margin-bottom: 10px; }
+.password-field { position: relative; }
+.password-field input { padding-right: 38px; }
+.password-eye { position: absolute; right: 2px; top: 0; bottom: 10px; }
+.password-checklist { list-style: none; display: flex; flex-direction: column; gap: 4px; margin: -2px 0 14px; }
+.password-checklist li {
+  display: flex; align-items: center; gap: 6px; font-size: .74rem; color: var(--muted); transition: color .15s;
+}
+.password-checklist li.met { color: var(--green); }
+.password-checklist li svg { flex-shrink: 0; }
 .auth-switch { text-align: center; font-size: .82rem; color: var(--muted); margin-top: 16px; }
 .auth-switch a { color: var(--accent-text); text-decoration: none; font-weight: 550; }
 .auth-error { color: var(--red); font-size: .82rem; text-align: center; margin-top: 10px; min-height: 1.2em; }

@@ -1,6 +1,8 @@
 'use client';
 import { useState } from 'react';
+import { Eye, EyeOff, Check, X } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
+import { PASSWORD_RULES } from '@/lib/passwordRules';
 
 export default function AuthView() {
   const { authenticate } = useStore();
@@ -8,8 +10,12 @@ export default function AuthView() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  const ruleResults = PASSWORD_RULES.map((r) => ({ label: r.label, met: r.test(password) }));
+  const passwordOk = !isRegister || ruleResults.every((r) => r.met);
 
   async function submit(e) {
     e.preventDefault();
@@ -34,10 +40,25 @@ export default function AuthView() {
           )}
           <input type="email" placeholder="Email" required autoComplete="email"
             value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input type="password" placeholder="Password (min 8 chars)" required minLength={8}
-            autoComplete={isRegister ? 'new-password' : 'current-password'}
-            value={password} onChange={(e) => setPassword(e.target.value)} />
-          <button type="submit" className="btn primary" disabled={busy}>
+          <div className="password-field">
+            <input type={showPassword ? 'text' : 'password'} placeholder="Password (min 8 chars)" required minLength={8}
+              autoComplete={isRegister ? 'new-password' : 'current-password'}
+              value={password} onChange={(e) => setPassword(e.target.value)} />
+            <button type="button" className="icon-btn password-eye" tabIndex={-1}
+              onClick={() => setShowPassword((v) => !v)} title={showPassword ? 'Hide password' : 'Show password'}>
+              {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+          </div>
+          {isRegister && (
+            <ul className="password-checklist">
+              {ruleResults.map((r) => (
+                <li key={r.label} className={r.met ? 'met' : ''}>
+                  {r.met ? <Check size={12} strokeWidth={2.6} /> : <X size={12} strokeWidth={2.2} />} {r.label}
+                </li>
+              ))}
+            </ul>
+          )}
+          <button type="submit" className="btn primary" disabled={busy || !passwordOk}>
             {isRegister ? 'Create account' : 'Sign in'}
           </button>
           <p className="auth-switch">
