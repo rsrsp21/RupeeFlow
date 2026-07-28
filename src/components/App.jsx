@@ -22,6 +22,15 @@ import { Nav } from './Nav';
 const UICtx = createContext(null);
 export const useUI = () => useContext(UICtx);
 
+// Mini FABs stagger in on open; on close they all retreat together, quickly,
+// so the cluster doesn't feel like it's lagging behind the "+" as it un-rotates.
+const FAB_ITEM = {
+  hidden: { opacity: 0, y: 10, scale: .6 },
+  visible: (i) => ({ opacity: 1, y: 0, scale: 1, transition: { duration: 0.16, delay: i * 0.035, ease: 'easeOut' } }),
+  exit: { opacity: 0, y: 6, scale: .6, transition: { duration: 0.12, ease: 'easeIn' } },
+};
+const FAB_ROTATE = { duration: 0.15, ease: 'easeInOut' };
+
 const VIEWS = { dashboard: Dashboard, transactions: Ledger, budgets: Budgets, insights: Insights, settings: Settings };
 
 export default function App() {
@@ -104,20 +113,17 @@ export default function App() {
             {fabOpen && (
               <>
                 <motion.button className="fab mini" title="Speak an expense"
-                  initial={{ opacity: 0, y: 10, scale: .6 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: .6 }}
-                  transition={{ duration: 0.15 }}
+                  custom={0} variants={FAB_ITEM} initial="hidden" animate="visible" exit="exit"
                   onClick={() => { setFabOpen(false); setVoiceOpen(true); }}>
                   <Mic size={18} strokeWidth={1.9} />
                 </motion.button>
                 <motion.button className="fab mini" title="Scan a receipt"
-                  initial={{ opacity: 0, y: 10, scale: .6 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: .6 }}
-                  transition={{ duration: 0.15, delay: 0.03 }}
+                  custom={1} variants={FAB_ITEM} initial="hidden" animate="visible" exit="exit"
                   onClick={() => { setFabOpen(false); fileRef.current?.click(); }}>
                   <ScanLine size={18} strokeWidth={1.9} />
                 </motion.button>
                 <motion.button className="fab mini" title="Add entry manually"
-                  initial={{ opacity: 0, y: 10, scale: .6 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: .6 }}
-                  transition={{ duration: 0.15, delay: 0.06 }}
+                  custom={2} variants={FAB_ITEM} initial="hidden" animate="visible" exit="exit"
                   onClick={() => { setFabOpen(false); openTx(); }}>
                   <PenLine size={18} strokeWidth={1.9} />
                 </motion.button>
@@ -125,7 +131,7 @@ export default function App() {
             )}
           </AnimatePresence>
           <button className="fab main-fab" title={fabOpen ? 'Close' : 'Add entry'} onClick={() => setFabOpen((v) => !v)}>
-            <motion.span className="fab-plus" animate={{ rotate: fabOpen ? 45 : 0 }} transition={{ duration: 0.2 }}>
+            <motion.span className="fab-plus" animate={{ rotate: fabOpen ? 45 : 0 }} transition={FAB_ROTATE}>
               <Plus size={22} strokeWidth={2.2} />
             </motion.span>
           </button>
