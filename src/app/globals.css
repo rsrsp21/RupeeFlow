@@ -33,6 +33,9 @@ body {
   font-feature-settings: "tnum" 1;
   transition: background .25s ease, color .25s ease;
   min-height: 100dvh;
+  /* Belt-and-suspenders with viewport's maximumScale/userScalable: blocks
+     double-tap-to-zoom even on browsers that ignore the meta tag for it. */
+  touch-action: manipulation;
 }
 h1, h2, h3, h4, .hero-amount, .tx-amt, .nav-brand, .day-label {
   font-family: var(--font-display), var(--font-body), system-ui, sans-serif;
