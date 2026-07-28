@@ -1,12 +1,8 @@
-[
-  {
-    "relation": ["delegate_permission/common.handle_all_urls"],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "app.vercel.rupeeflowindia.twa",
-      "sha256_cert_fingerprints": [
-        "C7:BC:9E:8B:42:41:A6:37:D2:EB:9C:79:3E:D4:5A:CF:DD:62:B6:1D:25:93:F6:70:69:C1:F5:2C:4F:8E:B8:AF"
-      ]
-    }
-  }
-]
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.vercel.rupeeflowindia.twa",
+        "sha256_cert_fingerprints": ["8D:D5:D5:CA:A5:96:11:E6:9B:5B:98:2C:5B:0F:08:B4:93:E4:16:A2:D7:7E:C3:B4:66:B1:A5:8D:FD:3F:60:26"]
+      }
+    }]
