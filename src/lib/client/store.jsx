@@ -96,14 +96,16 @@ export function StoreProvider({ children }) {
   }, [syncSoon]);
 
   // ── budgets ──
-  const saveBudget = useCallback(async (b) => {
+  // Optimistic: apply locally and resolve immediately so the UI never waits
+  // on the D1 round-trip; the PUT is fired in the background.
+  const saveBudget = useCallback((b) => {
     setBudgets((prev) => {
       const i = prev.findIndex((x) => x.month === b.month && x.category === b.category);
       const next = i >= 0 ? prev.map((x, j) => (j === i ? b : x)) : [...prev, b];
       idbPut('meta', { k: 'budgets', v: next });
       return next;
     });
-    try { await api('/budgets', { method: 'PUT', body: JSON.stringify({ budgets: [b] }) }); } catch {}
+    api('/budgets', { method: 'PUT', body: JSON.stringify({ budgets: [b] }) }).catch(() => {});
   }, [api]);
 
   // ── auth ──
@@ -120,11 +122,19 @@ export function StoreProvider({ children }) {
     setToken(data.token); setEmail(data.email); setName(data.name || '');
   }, []);
 
-  const saveName = useCallback(async (nameIn) => {
-    const { name: saved } = await api('/auth/profile', { method: 'PUT', body: JSON.stringify({ name: nameIn }) });
-    localStorage.setItem('rf_name', saved || '');
-    setName(saved || '');
-  }, [api]);
+  // Optimistic: reflect the new name instantly, sync to the server in the
+  // background, and roll back with a toast if that save actually fails.
+  const saveName = useCallback((nameIn) => {
+    const clean = (nameIn || '').trim().slice(0, 80);
+    const prev = name;
+    localStorage.setItem('rf_name', clean);
+    setName(clean);
+    api('/auth/profile', { method: 'PUT', body: JSON.stringify({ name: clean }) }).catch(() => {
+      localStorage.setItem('rf_name', prev);
+      setName(prev);
+      toast("Couldn't save name — check your connection");
+    });
+  }, [api, name, toast]);
 
   const logout = useCallback(() => {
     localStorage.removeItem('rf_token');

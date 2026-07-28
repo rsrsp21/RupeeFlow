@@ -322,12 +322,17 @@ input::placeholder { color: var(--muted); }
 .fab-cluster { position: fixed; right: 28px; bottom: 28px; display: flex; flex-direction: column-reverse; align-items: center; gap: 10px; z-index: 40; }
 .fab {
   border: none; border-radius: 14px; display: grid; place-items: center;
-  cursor: pointer; transition: transform .18s cubic-bezier(.22,1,.36,1), box-shadow .2s;
-  box-shadow: var(--shadow-lg);
+  cursor: pointer; box-shadow: var(--shadow-lg);
 }
-.fab:hover { transform: translateY(-1px); }
-.fab:active { transform: scale(.95); }
-.main-fab { width: 52px; height: 52px; background: var(--text); color: var(--bg); }
+.main-fab {
+  width: 52px; height: 52px; background: var(--text); color: var(--bg);
+  transition: transform .18s cubic-bezier(.22,1,.36,1), box-shadow .2s;
+}
+.main-fab:hover { transform: translateY(-1px); }
+.main-fab:active { transform: scale(.95); }
+/* .fab.mini's transform is driven entirely by Framer Motion (FAB_ITEM variants) —
+   a CSS transition on the same property here would fight FM's own rAF-driven
+   animation and stutter, so hover/tap feedback comes from whileHover/whileTap instead. */
 .fab.mini { width: 44px; height: 44px; background: var(--surface); color: var(--text); border: 1px solid var(--line-strong); }
 .fab-plus { display: inline-flex; }
 

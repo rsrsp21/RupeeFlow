@@ -24,12 +24,16 @@ export const useUI = () => useContext(UICtx);
 
 // Mini FABs stagger in on open; on close they all retreat together, quickly,
 // so the cluster doesn't feel like it's lagging behind the "+" as it un-rotates.
+// Their transform is driven ONLY by these variants — no CSS transition on
+// .fab.mini's transform — otherwise the two animation systems fight and stutter.
 const FAB_ITEM = {
   hidden: { opacity: 0, y: 10, scale: .6 },
   visible: (i) => ({ opacity: 1, y: 0, scale: 1, transition: { duration: 0.16, delay: i * 0.035, ease: 'easeOut' } }),
   exit: { opacity: 0, y: 6, scale: .6, transition: { duration: 0.12, ease: 'easeIn' } },
 };
 const FAB_ROTATE = { duration: 0.15, ease: 'easeInOut' };
+const FAB_TAP = { scale: 0.92 };
+const FAB_HOVER = { y: -1 };
 
 const VIEWS = { dashboard: Dashboard, transactions: Ledger, budgets: Budgets, insights: Insights, settings: Settings };
 
@@ -89,6 +93,12 @@ export default function App() {
   const ui = { view, setView, openTx, openBudget, openExport: () => setExportOpen(true) };
   const ActiveView = VIEWS[view] || Dashboard;
 
+  const fabActions = [
+    { key: 'voice', Icon: Mic, title: 'Speak an expense', onClick: () => { setFabOpen(false); setVoiceOpen(true); } },
+    { key: 'scan', Icon: ScanLine, title: 'Scan a receipt', onClick: () => { setFabOpen(false); fileRef.current?.click(); } },
+    { key: 'manual', Icon: PenLine, title: 'Add entry manually', onClick: () => { setFabOpen(false); openTx(); } },
+  ];
+
   return (
     <UICtx.Provider value={ui}>
       <div className={`app ${collapsed ? 'nav-collapsed' : ''}`}>
@@ -110,25 +120,14 @@ export default function App() {
         {/* + expands into Manual / Scan / Voice and morphs into an X; tap again or pick one to close */}
         <div className={`fab-cluster ${fabOpen ? 'open' : ''}`} ref={fabRef}>
           <AnimatePresence>
-            {fabOpen && (
-              <>
-                <motion.button className="fab mini" title="Speak an expense"
-                  custom={0} variants={FAB_ITEM} initial="hidden" animate="visible" exit="exit"
-                  onClick={() => { setFabOpen(false); setVoiceOpen(true); }}>
-                  <Mic size={18} strokeWidth={1.9} />
-                </motion.button>
-                <motion.button className="fab mini" title="Scan a receipt"
-                  custom={1} variants={FAB_ITEM} initial="hidden" animate="visible" exit="exit"
-                  onClick={() => { setFabOpen(false); fileRef.current?.click(); }}>
-                  <ScanLine size={18} strokeWidth={1.9} />
-                </motion.button>
-                <motion.button className="fab mini" title="Add entry manually"
-                  custom={2} variants={FAB_ITEM} initial="hidden" animate="visible" exit="exit"
-                  onClick={() => { setFabOpen(false); openTx(); }}>
-                  <PenLine size={18} strokeWidth={1.9} />
-                </motion.button>
-              </>
-            )}
+            {fabOpen && fabActions.map(({ key, Icon, title, onClick }, i) => (
+              <motion.button key={key} className="fab mini" title={title}
+                custom={i} variants={FAB_ITEM} initial="hidden" animate="visible" exit="exit"
+                whileHover={FAB_HOVER} whileTap={FAB_TAP}
+                onClick={onClick}>
+                <Icon size={18} strokeWidth={1.9} />
+              </motion.button>
+            ))}
           </AnimatePresence>
           <button className="fab main-fab" title={fabOpen ? 'Close' : 'Add entry'} onClick={() => setFabOpen((v) => !v)}>
             <motion.span className="fab-plus" animate={{ rotate: fabOpen ? 45 : 0 }} transition={FAB_ROTATE}>
