@@ -21,6 +21,8 @@ const FEATURES = [
 
 const PREVIEW_BARS = [38, 62, 45, 80, 55, 96, 70];
 
+const APK_URL = 'https://github.com/rsrsp21/RupeeFlow/releases/latest/download/RupeeFlow.apk';
+
 export default function Landing() {
   const [authOpen, setAuthOpen] = useState(false);
 
@@ -50,7 +52,9 @@ export default function Landing() {
               <button className="btn primary" style={{ width: 'auto' }} onClick={() => setAuthOpen(true)}>
                 Get started free <ArrowRight size={15} />
               </button>
-              <a className="btn ghost" href="/RupeeFlow.apk" download>
+              {/* Always resolves to the newest release asset named RupeeFlow.apk,
+                  so shipping a new build means publishing a release, not redeploying. */}
+              <a className="btn ghost" href={APK_URL} target="_blank" rel="noopener noreferrer">
                 <Download size={15} /> Download for Android
               </a>
             </div>

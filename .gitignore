@@ -6,3 +6,9 @@ out/
 .env*.local
 .vercel
 *.tsbuildinfo
+
+# APK ships via GitHub Releases, not the repo
+*.apk
+*.aab
+*.keystore
+*.jks
