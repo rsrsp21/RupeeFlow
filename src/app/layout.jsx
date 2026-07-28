@@ -5,9 +5,11 @@ import './globals.css';
 const manrope = Manrope({ subsets: ['latin'], variable: '--font-body', display: 'swap' });
 const sora = Sora({ subsets: ['latin'], variable: '--font-display', display: 'swap' });
 
+const description = 'AI-powered ₹ expense tracker: speak or scan an expense, get a real budget with pacing, and a weekly review that actually helps.';
+
 export const metadata = {
   title: `RupeeFlow: ${TAGLINE}`,
-  description: 'Minimalist ₹ budget & expense tracker with AI voice entry, receipt scanning, and insights',
+  description,
   manifest: '/manifest.webmanifest',
   icons: {
     icon: [
@@ -18,6 +20,20 @@ export const metadata = {
     apple: '/apple-touch-icon.png',
   },
   appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'RupeeFlow' },
+  // So sharing the link (WhatsApp, etc.) shows a real preview card instead of a bare URL.
+  openGraph: {
+    title: `RupeeFlow: ${TAGLINE}`,
+    description,
+    siteName: 'RupeeFlow',
+    images: [{ url: '/icon-512.png', width: 512, height: 512 }],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: `RupeeFlow: ${TAGLINE}`,
+    description,
+    images: ['/icon-512.png'],
+  },
 };
 
 export const viewport = {
