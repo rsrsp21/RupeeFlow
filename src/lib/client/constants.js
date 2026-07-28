@@ -55,6 +55,15 @@ const fmtINRp = typeof Intl !== 'undefined'
 export const rupees = (paise) =>
   paise % 100 === 0 ? fmtINR.format(paise / 100) : fmtINRp.format(paise / 100);
 
+// Short form for tight spaces (chart labels) — ₹450, ₹1.2k, ₹3.4L.
+export const rupeesShort = (paise) => {
+  const r = paise / 100;
+  if (r >= 1e7) return `₹${(r / 1e7).toFixed(1)}Cr`;
+  if (r >= 1e5) return `₹${(r / 1e5).toFixed(1)}L`;
+  if (r >= 1e3) return `₹${(r / 1e3).toFixed(1)}k`;
+  return `₹${Math.round(r)}`;
+};
+
 export const toPaise = (str) => {
   const n = parseFloat(String(str).replace(/[₹,\s]/g, ''));
   return Number.isFinite(n) ? Math.round(n * 100) : NaN;

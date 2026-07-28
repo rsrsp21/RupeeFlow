@@ -47,7 +47,7 @@ export default function TxModal({ state, onClose }) {
   const noteKey = normalizeNote(note);
   const matches = useMemo(() => {
     if (existing || noteKey.length < 2) return [];
-    return history.filter((h) => h.key !== noteKey && h.key.includes(noteKey)).slice(0, 5);
+    return history.filter((h) => h.key !== noteKey && h.key.includes(noteKey)).slice(0, 8);
   }, [history, noteKey, existing]);
 
   // auto-fill category (and project) from the user's own history first, since
@@ -144,12 +144,6 @@ export default function TxModal({ state, onClose }) {
               value={note} onChange={(e) => setNote(e.target.value)}
               onFocus={() => setNoteFocused(true)}
               onBlur={() => setTimeout(() => setNoteFocused(false), 120)} />
-            {type !== 'transfer' && (
-              <button type="button" className="note-ai-btn" onClick={aiCategorize}
-                disabled={aiBusy || !note.trim()} title="Auto-categorize with AI">
-                <Sparkles size={13} className={aiBusy ? 'spin' : ''} />
-              </button>
-            )}
             {noteFocused && matches.length > 0 && (
               <ul className="note-suggest">
                 {matches.map((m) => (
@@ -162,6 +156,11 @@ export default function TxModal({ state, onClose }) {
               </ul>
             )}
           </div>
+          {type !== 'transfer' && (
+            <button type="button" className="btn ghost sm ai-cat-btn" onClick={aiCategorize} disabled={aiBusy || !note.trim()}>
+              <Sparkles size={13} className={aiBusy ? 'spin' : ''} /> Auto-categorize with AI
+            </button>
+          )}
           <div className="form-row">
             {type !== 'transfer' && (
               <select value={category} onChange={(e) => setCategory(e.target.value)}>

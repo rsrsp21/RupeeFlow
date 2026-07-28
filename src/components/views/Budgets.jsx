@@ -79,7 +79,7 @@ export default function Budgets() {
       <header className="view-head">
         <div>
           <h2>Budgets</h2>
-          <p className="sub">{new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} · day {dayOfMonth} of {daysIn}</p>
+          <p className="sub">{new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} · Day {dayOfMonth} of {daysIn}</p>
         </div>
         <div className="head-actions">
           <button className="btn ghost" onClick={suggest} disabled={loadingSuggest}>
@@ -164,7 +164,7 @@ export default function Budgets() {
                     <span className="suggest-row-name">{c.category}</span>
                     <span className="suggest-row-amt">{rupees(Math.round(c.suggested_rupees * 100))}</span>
                   </div>
-                  <p className="suggest-row-note">now {rupees(Math.round((c.current_avg_rupees || 0) * 100))} · {c.rationale}</p>
+                  <p className="suggest-row-note">Now {rupees(Math.round((c.current_avg_rupees || 0) * 100))} · {c.rationale}</p>
                 </div>
                 <button className="btn ghost sm" disabled={applied.includes(c.category)}
                   onClick={() => applyOne(c.category, c.suggested_rupees)}>

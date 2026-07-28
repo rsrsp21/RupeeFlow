@@ -193,9 +193,9 @@ export default function Dashboard() {
       <div className="card">
         <div className="card-head">
           <h3>Daily spending · last 7 days</h3>
-          <span className="muted small">peak {rupees(Math.max(...trend.map((t) => t.value), 0))}</span>
+          <span className="muted small">Peak {rupees(Math.max(...trend.map((t) => t.value), 0))}</span>
         </div>
-        <TrendBars buckets={trend} height={90} />
+        <TrendBars buckets={trend} height={120} showValues avgLine />
       </div>
 
       {/* ── category breakdown ── */}
