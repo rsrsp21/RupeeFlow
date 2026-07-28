@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Download, X, Share } from 'lucide-react';
 
-export default function InstallPrompt() {
+export default function InstallPrompt({ top = false }) {
   const [deferred, setDeferred] = useState(null);
   const [showIOS, setShowIOS] = useState(false);
   const [dismissed, setDismissed] = useState(true);
@@ -51,14 +51,14 @@ export default function InstallPrompt() {
   return (
     <AnimatePresence>
       {visible && (
-        <motion.div className="install-prompt"
-          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
+        <motion.div className={`install-prompt ${top ? 'top' : ''}`}
+          initial={{ opacity: 0, y: top ? -20 : 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: top ? -20 : 20 }}
           transition={{ type: 'spring', stiffness: 400, damping: 32 }}>
           <div className="install-body">
             <b>Install RupeeFlow</b>
             <span>
               {showIOS
-                ? <>Tap <Share size={12} style={{ verticalAlign: '-2px' }} /> then “Add to Home Screen” — works offline after that.</>
+                ? <>Tap <Share size={12} style={{ verticalAlign: '-2px' }} /> then “Add to Home Screen.” Works offline after that.</>
                 : 'Add it to your home screen to log expenses offline.'}
             </span>
           </div>

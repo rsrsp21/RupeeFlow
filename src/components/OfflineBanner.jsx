@@ -24,7 +24,7 @@ export default function OfflineBanner() {
         <motion.div className="offline-banner"
           initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
           <WifiOff size={13} strokeWidth={2} />
-          Offline — entries save on this device and sync when you reconnect
+          Offline: entries save on this device and sync when you reconnect
         </motion.div>
       )}
     </AnimatePresence>

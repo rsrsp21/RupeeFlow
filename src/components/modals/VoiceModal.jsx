@@ -24,7 +24,7 @@ export default function VoiceModal({ onClose }) {
         recorder.current = new MediaRecorder(stream.current, { mimeType: mime });
         recorder.current.ondataavailable = (e) => chunks.current.push(e.data);
         recorder.current.start();
-      } catch { setStatus('Microphone unavailable — check permissions'); }
+      } catch { setStatus('Microphone unavailable. Check permissions.'); }
     })();
     return () => stream.current?.getTracks().forEach((t) => t.stop());
   }, []);
@@ -45,7 +45,7 @@ export default function VoiceModal({ onClose }) {
         body: JSON.stringify({ audio: b64, mimeType: rec.mimeType, projects: store.projects() }),
       });
       const { added, sum } = await applyParsedTransactions(store, out, 'voice');
-      store.toast(added ? `Added ${added} ${added > 1 ? 'entries' : 'entry'} · ${rupees(sum)} ✓` : `Heard: "${out?.transcript || '…'}" — no amounts found`);
+      store.toast(added ? `Added ${added} ${added > 1 ? 'entries' : 'entry'} · ${rupees(sum)} ✓` : `Heard: "${out?.transcript || '…'}", no amounts found`);
     } catch (e) { store.toast('Could not process audio: ' + e.message); }
     onClose();
   }

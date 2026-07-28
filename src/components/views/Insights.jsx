@@ -131,7 +131,7 @@ export default function Insights() {
         </div>
       </header>
 
-      {!hasData && <div className="card"><p className="empty">Add a few entries first — AI analysis needs data to work from.</p></div>}
+      {!hasData && <div className="card"><p className="empty">Add a few entries first. AI analysis needs data to work from.</p></div>}
 
       {hasData && (
         <>

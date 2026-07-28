@@ -133,7 +133,7 @@ function AccountsCard() {
   }
 
   async function remove(name) {
-    if (usage[name]) return store.toast(`${name} is used by ${usage[name]} entries — can't remove`);
+    if (usage[name]) return store.toast(`${name} is used by ${usage[name]} entries and can't be removed`);
     if (store.accounts.length <= 1) return store.toast('Keep at least one account');
     await store.saveAccounts(store.accounts.filter((a) => a !== name));
     store.toast(`Removed ${name}`);
@@ -143,7 +143,7 @@ function AccountsCard() {
     <div className="card">
       <div className="card-head"><h3><Wallet size={13} style={{ verticalAlign: '-2px' }} /> Accounts</h3></div>
       <p className="muted small" style={{ marginBottom: 12 }}>
-        Balances are derived from your ledger — income adds, expenses subtract, transfers move between accounts.
+        Balances are derived from your ledger: income adds, expenses subtract, transfers move between accounts.
       </p>
 
       <div className="acct-list">

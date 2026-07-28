@@ -69,7 +69,7 @@ export default function TxModal({ state, onClose }) {
   async function remove() {
     await store.saveTx({ ...existing, deleted: 1, updated_at: Date.now(), rev: existing.rev + 1 });
     onClose();
-    store.toast('Entry deleted — totals recalculated');
+    store.toast('Entry deleted, totals recalculated');
   }
 
   return (

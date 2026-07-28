@@ -50,7 +50,7 @@ export function periodLabel(kind, start) {
     if (start === startOfWeek(now) - 7 * DAY_MS) return 'Last week';
     const end = new Date(start + 6 * DAY_MS);
     const sameMonth = d.getMonth() === end.getMonth();
-    return `${d.toLocaleDateString('en-IN', { day: 'numeric', ...(sameMonth ? {} : { month: 'short' }) })} – ${end.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+    return `${d.toLocaleDateString('en-IN', { day: 'numeric', ...(sameMonth ? {} : { month: 'short' }) })} - ${end.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`;
   }
   if (kind === 'month') {
     if (start === startOfMonth(now)) return 'This month';

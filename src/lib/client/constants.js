@@ -1,3 +1,5 @@
+export const TAGLINE = 'Effortless money tracking';
+
 export const CATEGORIES = {
   'Food & Dining':    { ico: '🍽️', color: '#f59e0b' },
   'Groceries':        { ico: '🛒', color: '#84cc16' },

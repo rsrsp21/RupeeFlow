@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Eye, EyeOff, Check, X } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { PASSWORD_RULES } from '@/lib/passwordRules';
+import { TAGLINE } from '@/lib/client/constants';
 
 export default function AuthView() {
   const { authenticate } = useStore();
@@ -31,7 +32,7 @@ export default function AuthView() {
         <div className="logo-lockup">
           <svg className="logo" viewBox="0 0 48 48" width="52" height="52"><use href="/icon.svg#mark" /></svg>
           <h1>RupeeFlow</h1>
-          <p className="tagline">Money, minus the effort.</p>
+          <p className="tagline">{TAGLINE}</p>
         </div>
         <form onSubmit={submit} autoComplete="on">
           {isRegister && (

@@ -43,7 +43,7 @@ export default function PromptModal({ onClose }) {
           <textarea autoFocus rows={3} placeholder="450 lunch with client for Acme project, 120 auto to office"
             value={text} onChange={(e) => setText(e.target.value)} />
           <p className="muted small" style={{ marginTop: 8 }}>
-            Describe one or more expenses in a sentence — dates, projects and categories are picked up automatically.
+            Describe one or more expenses in a sentence: dates, projects and categories are picked up automatically.
           </p>
           <button className="btn primary" type="submit" disabled={busy || !text.trim()} style={{ marginTop: 14 }}>
             {busy ? 'Parsing…' : 'Add entries'}

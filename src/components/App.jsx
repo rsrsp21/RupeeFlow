@@ -98,7 +98,7 @@ export default function App() {
           source: 'receipt',
         },
       });
-      store.toast(`Found ${rupees(amount)} at ${out.merchant || 'store'} — review and save`);
+      store.toast(`Found ${rupees(amount)} at ${out.merchant || 'store'}, review and save`);
     } catch (e) { store.toast('Receipt scan failed: ' + e.message); }
   }
 

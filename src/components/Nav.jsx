@@ -17,10 +17,10 @@ export function Nav({ view, setView, collapsed, setCollapsed }) {
   return (
     <aside className={`nav ${collapsed ? 'collapsed' : ''}`}>
       <div className="nav-top">
-        <div className="nav-brand" title="RupeeFlow">
+        <button className="nav-brand" title="Go to dashboard" onClick={() => setView('dashboard')}>
           <svg viewBox="0 0 48 48" width="24" height="24"><use href="/icon.svg#mark" /></svg>
           <span className="nav-text">RupeeFlow</span>
-        </div>
+        </button>
         <button className="icon-btn nav-collapse" onClick={() => setCollapsed(!collapsed)}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
           {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}

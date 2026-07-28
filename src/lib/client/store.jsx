@@ -132,7 +132,7 @@ export function StoreProvider({ children }) {
     api('/auth/profile', { method: 'PUT', body: JSON.stringify({ name: clean }) }).catch(() => {
       localStorage.setItem('rf_name', prev);
       setName(prev);
-      toast("Couldn't save name — check your connection");
+      toast("Couldn't save name. Check your connection.");
     });
   }, [api, name, toast]);
 

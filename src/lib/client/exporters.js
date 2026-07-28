@@ -119,7 +119,7 @@ export async function toPDF(rows, opts, meta) {
         : opts.groupBy === 'project' ? 'Project' : opts.groupBy === 'account' ? 'Account' : 'Category',
         'Entries', 'Spent (Rs)', 'Received (Rs)']],
       body: groups.map((g) => [g.key, g.count, (g.expense / 100).toLocaleString('en-IN'),
-        g.income ? (g.income / 100).toLocaleString('en-IN') : '—']),
+        (g.income / 100).toLocaleString('en-IN')]),
       theme: 'striped',
       headStyles: { fillColor: [23, 23, 26], fontSize: 9 },
       styles: { fontSize: 9, cellPadding: 3 },

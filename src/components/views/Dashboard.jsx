@@ -153,7 +153,7 @@ export default function Dashboard() {
         )}
         {!overall && (
           <p className="budget-line">
-            No monthly budget yet — <a href="#" className="link" onClick={(e) => { e.preventDefault(); setView('budgets'); }}>set one</a> to track pace.
+            No monthly budget yet, <a href="#" className="link" onClick={(e) => { e.preventDefault(); setView('budgets'); }}>set one</a> to track pace.
           </p>
         )}
       </div>
@@ -171,7 +171,7 @@ export default function Dashboard() {
         {overall > 0 && stats.projected > overall && (
           <InsightCard icon={<Target size={15} />} tone="warn"
             title="On pace to exceed budget"
-            body={`At ${rupees(stats.dailyAvg)}/day you'll reach ${rupees(stats.projected)} — ${rupees(stats.projected - overall)} over.`} />
+            body={`At ${rupees(stats.dailyAvg)}/day you'll reach ${rupees(stats.projected)}: ${rupees(stats.projected - overall)} over.`} />
         )}
         {stats.streak >= 2 && (
           <InsightCard icon={<Flame size={15} />} tone="good"
@@ -184,7 +184,7 @@ export default function Dashboard() {
           return (
             <InsightCard icon={<CategoryIcon category={topCat} size={13} />} tone="neutral"
               title={`${topCat} leads at ${share}%`}
-              body={`${rupees(topVal)} this month — your largest category.`} />
+              body={`${rupees(topVal)} this month, your largest category.`} />
           );
         })()}
       </div>

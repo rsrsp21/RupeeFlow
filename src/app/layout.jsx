@@ -1,11 +1,12 @@
 import { Manrope, Sora } from 'next/font/google';
+import { TAGLINE } from '@/lib/client/constants';
 import './globals.css';
 
 const manrope = Manrope({ subsets: ['latin'], variable: '--font-body', display: 'swap' });
 const sora = Sora({ subsets: ['latin'], variable: '--font-display', display: 'swap' });
 
 export const metadata = {
-  title: 'RupeeFlow — effortless money tracking',
+  title: `RupeeFlow: ${TAGLINE}`,
   description: 'Minimalist ₹ budget & expense tracker with AI voice entry, receipt scanning, and insights',
   manifest: '/manifest.webmanifest',
   icons: {
