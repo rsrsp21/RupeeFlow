@@ -4,6 +4,7 @@
 import { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react';
 import { idbPut, idbAll, idbClear } from './idb';
 import { monthKey, ACCOUNTS as DEFAULT_ACCOUNTS } from './constants';
+import { buildNoteHistory } from '../noteMatch';
 
 const Ctx = createContext(null);
 export const useStore = () => useContext(Ctx);
@@ -235,6 +236,7 @@ export function StoreProvider({ children }) {
     return amt;
   };
   const projects = () => [...new Set(live().map((t) => t.project).filter(Boolean))].sort();
+  const noteHistory = () => buildNoteHistory(live());
 
   // ── accounts ──
   const saveAccounts = useCallback(async (list) => {
@@ -292,7 +294,7 @@ export function StoreProvider({ children }) {
   const value = {
     token, email, name, booted, txs, budgets, accounts, syncState, lastSync, toastMsg,
     api, toast, syncNow, saveTx, saveBudget, saveAccounts, authenticate, saveName, logout,
-    live, totals, inMonth, catSpend, effectiveBudget, projects, accountBalances, buildSummary,
+    live, totals, inMonth, catSpend, effectiveBudget, projects, noteHistory, accountBalances, buildSummary,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

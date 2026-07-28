@@ -493,6 +493,34 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .amount-input input:focus,
 .amount-input input:focus-visible { box-shadow: none; border: none; outline: none; }
 
+/* ── note autofill ── */
+.note-field { position: relative; }
+.note-field input { width: 100%; padding-right: 38px; }
+.note-ai-btn {
+  position: absolute; top: 0; bottom: 0; right: 4px; margin: auto;
+  height: 28px; width: 28px; background: none; border: none; color: var(--accent-text);
+  cursor: pointer; border-radius: var(--radius-sm); display: grid; place-items: center;
+  transition: background .15s;
+}
+.note-ai-btn:hover { background: var(--accent-soft); }
+.note-ai-btn:disabled { opacity: .35; cursor: default; }
+.note-suggest {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 5;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg); list-style: none; padding: 4px; margin: 0;
+  max-height: 220px; overflow-y: auto;
+}
+.note-suggest li {
+  display: flex; align-items: center; gap: 8px; padding: 8px 9px; border-radius: 8px;
+  cursor: pointer; font-size: .82rem;
+}
+.note-suggest li:hover { background: var(--surface-2); }
+.note-suggest-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note-suggest em {
+  font-style: normal; font-size: .7rem; color: var(--muted); flex-shrink: 0;
+  max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 /* ── voice ── */
 .voice-modal { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .mic-orb {
@@ -521,13 +549,15 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 
 /* ═══ trend bars ═══ */
 .trend-wrap { width: 100%; }
-.trend-bars { display: flex; align-items: flex-end; gap: 2px; width: 100%; }
+.trend-bars { display: flex; align-items: flex-end; width: 100%; }
 .trend-col { flex: 1; height: 100%; display: flex; align-items: flex-end; min-width: 0; }
 .trend-bar {
-  position: relative; width: 100%; background: var(--line-strong); border-radius: 3px 3px 2px 2px;
+  position: relative; width: 100%; border-radius: 6px 6px 3px 3px;
   display: block; transition: background .15s;
+  background: color-mix(in srgb, var(--accent) 38%, var(--surface-2));
 }
 .trend-bar.zero { background: var(--line); }
+.trend-bar.peak { background: var(--accent); }
 .trend-col:hover .trend-bar { background: var(--accent); }
 .trend-tip {
   position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%) translateY(4px);
@@ -537,12 +567,13 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 }
 .trend-col:hover .trend-tip { opacity: 1; transform: translateX(-50%) translateY(0); }
 .trend-labels {
-  display: flex; gap: 2px; margin-top: 5px; width: 100%;
+  display: flex; margin-top: 6px; width: 100%;
 }
 .trend-labels span {
   flex: 1; min-width: 0; text-align: center; font-size: .62rem;
   color: var(--muted); white-space: nowrap; overflow: hidden;
 }
+.trend-labels span.peak { color: var(--accent-text); font-weight: 700; }
 
 /* ═══ KPI strip (dashboard hero) ═══ */
 .kpi-strip {

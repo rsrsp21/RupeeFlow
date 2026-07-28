@@ -82,7 +82,7 @@ export default function Dashboard() {
     for (let i = 6; i >= 0; i--) {
       const s = startOfDay(now) - i * DAY_MS;
       out.push({
-        start: s, label: String(new Date(s).getDate()),
+        start: s, label: i === 0 ? 'Today' : new Date(s).toLocaleDateString('en-IN', { weekday: 'short' }),
         value: all.filter((t) => t.type === 'expense' && t.occurred_at >= s && t.occurred_at < s + DAY_MS)
           .reduce((sum, t) => sum + t.amount, 0),
       });
@@ -195,7 +195,7 @@ export default function Dashboard() {
           <h3>Daily spending · last 7 days</h3>
           <span className="muted small">peak {rupees(Math.max(...trend.map((t) => t.value), 0))}</span>
         </div>
-        <TrendBars buckets={trend} height={90} showLabels={false} />
+        <TrendBars buckets={trend} height={90} />
       </div>
 
       {/* ── category breakdown ── */}

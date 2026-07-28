@@ -2,13 +2,13 @@
 export const maxDuration = 60;
 
 import { requireUser, jsonRes, errRes, HttpError } from '@/lib/auth';
-import { parseText } from '@/lib/gemini';
+import { categorizeNote } from '@/lib/gemini';
 
 export async function POST(request) {
   try {
     if (!(await requireUser(request))) throw new HttpError('Unauthorized', 401);
-    const { text, projects, history } = await request.json().catch(() => ({}));
-    if (!text) throw new HttpError('Text required');
-    return jsonRes(await parseText(text, projects || [], history || []));
+    const { note, history } = await request.json().catch(() => ({}));
+    if (!note || !note.trim()) throw new HttpError('Note required');
+    return jsonRes(await categorizeNote(note, history || []));
   } catch (e) { return errRes(e); }
 }

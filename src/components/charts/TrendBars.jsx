@@ -6,18 +6,23 @@ import { rupees } from '@/lib/client/constants';
 
 export default function TrendBars({ buckets, height = 64, showLabels = true }) {
   const max = Math.max(...buckets.map((b) => b.value), 1);
+  const peakIdx = buckets.reduce((best, b, i) => (b.value > (buckets[best]?.value ?? -1) ? i : best), 0);
+  const hasPeak = buckets[peakIdx]?.value > 0;
   const n = buckets.length || 1;
   const labelEvery = n <= 8 ? 1 : n <= 14 ? 2 : n <= 24 ? 3 : Math.ceil(n / 8);
+  // fewer bars get more breathing room; many-bucket views (month/year) stay tight
+  const gap = n <= 8 ? 7 : n <= 16 ? 4 : 2;
 
   return (
     <div className="trend-wrap" style={{ height: height + (showLabels ? 18 : 0) }}>
-      <div className="trend-bars" style={{ height }}>
+      <div className="trend-bars" style={{ height, gap }}>
         {buckets.map((b, i) => {
           const h = b.value > 0 ? Math.max(3, (b.value / max) * 100) : 2;
+          const isPeak = hasPeak && i === peakIdx;
           return (
             <div className="trend-col" key={b.start ?? i}>
               <motion.span
-                className={`trend-bar ${b.value > 0 ? '' : 'zero'}`}
+                className={`trend-bar ${b.value > 0 ? '' : 'zero'} ${isPeak ? 'peak' : ''}`}
                 initial={{ height: 0 }}
                 animate={{ height: `${h}%` }}
                 transition={{ duration: 0.45, delay: Math.min(i * 0.012, 0.25), ease: [0.22, 1, 0.36, 1] }}
@@ -29,9 +34,11 @@ export default function TrendBars({ buckets, height = 64, showLabels = true }) {
         })}
       </div>
       {showLabels && (
-        <div className="trend-labels">
+        <div className="trend-labels" style={{ gap }}>
           {buckets.map((b, i) => (
-            <span key={b.start ?? i}>{i % labelEvery === 0 ? b.label : ''}</span>
+            <span key={b.start ?? i} className={hasPeak && i === peakIdx ? 'peak' : ''}>
+              {i % labelEvery === 0 ? b.label : ''}
+            </span>
           ))}
         </div>
       )}

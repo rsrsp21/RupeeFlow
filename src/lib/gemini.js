@@ -57,20 +57,41 @@ Return ONLY a JSON object: {"transactions":[{"type":"expense|income|transfer","a
 Rules: amounts are in Indian Rupees. "date" is when the expense happened: resolve ANY spoken date reference to an absolute YYYY-MM-DD — "yesterday", "last Friday", "on 26th July", "two days back", "26 tariq ko" all resolve relative to today (${today}); if the year isn't stated use the most recent past occurrence; if no date is mentioned use null (means today). Infer category from context (e.g. "chai" → Food & Dining, "Uber/auto/metro" → Transport, "recharge/electricity" → Bills & Utilities). If a project or client name is mentioned (e.g. "for the Sharma project"), put it in "project". Multiple expenses in one sentence become multiple transactions.`;
 };
 
-export function parseText(text, projects = []) {
+// Few-shot hint from the user's own note history, so a rephrased repeat of
+// something they've logged before ("chicken 300g" → "chicken 300 grams")
+// gets the same category/project instead of a fresh, possibly different guess.
+function historyHint(history) {
+  const items = (history || []).filter((h) => h && h.note && h.category).slice(0, 60);
+  if (!items.length) return '';
+  const list = items.map((h) => `"${h.note}" → ${h.category}${h.project ? ` (project: ${h.project})` : ''}`).join('; ');
+  return `This user's own past entries and the category/project used for each — reuse the same category (and project) for the same kind of item even if the quantity, unit, or wording differs slightly, e.g. "chicken 300g" and "chicken 300 grams" are the same item: ${list}\n`;
+}
+
+export function parseText(text, projects = [], history = []) {
   return gemini([{
     text: `You convert casual Indian-English/Hinglish speech about money into ledger entries.
 Known project labels: ${projects.join(', ') || '(none)'} — match against these when possible.
-${entrySchema()}\n\nSpeech: "${text}"`,
+${historyHint(history)}${entrySchema()}\n\nSpeech: "${text}"`,
   }]);
 }
 
-export function parseVoice(audioB64, mimeType, projects = []) {
+export function parseVoice(audioB64, mimeType, projects = [], history = []) {
   return gemini([
     { text: `Transcribe this audio (Indian English / Hinglish about money), then convert it into ledger entries.
-Known project labels: ${projects.join(', ') || '(none)'}.\n${entrySchema()}` },
+Known project labels: ${projects.join(', ') || '(none)'}.\n${historyHint(history)}${entrySchema()}` },
     { inlineData: { mimeType: mimeType || 'audio/webm', data: audioB64 } },
   ]);
+}
+
+// One-off AI category guess for the manual add/edit form — used when neither
+// the regex rules nor the user's own note history already resolved one.
+export function categorizeNote(note, history = []) {
+  return gemini([{
+    text: `Categorize this personal-finance note into exactly one category.
+Categories: ${CATEGORIES.join(', ')}
+${historyHint(history)}Note: "${note}"
+Return ONLY JSON: {"category":"exact category name from the list above"}`,
+  }], { temperature: 0.1 });
 }
 
 export function parseReceipt(imageB64, mimeType) {

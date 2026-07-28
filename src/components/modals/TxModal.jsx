@@ -1,10 +1,13 @@
 'use client';
 // Add/edit/delete an entry. Deletes are soft (deleted=1) and every edit bumps
 // rev + updated_at, so history stays consistent on every synced device.
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
+import { Sparkles } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { CATEGORIES, ACCOUNTS, AUTO_RULES, rupees, toPaise } from '@/lib/client/constants';
+import { normalizeNote } from '@/lib/noteMatch';
+import CategoryIcon from '../CategoryIcon';
 
 export const backdropMotion = {
   initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 },
@@ -34,11 +37,54 @@ export default function TxModal({ state, onClose }) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
 
-  // auto-categorize as you type (new entries only)
+  const [noteFocused, setNoteFocused] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+
+  // note history, keyed by normalized text (quantity/units stripped) so
+  // "chicken 300g" and "chicken 300 grams" resolve to the same past entry
+  const history = useMemo(() => store.noteHistory(), [store.txs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const historyIndex = useMemo(() => new Map(history.map((h) => [h.key, h])), [history]);
+  const noteKey = normalizeNote(note);
+  const matches = useMemo(() => {
+    if (existing || noteKey.length < 2) return [];
+    return history.filter((h) => h.key !== noteKey && h.key.includes(noteKey)).slice(0, 5);
+  }, [history, noteKey, existing]);
+
+  // auto-fill category (and project) from the user's own history first, since
+  // it reflects what they actually picked before; fall back to keyword rules
   useEffect(() => {
     if (existing) return;
+    const hit = noteKey && historyIndex.get(noteKey);
+    if (hit) {
+      setCategory(hit.category);
+      if (hit.project) setProject((p) => p || hit.project);
+      return;
+    }
     for (const [re, cat] of AUTO_RULES) if (re.test(note)) { setCategory(cat); break; }
-  }, [note, existing]);
+  }, [note, noteKey, existing, historyIndex]);
+
+  function pickSuggestion(m) {
+    setNote(m.note);
+    setCategory(m.category);
+    if (m.project) setProject((p) => p || m.project);
+    setAmount((a) => (a === '' ? String(m.amount / 100) : a));
+    setNoteFocused(false);
+  }
+
+  async function aiCategorize() {
+    const v = note.trim();
+    if (!v || aiBusy) return;
+    setAiBusy(true);
+    try {
+      const out = await store.api('/ai/categorize', {
+        method: 'POST',
+        body: JSON.stringify({ note: v, history: history.slice(0, 40).map((h) => ({ note: h.note, category: h.category, project: h.project })) }),
+      });
+      if (out?.category && CATEGORIES[out.category]) { setCategory(out.category); store.toast(`Categorized as ${out.category}`); }
+      else store.toast('Could not determine a category');
+    } catch (e) { store.toast('AI categorize failed: ' + e.message); }
+    setAiBusy(false);
+  }
 
   async function save(e) {
     e.preventDefault();
@@ -93,8 +139,29 @@ export default function TxModal({ state, onClose }) {
             <input inputMode="decimal" placeholder="0" required autoFocus
               value={amount} onChange={(e) => setAmount(e.target.value)} />
           </div>
-          <input placeholder="What was it? (auto-categorizes as you type)"
-            value={note} onChange={(e) => setNote(e.target.value)} />
+          <div className="note-field">
+            <input placeholder="What was it? (auto-fills from past entries)" autoComplete="off"
+              value={note} onChange={(e) => setNote(e.target.value)}
+              onFocus={() => setNoteFocused(true)}
+              onBlur={() => setTimeout(() => setNoteFocused(false), 120)} />
+            {type !== 'transfer' && (
+              <button type="button" className="note-ai-btn" onClick={aiCategorize}
+                disabled={aiBusy || !note.trim()} title="Auto-categorize with AI">
+                <Sparkles size={13} className={aiBusy ? 'spin' : ''} />
+              </button>
+            )}
+            {noteFocused && matches.length > 0 && (
+              <ul className="note-suggest">
+                {matches.map((m) => (
+                  <li key={m.key} onMouseDown={() => pickSuggestion(m)}>
+                    <CategoryIcon category={m.category} size={12} />
+                    <span className="note-suggest-text">{m.note}</span>
+                    <em>{m.category}{m.project ? ` · ${m.project}` : ''}</em>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <div className="form-row">
             {type !== 'transfer' && (
               <select value={category} onChange={(e) => setCategory(e.target.value)}>
