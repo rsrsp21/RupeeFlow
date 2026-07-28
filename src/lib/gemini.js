@@ -7,6 +7,7 @@ export const CATEGORIES = [
 ];
 
 async function gemini(parts, { asJson = true, temperature = 0.2 } = {}) {
+  if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not configured on the server');
   const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -16,7 +17,7 @@ async function gemini(parts, { asJson = true, temperature = 0.2 } = {}) {
       body: JSON.stringify({
         contents: [{ role: 'user', parts }],
         generationConfig: {
-          temperature, maxOutputTokens: 2048,
+          temperature, maxOutputTokens: 4096,
           ...(asJson ? { responseMimeType: 'application/json' } : {}),
         },
       }),
@@ -26,9 +27,23 @@ async function gemini(parts, { asJson = true, temperature = 0.2 } = {}) {
     throw new Error(`Gemini API ${res.status}: ${detail.slice(0, 300)}`);
   }
   const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';
+  const candidate = data?.candidates?.[0];
+  const text = candidate?.content?.parts?.map((p) => p.text || '').join('') || '';
+  // A non-STOP finish (safety block, recitation, truncation) means `text` is
+  // empty or cut off — surface that plainly instead of a cryptic JSON error.
+  if (!text) {
+    throw new Error(`Gemini returned no content (${candidate?.finishReason || 'empty response'})`);
+  }
   if (!asJson) return text;
-  return JSON.parse(text.replace(/^```(?:json)?/m, '').replace(/```\s*$/m, '').trim());
+  const cleaned = text.replace(/^```(?:json)?/m, '').replace(/```\s*$/m, '').trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    if (candidate?.finishReason === 'MAX_TOKENS') {
+      throw new Error('Gemini response was cut off (hit the token limit) — try again');
+    }
+    throw new Error(`Gemini returned malformed JSON: ${cleaned.slice(0, 200)}`);
+  }
 }
 
 const entrySchema = () => {

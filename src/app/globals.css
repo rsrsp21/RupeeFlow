@@ -333,8 +333,8 @@ input::placeholder { color: var(--muted); }
 /* .fab.mini's transform is driven entirely by Framer Motion (FAB_ITEM variants) —
    a CSS transition on the same property here would fight FM's own rAF-driven
    animation and stutter, so hover/tap feedback comes from whileHover/whileTap instead. */
-.fab.mini { width: 44px; height: 44px; background: var(--surface); color: var(--text); border: 1px solid var(--line-strong); }
-.fab-plus { display: inline-flex; }
+.fab.mini { width: 44px; height: 44px; background: var(--surface); color: var(--text); border: 1px solid var(--line-strong); will-change: transform, opacity; }
+.fab-plus { display: inline-flex; will-change: transform; }
 
 /* ── modals ── */
 .modal-backdrop {

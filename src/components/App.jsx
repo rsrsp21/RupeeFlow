@@ -26,13 +26,24 @@ export const useUI = () => useContext(UICtx);
 // so the cluster doesn't feel like it's lagging behind the "+" as it un-rotates.
 // Their transform is driven ONLY by these variants — no CSS transition on
 // .fab.mini's transform — otherwise the two animation systems fight and stutter.
+// Springs (not duration/easing tweens) are what make Framer Motion feel smooth —
+// physically-driven motion instead of a fixed timing curve.
 const FAB_ITEM = {
-  hidden: { opacity: 0, y: 10, scale: .6 },
-  visible: (i) => ({ opacity: 1, y: 0, scale: 1, transition: { duration: 0.16, delay: i * 0.035, ease: 'easeOut' } }),
-  exit: { opacity: 0, y: 6, scale: .6, transition: { duration: 0.12, ease: 'easeIn' } },
+  hidden: { opacity: 0, y: 14, scale: 0.5 },
+  visible: (i) => ({
+    opacity: 1, y: 0, scale: 1,
+    transition: {
+      type: 'spring', stiffness: 480, damping: 26, mass: 0.55, delay: i * 0.04,
+      opacity: { duration: 0.14, delay: i * 0.04 },
+    },
+  }),
+  exit: {
+    opacity: 0, y: 14, scale: 0.5,
+    transition: { type: 'spring', stiffness: 560, damping: 32, mass: 0.5, opacity: { duration: 0.1 } },
+  },
 };
-const FAB_ROTATE = { duration: 0.15, ease: 'easeInOut' };
-const FAB_TAP = { scale: 0.92 };
+const FAB_ROTATE = { type: 'spring', stiffness: 500, damping: 26, mass: 0.5 };
+const FAB_TAP = { scale: 0.9 };
 const FAB_HOVER = { y: -1 };
 
 const VIEWS = { dashboard: Dashboard, transactions: Ledger, budgets: Budgets, insights: Insights, settings: Settings };
