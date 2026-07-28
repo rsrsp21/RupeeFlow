@@ -9,6 +9,8 @@ export async function POST(request) {
     if (!(await requireUser(request))) throw new HttpError('Unauthorized', 401);
     const { entries } = await request.json().catch(() => ({}));
     if (!Array.isArray(entries) || !entries.length) throw new HttpError('Entries required');
-    return jsonRes(await detectRecurring(entries.slice(0, 300)));
+    // `entries` are already pre-grouped candidates from the client (see Insights.jsx) — cap
+    // defensively in case a caller sends more than the ~40 the client ever produces.
+    return jsonRes(await detectRecurring(entries.slice(0, 60)));
   } catch (e) { return errRes(e); }
 }

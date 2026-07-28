@@ -63,11 +63,31 @@ export default function Insights() {
   async function runRecurring() {
     setLoadingRec(true);
     try {
-      const entries = store.live()
-        .filter((t) => t.type === 'expense')
-        .sort((a, b) => b.occurred_at - a.occurred_at)
-        .slice(0, 300)
-        .map((t) => ({ note: t.note, category: t.category, rupees: t.amount / 100, date: new Date(Number(t.occurred_at)).toISOString().slice(0, 10) }));
+      // Pre-group client-side (same note+category, 2+ occurrences) so Gemini
+      // gets ~40 compact candidates to classify instead of hundreds of raw
+      // transactions to search through itself — far fewer input/output tokens.
+      const groups = new Map();
+      for (const t of store.live()) {
+        if (t.type !== 'expense') continue;
+        const label = (t.note || t.category).trim();
+        const key = `${label.toLowerCase()}|${t.category}`;
+        if (!groups.has(key)) groups.set(key, { label, category: t.category, rupees: [], dates: [] });
+        const g = groups.get(key);
+        g.rupees.push(t.amount / 100);
+        g.dates.push(new Date(Number(t.occurred_at)).toISOString().slice(0, 10));
+      }
+      const entries = [...groups.values()]
+        .filter((g) => g.rupees.length >= 2)
+        .map((g) => ({
+          label: g.label, category: g.category, occurrences: g.rupees.length,
+          avg_rupees: Math.round(g.rupees.reduce((s, r) => s + r, 0) / g.rupees.length),
+          min_rupees: Math.round(Math.min(...g.rupees)), max_rupees: Math.round(Math.max(...g.rupees)),
+          dates: g.dates.sort().slice(-8),
+        }))
+        .sort((a, b) => b.occurrences - a.occurrences)
+        .slice(0, 40);
+
+      if (!entries.length) { setRecurring([]); setLoadingRec(false); return; }
       const out = await store.api('/ai/recurring', { method: 'POST', body: JSON.stringify({ entries }) });
       setRecurring(out.recurring || []);
     } catch (e) { store.toast('Scan failed: ' + e.message); }

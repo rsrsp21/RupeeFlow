@@ -6,7 +6,10 @@ export const CATEGORIES = [
   'Gifts & Donations','Investments','Salary','Business','EMI & Loans','Insurance','Other',
 ];
 
-async function gemini(parts, { asJson = true, temperature = 0.2 } = {}) {
+// Per-call caps sized to what the prompt actually asks for — a blanket high
+// cap wastes tokens (and money) on calls that only ever need a few hundred,
+// while calls with variable-length output (recurring, coach) get more room.
+async function gemini(parts, { asJson = true, temperature = 0.2, maxOutputTokens = 1024 } = {}) {
   if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not configured on the server');
   const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
   const res = await fetch(
@@ -17,7 +20,7 @@ async function gemini(parts, { asJson = true, temperature = 0.2 } = {}) {
       body: JSON.stringify({
         contents: [{ role: 'user', parts }],
         generationConfig: {
-          temperature, maxOutputTokens: 4096,
+          temperature, maxOutputTokens,
           ...(asJson ? { responseMimeType: 'application/json' } : {}),
         },
       }),
@@ -58,7 +61,7 @@ export function parseText(text, projects = []) {
     text: `You convert casual Indian-English/Hinglish speech about money into ledger entries.
 Known project labels: ${projects.join(', ') || '(none)'} — match against these when possible.
 ${entrySchema()}\n\nSpeech: "${text}"`,
-  }]);
+  }], { maxOutputTokens: 1536 });
 }
 
 export function parseVoice(audioB64, mimeType, projects = []) {
@@ -66,7 +69,7 @@ export function parseVoice(audioB64, mimeType, projects = []) {
     { text: `Transcribe this audio (Indian English / Hinglish about money), then convert it into ledger entries.
 Known project labels: ${projects.join(', ') || '(none)'}.\n${entrySchema()}` },
     { inlineData: { mimeType: mimeType || 'audio/webm', data: audioB64 } },
-  ]);
+  ], { maxOutputTokens: 1536 });
 }
 
 export function parseReceipt(imageB64, mimeType) {
@@ -75,7 +78,7 @@ export function parseReceipt(imageB64, mimeType) {
 {"merchant":"store name","total_rupees":number,"date":"YYYY-MM-DD or null","category":"one of: ${CATEGORIES.join(', ')}","items":[{"name":"item","price_rupees":number}],"confidence":"high|medium|low"}.
 The total is the final payable amount (after GST/discounts). If unreadable, set total_rupees to 0 and confidence "low".` },
     { inlineData: { mimeType: mimeType || 'image/jpeg', data: imageB64 } },
-  ]);
+  ], { maxOutputTokens: 700 });
 }
 
 export function weeklyInsights(summary) {
@@ -83,7 +86,7 @@ export function weeklyInsights(summary) {
     text: `You are a sharp, friendly personal-finance coach for a busy Indian professional. All amounts in ₹.
 Weekly data (JSON): ${JSON.stringify(summary)}
 Write a concise weekly insight covering: biggest spending categories and week-over-week change, anything unusual or likely unnecessary, budget status, and ONE specific actionable tip. Max 130 words. Format with lightweight markdown — **bold** the key ₹ figures and category names, use a short bullet list ("- ") if you're covering multiple points. No headers (#). Be specific to the data, never generic.`,
-  }], { asJson: false, temperature: 0.6 });
+  }], { asJson: false, temperature: 0.6, maxOutputTokens: 700 });
 }
 
 // Structured multi-card coaching: savings ideas, risks, wins, forecast note.
@@ -94,7 +97,7 @@ Data (JSON): ${JSON.stringify(summary)}
 
 Return ONLY JSON: {"headline":"one-line verdict on this month, max 12 words","score":0-100,"score_reason":"max 12 words","cards":[{"kind":"save|risk|win|watch","title":"max 7 words","detail":"max 24 words, cite a real ₹ figure from the data","impact_rupees":number_or_null}]}
 Give 3–5 cards. "save" = a concrete cut with rupee impact; "risk" = overspending or budget danger; "win" = something genuinely good; "watch" = a trend to monitor. Be specific to the numbers — never generic advice. score = financial health this month (higher is better).`,
-  }], { temperature: 0.45 });
+  }], { temperature: 0.45, maxOutputTokens: 1400 });
 }
 
 // Suggest monthly budgets per category from actual history.
@@ -105,18 +108,22 @@ Spending history (JSON): ${JSON.stringify(summary)}
 
 Return ONLY JSON: {"overall_rupees":number,"reasoning":"max 20 words","categories":[{"category":"exact category name from the data","suggested_rupees":number,"current_avg_rupees":number,"rationale":"max 12 words"}]}
 Suggest budgets for the 5–7 categories they actually spend on. Base them on real averages: trim discretionary categories ~10-15%, keep essentials (Rent, Bills & Utilities, Health, EMI & Loans) at actual levels. Round to sensible numbers (nearest 100 or 500). overall_rupees should be achievable, not punitive.`,
-  }], { temperature: 0.3 });
+  }], { temperature: 0.3, maxOutputTokens: 1400 });
 }
 
-// Detect recurring/subscription-like spending from the raw entry list.
-export function detectRecurring(entries) {
+// Detect recurring/subscription-like spending. `groups` is PRE-AGGREGATED
+// client-side (see Insights.jsx) — sending 40 grouped candidates instead of
+// hundreds of raw transactions cuts input tokens sharply and, since the
+// model no longer has to do its own grouping/counting, cuts output tokens
+// (and truncation risk) too.
+export function detectRecurring(groups) {
   return gemini([{
-    text: `Find recurring or subscription-like spending in this Indian user's transactions (amounts in ₹).
-Transactions (JSON): ${JSON.stringify(entries)}
+    text: `These are pre-grouped candidate recurring/subscription charges for an Indian user (amounts in ₹, already deduplicated by merchant/purpose and occurring 2+ times).
+Candidates (JSON): ${JSON.stringify(groups)}
 
 Return ONLY JSON: {"recurring":[{"label":"what it is","category":"category","typical_rupees":number,"cadence":"monthly|weekly|yearly|irregular","occurrences":number,"annual_cost_rupees":number,"cancel_candidate":true|false,"note":"max 12 words"}]}
-Group by merchant/purpose, not exact amount. Only include things appearing 2+ times with a rough rhythm. cancel_candidate = true for discretionary subscriptions they might not need. Return an empty array if nothing recurs.`,
-  }], { temperature: 0.25 });
+Use "occurrences" and the date spread in each candidate to infer cadence. Drop any candidate that's clearly not actually recurring (e.g. coincidental same-category purchases, not the same merchant/purpose). cancel_candidate = true for discretionary subscriptions they might not need. Return an empty array if nothing qualifies.`,
+  }], { temperature: 0.25, maxOutputTokens: 1600 });
 }
 
 export function askQuestion(question, summary) {
@@ -125,5 +132,5 @@ export function askQuestion(question, summary) {
 ${JSON.stringify(summary || {})}
 Question: "${question}"
 Answer in under 100 words with specific numbers from the data. **Bold** key ₹ figures, and use a short bullet list ("- ") if listing more than two items. If the data can't answer it, say so briefly.`,
-  }], { asJson: false, temperature: 0.4 });
+  }], { asJson: false, temperature: 0.4, maxOutputTokens: 500 });
 }
