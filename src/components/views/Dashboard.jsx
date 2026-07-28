@@ -4,9 +4,10 @@
 import { useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Moon, Sun, TrendingUp, TrendingDown, Wallet, CalendarDays,
+  TrendingUp, TrendingDown, Wallet, CalendarDays,
   Flame, PiggyBank, Target, ArrowRight,
 } from 'lucide-react';
+import ThemeToggle from '../ThemeToggle';
 import { useStore } from '@/lib/client/store';
 import { rupees, monthKey, CATEGORIES } from '@/lib/client/constants';
 import { DAY_MS, startOfDay, startOfWeek, startOfMonth } from '@/lib/client/period';
@@ -75,10 +76,10 @@ export default function Dashboard() {
   const wowDelta = stats.lastWeek ? ((stats.week - stats.lastWeek) / stats.lastWeek) * 100 : null;
   const momDelta = stats.lastMonth ? ((mt.exp - stats.lastMonth) / stats.lastMonth) * 100 : null;
 
-  // ── 30-day trend ──
+  // ── 7-day trend ──
   const trend = useMemo(() => {
     const out = [];
-    for (let i = 29; i >= 0; i--) {
+    for (let i = 6; i >= 0; i--) {
       const s = startOfDay(now) - i * DAY_MS;
       out.push({
         start: s, label: String(new Date(s).getDate()),
@@ -191,7 +192,7 @@ export default function Dashboard() {
       {/* ── trend ── */}
       <div className="card">
         <div className="card-head">
-          <h3>Daily spending · last 30 days</h3>
+          <h3>Daily spending · last 7 days</h3>
           <span className="muted small">peak {rupees(Math.max(...trend.map((t) => t.value), 0))}</span>
         </div>
         <TrendBars buckets={trend} height={90} showLabels={false} />
@@ -326,16 +327,3 @@ function InsightCard({ icon, title, body, tone = 'neutral' }) {
   );
 }
 
-function ThemeToggle() {
-  const isDark = typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark';
-  const toggle = () => {
-    const el = document.documentElement;
-    el.dataset.theme = el.dataset.theme === 'dark' ? 'light' : 'dark';
-    localStorage.setItem('rf_theme', el.dataset.theme);
-  };
-  return (
-    <button className="icon-btn theme-toggle" onClick={toggle} title="Toggle theme">
-      {isDark ? <Sun size={17} strokeWidth={1.9} /> : <Moon size={17} strokeWidth={1.9} />}
-    </button>
-  );
-}

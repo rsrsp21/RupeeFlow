@@ -130,26 +130,53 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
   background: var(--bg); border-bottom: 1px solid var(--line);
 }
 .landing-brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 1.02rem; }
+.landing-nav-actions { display: flex; align-items: center; gap: 6px; }
 .landing-hero {
-  position: relative; overflow: hidden;
-  padding: clamp(56px, 12vh, 120px) clamp(20px, 6vw, 64px) 80px;
-  display: grid; place-items: center; text-align: center;
+  position: relative; overflow: hidden; isolation: isolate;
+  padding: clamp(48px, 10vh, 100px) clamp(20px, 6vw, 64px);
+  display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 48px; align-items: center;
+  max-width: 1180px; margin: 0 auto;
+}
+.landing-hero::before, .landing-hero::after {
+  content: ''; position: absolute; z-index: -1; border-radius: 50%; pointer-events: none;
 }
 .landing-hero::before {
-  content: ''; position: absolute; top: -160px; left: 50%; transform: translateX(-50%);
-  width: 640px; height: 640px; max-width: 140vw; border-radius: 50%;
+  top: -220px; left: -80px; width: 620px; height: 620px; max-width: 130vw;
   background: radial-gradient(circle, var(--accent-soft), transparent 70%);
-  pointer-events: none;
 }
-.landing-hero > div { max-width: 700px; position: relative; }
+.landing-hero::after {
+  bottom: -260px; right: -140px; width: 520px; height: 520px; max-width: 130vw;
+  background: radial-gradient(circle, var(--accent-soft), transparent 72%);
+  opacity: .7;
+}
 .landing-eyebrow {
   display: inline-block; font-size: .72rem; font-weight: 650; letter-spacing: .08em; text-transform: uppercase;
   color: var(--accent-text); background: var(--accent-soft); padding: 6px 14px; border-radius: 99px; margin-bottom: 20px;
 }
-.landing-title { font-size: clamp(1.8rem, 4.4vw, 3rem); line-height: 1.15; margin-bottom: 16px; }
-.landing-sub { color: var(--muted); font-size: 1rem; line-height: 1.6; max-width: 560px; margin: 0 auto 28px; }
-.landing-cta { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.landing-title { font-size: clamp(1.7rem, 3.6vw, 2.7rem); line-height: 1.16; margin-bottom: 16px; }
+.landing-sub { color: var(--muted); font-size: 1rem; line-height: 1.6; max-width: 480px; margin: 0 0 28px; }
+.landing-cta { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 .landing-cta .btn.primary { padding: 12px 22px; font-size: .92rem; }
+.landing-preview {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 22px; box-shadow: var(--shadow-lg); justify-self: center; width: 100%; max-width: 340px;
+}
+.landing-preview-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px; }
+.landing-preview-head span { font-size: .74rem; color: var(--muted); }
+.landing-preview-head b { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.landing-preview-bars {
+  display: flex; align-items: flex-end; gap: 5px; height: 72px;
+  background: var(--surface-2); border-radius: var(--radius-sm); padding: 10px; margin-bottom: 16px;
+}
+.landing-preview-bars span { flex: 1; background: var(--accent); border-radius: 3px 3px 1px 1px; min-height: 3px; }
+.landing-preview-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center;
+}
+.landing-preview-stats em {
+  display: block; font-style: normal; font-size: .64rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 3px;
+}
+.landing-preview-stats b { font-size: .84rem; font-variant-numeric: tabular-nums; }
+.landing-preview-stats b.good { color: var(--green); }
 .landing-features {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px;
   padding: 20px clamp(20px, 6vw, 64px) 90px; max-width: 1100px; margin: 0 auto;
@@ -164,9 +191,14 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .landing-feature h3 { font-size: .92rem; margin-bottom: 6px; }
 .landing-feature p { font-size: .82rem; color: var(--muted); line-height: 1.55; }
 .landing-auth { border-top: 1px solid var(--line); }
+@media (max-width: 900px) {
+  .landing-hero { grid-template-columns: 1fr; text-align: center; padding-top: 40px; }
+  .landing-sub { margin-inline: auto; }
+  .landing-cta { align-items: center; }
+  .landing-preview { max-width: 380px; }
+}
 @media (max-width: 760px) {
   .landing-nav { padding: 14px 18px; }
-  .landing-hero { padding: 48px 20px 60px; }
   .landing-features { padding: 16px 18px 60px; }
 }
 
@@ -374,13 +406,18 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .switch:checked { background: var(--accent); border-color: var(--accent); }
 .switch:checked::after { left: 18px; background: #fff; }
 
-/* ── FAB ── */
-.fab-cluster { position: fixed; right: 28px; bottom: 28px; display: flex; flex-direction: column-reverse; align-items: center; gap: 10px; z-index: 40; }
+/* ── FAB ──
+   The mini buttons stay mounted at all times (see App.jsx) and are absolutely
+   positioned with a per-slot `bottom` offset — that keeps the cluster's own
+   box exactly the size of the main button always, so it stays pinned to its
+   corner whether the mini buttons are visible or not. */
+.fab-cluster { position: fixed; right: 28px; bottom: 28px; width: 52px; height: 52px; z-index: 40; }
 .fab {
   border: none; border-radius: 14px; display: grid; place-items: center;
   cursor: pointer; box-shadow: var(--shadow-lg);
 }
 .main-fab {
+  position: absolute; right: 0; bottom: 0;
   width: 52px; height: 52px; background: var(--text); color: var(--bg);
   transition: transform .18s cubic-bezier(.22,1,.36,1), box-shadow .2s;
 }
@@ -389,7 +426,10 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 /* .fab.mini's transform is driven entirely by Framer Motion (FAB_ITEM variants) —
    a CSS transition on the same property here would fight FM's own rAF-driven
    animation and stutter, so hover/tap feedback comes from whileHover/whileTap instead. */
-.fab.mini { width: 44px; height: 44px; background: var(--surface); color: var(--text); border: 1px solid var(--line-strong); will-change: transform, opacity; }
+.fab.mini {
+  position: absolute; right: 4px; width: 44px; height: 44px;
+  background: var(--surface); color: var(--text); border: 1px solid var(--line-strong); will-change: transform, opacity;
+}
 .fab-plus { display: inline-flex; will-change: transform; }
 
 /* ── modals ── */

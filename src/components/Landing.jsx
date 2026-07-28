@@ -4,6 +4,8 @@
 import { motion } from 'framer-motion';
 import { Mic, ScanLine, Sparkles, Target, WifiOff, ShieldCheck, ArrowRight } from 'lucide-react';
 import AuthView from './AuthView';
+import ThemeToggle from './ThemeToggle';
+import InstallPrompt from './InstallPrompt';
 
 const FEATURES = [
   { Icon: Mic, title: 'Speak an expense', body: 'Say it naturally — "450 lunch, 120 auto to office" — and AI splits it into categorized entries.' },
@@ -13,6 +15,8 @@ const FEATURES = [
   { Icon: WifiOff, title: 'Works fully offline', body: 'Installs as an app. Log expenses with no signal — it syncs the moment you’re back online.' },
   { Icon: ShieldCheck, title: 'Your data, your account', body: 'No bank linking, no data resale. Just your own ledger, secured behind your login.' },
 ];
+
+const PREVIEW_BARS = [38, 62, 45, 80, 55, 96, 70];
 
 export default function Landing() {
   const scrollToAuth = () => document.getElementById('auth')?.scrollIntoView({ behavior: 'smooth' });
@@ -24,11 +28,15 @@ export default function Landing() {
           <svg viewBox="0 0 48 48" width="26" height="26"><use href="/icon.svg#mark" /></svg>
           <span>RupeeFlow</span>
         </div>
-        <button className="btn ghost sm" onClick={scrollToAuth}>Sign in</button>
+        <div className="landing-nav-actions">
+          <ThemeToggle />
+          <button className="btn ghost sm" onClick={scrollToAuth}>Sign in</button>
+        </div>
       </header>
 
       <section className="landing-hero">
-        <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}>
+        <motion.div className="landing-hero-text"
+          initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}>
           <span className="landing-eyebrow">₹ money tracking, minus the effort</span>
           <h1 className="landing-title">Know exactly where your money goes — without the spreadsheet.</h1>
           <p className="landing-sub">
@@ -40,6 +48,26 @@ export default function Landing() {
               Get started free <ArrowRight size={15} />
             </button>
             <span className="muted small">Free · No card required · Installs as an app</span>
+          </div>
+        </motion.div>
+
+        <motion.div className="landing-preview"
+          initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.6, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}>
+          <div className="landing-preview-head">
+            <span>Net balance</span>
+            <b>₹18,240</b>
+          </div>
+          <div className="landing-preview-bars">
+            {PREVIEW_BARS.map((h, i) => (
+              <motion.span key={i} initial={{ height: 0 }} animate={{ height: `${h}%` }}
+                transition={{ duration: 0.5, delay: 0.4 + i * 0.05, ease: [0.22, 1, 0.36, 1] }} />
+            ))}
+          </div>
+          <div className="landing-preview-stats">
+            <div><em>Spent</em><b>₹42,180</b></div>
+            <div><em>Budget used</em><b>78%</b></div>
+            <div><em>Saved</em><b className="good">₹6,500</b></div>
           </div>
         </motion.div>
       </section>
@@ -59,6 +87,8 @@ export default function Landing() {
       <section id="auth" className="landing-auth">
         <AuthView />
       </section>
+
+      <InstallPrompt />
     </div>
   );
 }

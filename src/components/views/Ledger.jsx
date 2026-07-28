@@ -85,9 +85,11 @@ export default function Ledger() {
   const totals = store.totals(list);
   const net = totals.inc - totals.exp;
 
-  // Avg/day is always a trailing-7-day figure, independent of the selected
-  // period — computed from `kind`/`start` it would just echo that single
-  // day's own total back when viewing "Day", which isn't a useful average.
+  // Avg/day: for Day/Week views the period itself is too short (or exactly a
+  // week) to divide meaningfully, so use a trailing 7-day figure instead —
+  // for Day that avoids just echoing "Spent" back (period ÷ 1 day). Month/Year
+  // keep the normal period-relative average (spent so far ÷ days elapsed),
+  // which is already meaningful at that scale.
   const weekAvg = useMemo(() => {
     const since = Date.now() - 7 * DAY_MS;
     const spent = store.live()
@@ -95,6 +97,10 @@ export default function Ledger() {
       .reduce((s, t) => s + t.amount, 0);
     return Math.round(spent / 7);
   }, [store, store.txs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const dayCount = Math.max(1, Math.round((Math.min(end, Date.now()) - start) / DAY_MS));
+  const periodAvg = Math.round(totals.exp / dayCount);
+  const avgPerDay = kind === 'day' || kind === 'week' ? weekAvg : periodAvg;
 
   const biggest = list.filter((t) => t.type === 'expense').sort((a, b) => b.amount - a.amount)[0];
 
@@ -181,10 +187,12 @@ export default function Ledger() {
               {net >= 0 ? '+' : '−'}{rupees(Math.abs(net))}
             </b>
           </div>
-          <div className="stat">
-            <span className="stat-k">Avg / day (7d)</span>
-            <b className="stat-v">{rupees(weekAvg)}</b>
-          </div>
+          {!allTime && (
+            <div className="stat">
+              <span className="stat-k">Avg / day{(kind === 'day' || kind === 'week') ? ' (7d)' : ''}</span>
+              <b className="stat-v">{rupees(avgPerDay)}</b>
+            </div>
+          )}
         </div>
 
         {!allTime && kind !== 'day' && buckets.some((b) => b.value > 0) && (
