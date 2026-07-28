@@ -18,5 +18,17 @@
   "shortcuts": [
     { "name": "Add expense", "short_name": "Add", "url": "/?action=add" },
     { "name": "Ledger", "short_name": "Ledger", "url": "/?view=ledger" }
-  ]
+  ],
+  "serviceworker": {
+    "src": "/sw.js",
+    "scope": "/",
+    "type": "classic",
+    "update_via_cache": "none"
+  },
+  "launch_handler": { "client_mode": "focus-existing" },
+  "share_target": {
+    "action": "/?share=1",
+    "method": "GET",
+    "params": { "title": "share_title", "text": "share_text", "url": "share_url" }
+  }
 }

@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Plus, Mic, ScanLine, PenLine, Type } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { CATEGORIES, rupees } from '@/lib/client/constants';
+import { readSharedText } from '@/lib/client/shareTarget';
 import Landing from './Landing';
 import Dashboard from './views/Dashboard';
 import Ledger from './views/Ledger';
@@ -54,6 +55,7 @@ export default function App() {
   const [txModal, setTxModal] = useState(null);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [promptOpen, setPromptOpen] = useState(false);
+  const [shareText, setShareText] = useState(null);
   const [budgetModal, setBudgetModal] = useState(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -72,6 +74,26 @@ export default function App() {
     document.addEventListener('pointerdown', onDown);
     return () => document.removeEventListener('pointerdown', onDown);
   }, [fabOpen]);
+
+  // Share Target: another app shared text into us (see manifest.webmanifest).
+  // If signed in, open the quick-add-by-text prompt immediately; otherwise
+  // stash it and pick it up right after the user logs in.
+  useEffect(() => {
+    if (!store.booted) return;
+    const text = readSharedText();
+    if (!text) return;
+    if (store.token) { setShareText(text); setPromptOpen(true); }
+    else sessionStorage.setItem('rf_pending_share', text);
+  }, [store.booted]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!store.token) return;
+    const pending = sessionStorage.getItem('rf_pending_share');
+    if (!pending) return;
+    sessionStorage.removeItem('rf_pending_share');
+    setShareText(pending);
+    setPromptOpen(true);
+  }, [store.token]);
 
   if (!store.booted) return null;
   if (!store.token) return <Landing />;
@@ -160,7 +182,9 @@ export default function App() {
         <AnimatePresence>
           {txModal && <TxModal key="tx" state={txModal} onClose={() => setTxModal(null)} />}
           {voiceOpen && <VoiceModal key="voice" onClose={() => setVoiceOpen(false)} />}
-          {promptOpen && <PromptModal key="prompt" onClose={() => setPromptOpen(false)} />}
+          {promptOpen && (
+            <PromptModal key="prompt" initialText={shareText} onClose={() => { setPromptOpen(false); setShareText(null); }} />
+          )}
           {budgetModal && <BudgetModal key="budget" category={budgetModal.category} onClose={() => setBudgetModal(null)} />}
           {exportOpen && <ExportModal key="export" onClose={() => setExportOpen(false)} />}
         </AnimatePresence>

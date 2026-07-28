@@ -2,7 +2,7 @@
 // Runtime caching: pages network-first (cache fallback), static assets
 // stale-while-revalidate, CDN libs cache-first. API calls skip the SW —
 // the app itself queues mutations in IndexedDB while offline.
-const CACHE = 'rupeeflow-next-v2';
+const CACHE = 'rupeeflow-next-v3';
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
@@ -60,4 +60,48 @@ self.addEventListener('fetch', (e) => {
       return hit || net;
     })
   );
+});
+
+// ── Background Sync: push the offline outbox even if the app got closed
+// before reconnecting. Mirrors just enough of lib/client/idb.js's schema
+// (plain vanilla IndexedDB — this file isn't bundled, so no ES imports) to
+// read the auth token and queued transactions, and to clear them on success.
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('rupeeflow', 1);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function idbGetAll(db, store) {
+  return new Promise((resolve) => {
+    const r = db.transaction(store).objectStore(store).getAll();
+    r.onsuccess = () => resolve(r.result || []);
+  });
+}
+function idbClearStore(db, store) {
+  return new Promise((resolve) => {
+    const t = db.transaction(store, 'readwrite');
+    t.objectStore(store).clear();
+    t.oncomplete = resolve;
+  });
+}
+
+async function pushOutbox() {
+  const db = await idbOpen();
+  const [metas, outbox] = await Promise.all([idbGetAll(db, 'meta'), idbGetAll(db, 'outbox')]);
+  const token = metas.find((m) => m.k === 'token')?.v;
+  if (!token || !outbox.length) return;
+
+  const res = await fetch('/api/tx/push', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+    body: JSON.stringify({ transactions: outbox }),
+  });
+  if (res.ok) await idbClearStore(db, 'outbox');
+  else throw new Error(`sync failed: ${res.status}`); // rejecting re-queues the sync for a later retry
+}
+
+self.addEventListener('sync', (e) => {
+  if (e.tag === 'sync-outbox') e.waitUntil(pushOutbox());
 });

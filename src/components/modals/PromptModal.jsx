@@ -8,9 +8,9 @@ import { rupees } from '@/lib/client/constants';
 import { applyParsedTransactions } from '@/lib/client/applyParsed';
 import { backdropMotion, panelMotion } from './TxModal';
 
-export default function PromptModal({ onClose }) {
+export default function PromptModal({ onClose, initialText }) {
   const store = useStore();
-  const [text, setText] = useState('');
+  const [text, setText] = useState(initialText || '');
   const [busy, setBusy] = useState(false);
 
   async function submit(e) {

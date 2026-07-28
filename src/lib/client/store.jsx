@@ -87,12 +87,19 @@ export function StoreProvider({ children }) {
     syncTimer.current = setTimeout(syncNow, 400);
   }, [syncNow]);
 
-  // Save locally (instant UI + offline queue), then sync
+  // Save locally (instant UI + offline queue), then sync. Also registers a
+  // Background Sync tag (Chrome/Android) so the outbox still gets pushed by
+  // the service worker if the user closes the app before reconnecting —
+  // syncSoon() alone only helps while this page stays open.
   const saveTx = useCallback(async (t) => {
     setTxs((prev) => ({ ...prev, [t.id]: t }));
     await idbPut('tx', t);
     await idbPut('outbox', t);
     syncSoon();
+    try {
+      const reg = await navigator.serviceWorker?.ready;
+      await reg?.sync?.register('sync-outbox');
+    } catch {}
   }, [syncSoon]);
 
   // ── budgets ──
@@ -119,6 +126,9 @@ export function StoreProvider({ children }) {
     localStorage.setItem('rf_token', data.token);
     localStorage.setItem('rf_email', data.email);
     localStorage.setItem('rf_name', data.name || '');
+    // Also mirrored into IndexedDB — the service worker can't reach localStorage,
+    // but needs the token to push the outbox during a Background Sync event.
+    idbPut('meta', { k: 'token', v: data.token });
     setToken(data.token); setEmail(data.email); setName(data.name || '');
   }, []);
 
@@ -140,6 +150,7 @@ export function StoreProvider({ children }) {
     localStorage.removeItem('rf_token');
     localStorage.removeItem('rf_email');
     localStorage.removeItem('rf_name');
+    idbPut('meta', { k: 'token', v: null });
     window.location.reload();
   }, []);
 
@@ -151,6 +162,7 @@ export function StoreProvider({ children }) {
     setName(localStorage.getItem('rf_name') || '');
     (async () => {
       if (t) {
+        idbPut('meta', { k: 'token', v: t }); // keep the SW's mirror in sync too
         const all = await idbAll('tx');
         const map = {};
         for (const tx of all) map[tx.id] = tx;
