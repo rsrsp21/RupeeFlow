@@ -1,0 +1,19 @@
+{
+  "name": "rupeeflow",
+  "version": "2.0.0",
+  "private": true,
+  "description": "RupeeFlow — minimalist AI-powered budget & expenditure tracker (₹)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "framer-motion": "^11.15.0",
+    "lucide-react": "^0.469.0",
+    "next": "^15.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}
