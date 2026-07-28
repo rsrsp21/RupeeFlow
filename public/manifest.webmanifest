@@ -1,7 +1,7 @@
 {
   "name": "RupeeFlow: Effortless money tracking",
   "short_name": "RupeeFlow",
-  "description": "Minimalist ₹ budget and expense tracking with AI voice entry, receipt scanning and insights. Works offline.",
+  "description": "Minimalist budget and expense tracking with AI voice entry, receipt scanning and insights. Works offline.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
