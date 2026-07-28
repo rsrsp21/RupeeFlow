@@ -1,7 +1,7 @@
 'use client';
 // AI hub — health score, coach cards, recurring/subscription radar,
 // weekly narrative, and ask-anything chat.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Sparkles, TrendingDown, AlertTriangle, Trophy, Eye, RefreshCw,
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees } from '@/lib/client/constants';
+import { loadDaily, saveDaily } from '@/lib/client/dailyCache';
 import CategoryIcon from '../CategoryIcon';
 import Markdown from '../Markdown';
 
@@ -29,15 +30,22 @@ const CHIPS = [
 
 export default function Insights() {
   const store = useStore();
-  const [coach, setCoach] = useState(null);
+  // Cached until local midnight — switching views (or reopening the app)
+  // shouldn't throw away an analysis that already cost an API call.
+  const [coach, setCoach] = useState(() => loadDaily('rf_ai_coach'));
   const [loadingCoach, setLoadingCoach] = useState(false);
-  const [recurring, setRecurring] = useState(null);
+  const [recurring, setRecurring] = useState(() => loadDaily('rf_ai_recurring'));
   const [loadingRec, setLoadingRec] = useState(false);
-  const [weekly, setWeekly] = useState('');
+  const [weekly, setWeekly] = useState(() => loadDaily('rf_ai_weekly') || '');
   const [loadingWeekly, setLoadingWeekly] = useState(false);
-  const [chat, setChat] = useState([]);
+  const [chat, setChat] = useState(() => loadDaily('rf_ai_chat') || []);
   const [input, setInput] = useState('');
   const [asking, setAsking] = useState(false);
+
+  useEffect(() => { if (coach) saveDaily('rf_ai_coach', coach); }, [coach]);
+  useEffect(() => { if (recurring) saveDaily('rf_ai_recurring', recurring); }, [recurring]);
+  useEffect(() => { if (weekly) saveDaily('rf_ai_weekly', weekly); }, [weekly]);
+  useEffect(() => { if (chat.length && !chat[chat.length - 1]?.pending) saveDaily('rf_ai_chat', chat); }, [chat]);
 
   const hasData = store.live().length > 0;
 
