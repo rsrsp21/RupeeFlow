@@ -19,8 +19,8 @@ Every color is a CSS custom property — components never hardcode a hex value.
 | Token             | Value      | Use                                  |
 |-------------------|------------|---------------------------------------|
 | `--bg`            | `#fafafa`  | Page background                       |
-| `--surface`       | `#ffffff`  | Cards, modals, inputs                 |
-| `--surface-2`     | `#f4f4f5`  | Recessed panels (search bar, tracks)   |
+| `--surface`       | `#ffffff`  | Cards, modals                         |
+| `--surface-2`     | `#f4f4f5`  | Recessed panels: form inputs, search bar, tracks — always one step darker/lighter than the `--surface` it sits on, never the same value |
 | `--text`          | `#18181b`  | Primary text                          |
 | `--muted`         | `#71717a`  | Secondary text, labels                |
 | `--line`          | `#e9e9eb`  | Hairline borders                      |

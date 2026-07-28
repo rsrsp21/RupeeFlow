@@ -75,7 +75,7 @@ svg { flex-shrink: 0; }
 
 /* ── inputs ── */
 input, select, textarea {
-  font: inherit; color: var(--text); background: var(--surface);
+  font: inherit; color: var(--text); background: var(--surface-2);
   border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
   padding: 9px 12px; outline: none; transition: border-color .15s, box-shadow .15s;
 }
@@ -118,7 +118,7 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .logo-lockup { text-align: center; margin-bottom: 30px; }
 .logo-lockup h1 { font-size: 1.35rem; margin-top: 12px; }
 .tagline { color: var(--muted); font-size: .85rem; margin-top: 3px; }
-.auth input { width: 100%; margin-bottom: 10px; }
+.auth-card input { width: 100%; margin-bottom: 10px; }
 .password-field { position: relative; }
 .password-field input { padding-right: 38px; }
 .password-eye { position: absolute; right: 2px; top: 0; bottom: 10px; }
