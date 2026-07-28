@@ -22,7 +22,7 @@ export default function Settings() {
   return (
     <section className="view">
       <header className="view-head">
-        <div><h2>Settings</h2><p className="sub">{store.email}</p></div>
+        <div><h2>Settings</h2><p className="sub">{store.name ? `${store.name} · ${store.email}` : store.email}</p></div>
       </header>
 
       <div className="card">

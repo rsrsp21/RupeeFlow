@@ -5,6 +5,7 @@ import { useStore } from '@/lib/client/store';
 export default function AuthView() {
   const { authenticate } = useStore();
   const [isRegister, setIsRegister] = useState(false);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -13,7 +14,7 @@ export default function AuthView() {
   async function submit(e) {
     e.preventDefault();
     setError(''); setBusy(true);
-    try { await authenticate(isRegister ? 'register' : 'login', email, password); }
+    try { await authenticate(isRegister ? 'register' : 'login', email, password, name); }
     catch (err) { setError(err.message); }
     setBusy(false);
   }
@@ -27,6 +28,10 @@ export default function AuthView() {
           <p className="tagline">Money, minus the effort.</p>
         </div>
         <form onSubmit={submit} autoComplete="on">
+          {isRegister && (
+            <input type="text" placeholder="Name (optional)" autoComplete="name"
+              value={name} onChange={(e) => setName(e.target.value)} />
+          )}
           <input type="email" placeholder="Email" required autoComplete="email"
             value={email} onChange={(e) => setEmail(e.target.value)} />
           <input type="password" placeholder="Password (min 8 chars)" required minLength={8}

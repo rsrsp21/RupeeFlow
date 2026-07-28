@@ -13,6 +13,7 @@ const POLL_MS = 5000;
 export function StoreProvider({ children }) {
   const [token, setToken] = useState(null);
   const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
   const [booted, setBooted] = useState(false);
   const [txs, setTxs] = useState({});           // id → transaction
   const [budgets, setBudgets] = useState([]);
@@ -106,21 +107,23 @@ export function StoreProvider({ children }) {
   }, [api]);
 
   // ── auth ──
-  const authenticate = useCallback(async (mode, emailIn, password) => {
+  const authenticate = useCallback(async (mode, emailIn, password, nameIn) => {
     const res = await fetch(`/api/auth/${mode}`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email: emailIn, password }),
+      body: JSON.stringify({ email: emailIn, password, name: nameIn }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed');
     localStorage.setItem('rf_token', data.token);
     localStorage.setItem('rf_email', data.email);
-    setToken(data.token); setEmail(data.email);
+    localStorage.setItem('rf_name', data.name || '');
+    setToken(data.token); setEmail(data.email); setName(data.name || '');
   }, []);
 
   const logout = useCallback(() => {
     localStorage.removeItem('rf_token');
     localStorage.removeItem('rf_email');
+    localStorage.removeItem('rf_name');
     window.location.reload();
   }, []);
 
@@ -129,6 +132,7 @@ export function StoreProvider({ children }) {
     const t = localStorage.getItem('rf_token');
     setToken(t);
     setEmail(localStorage.getItem('rf_email') || '');
+    setName(localStorage.getItem('rf_name') || '');
     (async () => {
       if (t) {
         const all = await idbAll('tx');
@@ -258,7 +262,7 @@ export function StoreProvider({ children }) {
   };
 
   const value = {
-    token, email, booted, txs, budgets, accounts, syncState, lastSync, toastMsg,
+    token, email, name, booted, txs, budgets, accounts, syncState, lastSync, toastMsg,
     api, toast, syncNow, saveTx, saveBudget, saveAccounts, authenticate, logout,
     live, totals, inMonth, catSpend, effectiveBudget, projects, accountBalances, buildSummary,
   };

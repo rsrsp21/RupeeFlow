@@ -50,17 +50,18 @@ export async function requireUser(request) {
   return payload?.sub || null;
 }
 
-export async function register(email, password) {
+export async function register(email, password, name) {
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new HttpError('Valid email required', 400);
   if (!password || password.length < 8) throw new HttpError('Password must be at least 8 characters', 400);
   email = email.toLowerCase();
+  name = (name || '').trim().slice(0, 80) || email.split('@')[0];
   const { rows } = await q('SELECT id FROM users WHERE email = ?', [email]);
   if (rows.length) throw new HttpError('An account with this email already exists', 409);
   const id = crypto.randomUUID();
   const { hash, salt } = await hashPassword(password);
-  await q('INSERT INTO users (id, email, pass_hash, salt, created_at) VALUES (?,?,?,?,?)',
-    [id, email, hash, salt, Date.now()]);
-  return { token: await signJWT({ sub: id, email }), email };
+  await q('INSERT INTO users (id, email, pass_hash, salt, name, created_at) VALUES (?,?,?,?,?,?)',
+    [id, email, hash, salt, name, Date.now()]);
+  return { token: await signJWT({ sub: id, email }), email, name };
 }
 
 export async function login(email, password) {
@@ -70,7 +71,7 @@ export async function login(email, password) {
   if (!user) throw new HttpError('Invalid email or password', 401);
   const { hash } = await hashPassword(password, user.salt);
   if (hash !== user.pass_hash) throw new HttpError('Invalid email or password', 401);
-  return { token: await signJWT({ sub: user.id, email: user.email }), email: user.email };
+  return { token: await signJWT({ sub: user.id, email: user.email }), email: user.email, name: user.name || '' };
 }
 
 export class HttpError extends Error {

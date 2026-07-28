@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE NOT NULL,
   pass_hash TEXT NOT NULL,
   salt TEXT NOT NULL,
+  name TEXT NOT NULL DEFAULT '',
   created_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS transactions (
@@ -67,9 +68,22 @@ async function rawQuery(sql, params = []) {
   return results[results.length - 1] || { results: [], meta: {} };
 }
 
+// Columns added after the initial release — applied via ALTER since
+// `CREATE TABLE IF NOT EXISTS` is a no-op on tables that already exist.
+const MIGRATIONS = [
+  `ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''`,
+];
+
 let schemaRun;
 function ensureSchema() {
-  if (!schemaRun) schemaRun = rawQuery(SCHEMA).catch((e) => { schemaRun = null; throw e; });
+  if (!schemaRun) {
+    schemaRun = (async () => {
+      await rawQuery(SCHEMA);
+      for (const m of MIGRATIONS) {
+        try { await rawQuery(m); } catch (e) { if (!/duplicate column/i.test(e.message)) throw e; }
+      }
+    })().catch((e) => { schemaRun = null; throw e; });
+  }
   return schemaRun;
 }
 

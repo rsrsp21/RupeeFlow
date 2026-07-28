@@ -118,9 +118,9 @@ export default function Dashboard() {
 
   return (
     <section className="view">
-      <header className="view-head">
+      <header className="view-head has-toggle">
         <div>
-          <h2>{h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'}</h2>
+          <h2>{h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'}{store.name ? `, ${store.name}` : ''}</h2>
           <p className="sub">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
         <ThemeToggle />
@@ -334,7 +334,7 @@ function ThemeToggle() {
     localStorage.setItem('rf_theme', el.dataset.theme);
   };
   return (
-    <button className="icon-btn" onClick={toggle} title="Toggle theme">
+    <button className="icon-btn theme-toggle" onClick={toggle} title="Toggle theme">
       {isDark ? <Sun size={17} strokeWidth={1.9} /> : <Moon size={17} strokeWidth={1.9} />}
     </button>
   );

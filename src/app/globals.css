@@ -720,7 +720,9 @@ input::placeholder { color: var(--muted); }
   .install-prompt { bottom: calc(78px + env(safe-area-inset-bottom)); }
   input, select { font-size: 16px; }   /* prevent iOS Safari auto-zoom on focus */
   .view-head { flex-direction: column; align-items: stretch; gap: 12px; }
-  .period-seg { width: 100%; }
+  .view-head.has-toggle { position: relative; padding-right: 40px; }
+  .theme-toggle { position: absolute; top: 0; right: 0; }
+  .period-seg { flex: 1; min-width: 0; width: auto; }
   .period-seg button { flex: 1; padding: 7px 4px; }
   .kpi-strip { grid-template-columns: 1fr 1fr; }
   .insight-strip { grid-template-columns: 1fr; }
