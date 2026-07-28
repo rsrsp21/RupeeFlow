@@ -42,7 +42,7 @@ export default function AuthView() {
           <input type="email" placeholder="Email" required autoComplete="email"
             value={email} onChange={(e) => setEmail(e.target.value)} />
           <div className="password-field">
-            <input type={showPassword ? 'text' : 'password'} placeholder="Password (min 8 chars)" required minLength={8}
+            <input type={showPassword ? 'text' : 'password'} placeholder="Password" required minLength={8}
               autoComplete={isRegister ? 'new-password' : 'current-password'}
               value={password} onChange={(e) => setPassword(e.target.value)} />
             <button type="button" className="icon-btn password-eye" tabIndex={-1}
