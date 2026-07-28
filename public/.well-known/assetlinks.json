@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.vercel.rupeeflowindia.twa",
+      "sha256_cert_fingerprints": [
+        "C7:BC:9E:8B:42:41:A6:37:D2:EB:9C:79:3E:D4:5A:CF:DD:62:B6:1D:25:93:F6:70:69:C1:F5:2C:4F:8E:B8:AF"
+      ]
+    }
+  }
+]

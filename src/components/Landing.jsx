@@ -3,7 +3,7 @@
 // highlights, with sign-in/sign-up opening as a modal rather than a section.
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Mic, ScanLine, Sparkles, Target, WifiOff, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Mic, ScanLine, Sparkles, Target, WifiOff, ShieldCheck, ArrowRight, Download } from 'lucide-react';
 import { TAGLINE } from '@/lib/client/constants';
 import { backdropMotion, panelMotion } from './modals/TxModal';
 import AuthView from './AuthView';
@@ -46,10 +46,15 @@ export default function Landing() {
             get a real budget with pacing, and a weekly review that actually says something useful.
           </p>
           <div className="landing-cta">
-            <button className="btn primary" style={{ width: 'auto' }} onClick={() => setAuthOpen(true)}>
-              Get started free <ArrowRight size={15} />
-            </button>
-            <span className="muted small">Free · No card required · Installs as an app</span>
+            <div className="landing-cta-row">
+              <button className="btn primary" style={{ width: 'auto' }} onClick={() => setAuthOpen(true)}>
+                Get started free <ArrowRight size={15} />
+              </button>
+              <a className="btn ghost" href="/RupeeFlow.apk" download>
+                <Download size={15} /> Download for Android
+              </a>
+            </div>
+            <span className="muted small">Free · No card required · Works offline</span>
           </div>
         </motion.div>
 
