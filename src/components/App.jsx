@@ -120,9 +120,9 @@ export default function App() {
           <AnimatePresence mode="wait">
             <motion.div
               key={view}
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
+              exit={{ opacity: 0, y: 6 }}
               transition={{ duration: 0.18, ease: 'easeOut' }}
             >
               <ActiveView />

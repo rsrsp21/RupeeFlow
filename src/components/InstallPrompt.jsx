@@ -5,6 +5,11 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Download, X, Share } from 'lucide-react';
 
+// Showing it once and then staying quiet for a few days reads as helpful;
+// showing it on every single reload reads as nagging. A hard "X" dismiss
+// opts out forever; just seeing it starts this softer cooldown too.
+const SNOOZE_MS = 3 * 24 * 60 * 60 * 1000;
+
 export default function InstallPrompt({ top = false }) {
   const [deferred, setDeferred] = useState(null);
   const [showIOS, setShowIOS] = useState(false);
@@ -12,6 +17,7 @@ export default function InstallPrompt({ top = false }) {
 
   useEffect(() => {
     if (localStorage.getItem('rf_install_dismissed') === '1') return;
+    if (Date.now() < Number(localStorage.getItem('rf_install_snooze_until') || 0)) return;
 
     const standalone = window.matchMedia('(display-mode: standalone)').matches
       || window.navigator.standalone === true;
@@ -21,13 +27,16 @@ export default function InstallPrompt({ top = false }) {
       return;
     }
 
-    const onPrompt = (e) => { e.preventDefault(); setDeferred(e); setDismissed(false); };
+    const snooze = () => localStorage.setItem('rf_install_snooze_until', String(Date.now() + SNOOZE_MS));
+    // Chrome only ever fires this for installable, not-yet-installed visitors —
+    // that's the browser's own "not installed" signal, on top of the check above.
+    const onPrompt = (e) => { e.preventDefault(); setDeferred(e); setDismissed(false); snooze(); };
     window.addEventListener('beforeinstallprompt', onPrompt);
 
     // iOS Safari has no beforeinstallprompt — show manual instructions instead
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
     const isSafari = /safari/i.test(navigator.userAgent) && !/crios|fxios|chrome/i.test(navigator.userAgent);
-    if (isIOS && isSafari) { setShowIOS(true); setDismissed(false); }
+    if (isIOS && isSafari) { setShowIOS(true); setDismissed(false); snooze(); }
 
     return () => window.removeEventListener('beforeinstallprompt', onPrompt);
   }, []);
