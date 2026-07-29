@@ -192,12 +192,27 @@ export function StoreProvider({ children }) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed');
+
+    // IndexedDB isn't namespaced per user, and logout() deliberately leaves
+    // it in place (so re-logging in as the SAME user is instant) — so if a
+    // DIFFERENT account was last cached on this device, that data must be
+    // wiped rather than loaded here. Otherwise this session would inherit
+    // their transactions/accounts, and hydrateFromCache would seed the sync
+    // cursor from their position — silently hiding this user's own older
+    // entries until a full resync happened to correct it.
+    const priorEmail = (await idbAll('meta')).find((m) => m.k === 'lastUserEmail')?.v;
+    if (priorEmail && priorEmail !== data.email) {
+      await idbClear('tx'); await idbClear('outbox'); await idbClear('meta');
+      cursor.current = 0;
+    }
+
     localStorage.setItem('rf_token', data.token);
     localStorage.setItem('rf_email', data.email);
     localStorage.setItem('rf_name', data.name || '');
     // Also mirrored into IndexedDB — the service worker can't reach localStorage,
     // but needs the token to push the outbox during a Background Sync event.
     idbPut('meta', { k: 'token', v: data.token });
+    idbPut('meta', { k: 'lastUserEmail', v: data.email });
     await hydrateFromCache();
     setToken(data.token); setEmail(data.email); setName(data.name || '');
   }, [hydrateFromCache]);
@@ -247,6 +262,11 @@ export function StoreProvider({ children }) {
     (async () => {
       if (t) {
         idbPut('meta', { k: 'token', v: t }); // keep the SW's mirror in sync too
+        // Passive restore of the current session, not a new login — just
+        // keep the marker current, never clear anything here (that only
+        // happens in authenticate(), at the moment a *different* user logs in).
+        const currentEmail = localStorage.getItem('rf_email') || '';
+        if (currentEmail) idbPut('meta', { k: 'lastUserEmail', v: currentEmail });
         // Doing this before setBooted(true), with nothing else awaited in
         // between, matters: React batches the setState calls inside it into
         // the same commit as booted flipping, so the app never observes an
