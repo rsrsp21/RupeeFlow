@@ -1,3 +1,5 @@
+export const maxDuration = 60;
+
 import { requireUser, jsonRes, errRes, HttpError } from '@/lib/auth';
 import { pullTransactions } from '@/lib/transactions';
 

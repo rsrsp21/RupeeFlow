@@ -1,3 +1,8 @@
+// Each queued transaction is a separate D1 REST round-trip (see pushTransactions),
+// so a large offline backlog can take longer than Vercel's default serverless
+// timeout — raise the ceiling the same way the AI routes already do.
+export const maxDuration = 60;
+
 import { requireUser, jsonRes, errRes, HttpError } from '@/lib/auth';
 import { pushTransactions } from '@/lib/transactions';
 
