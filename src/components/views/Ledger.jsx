@@ -11,6 +11,7 @@ import {
 } from '@/lib/client/period';
 import TxItem from '../TxItem';
 import TrendBars from '../charts/TrendBars';
+import SyncBadge from '../SyncBadge';
 import { useUI } from '../App';
 
 const SORTS = {
@@ -132,7 +133,7 @@ export default function Ledger() {
     <section className="view">
       <header className="view-head">
         <div>
-          <h2>Ledger</h2>
+          <h2>Ledger <SyncBadge /></h2>
           <p className="sub">{list.length} {list.length === 1 ? 'entry' : 'entries'}{activeFilters ? ' · filtered' : ''}</p>
         </div>
         <div className="head-actions">

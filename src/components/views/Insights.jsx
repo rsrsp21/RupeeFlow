@@ -7,6 +7,7 @@ import { useStore } from '@/lib/client/store';
 import { rupees } from '@/lib/client/constants';
 import { loadDaily, saveDaily } from '@/lib/client/dailyCache';
 import Markdown from '../Markdown';
+import SyncBadge from '../SyncBadge';
 
 const KIND_META = {
   save: { icon: TrendingDown, tone: 'save', label: 'Save' },
@@ -82,7 +83,7 @@ export default function Insights() {
     <section className="view">
       <header className="view-head">
         <div>
-          <h2>AI insights</h2>
+          <h2>AI insights <SyncBadge /></h2>
           <p className="sub">Analysis grounded in your actual entries</p>
         </div>
       </header>

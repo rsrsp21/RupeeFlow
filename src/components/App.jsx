@@ -17,7 +17,6 @@ import VoiceModal from './modals/VoiceModal';
 import PromptModal from './modals/PromptModal';
 import BudgetModal from './modals/BudgetModal';
 import ExportModal from './modals/ExportModal';
-import OfflineBanner from './OfflineBanner';
 import InstallPrompt from './InstallPrompt';
 import ErrorBoundary from './ErrorBoundary';
 import { Nav } from './Nav';
@@ -205,7 +204,6 @@ export default function App() {
           {exportOpen && <ExportModal key="export" onClose={() => setExportOpen(false)} />}
         </AnimatePresence>
 
-        <OfflineBanner />
         <InstallPrompt />
         <div className={`toast ${store.toastMsg ? 'show' : ''}`}>{store.toastMsg}</div>
       </div>

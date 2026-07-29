@@ -9,6 +9,7 @@ import { rupees, monthKey, CATEGORIES } from '@/lib/client/constants';
 import { DAY_MS, startOfMonth } from '@/lib/client/period';
 import { useUI } from '../App';
 import CategoryIcon from '../CategoryIcon';
+import SyncBadge from '../SyncBadge';
 
 export default function Budgets() {
   const store = useStore();
@@ -78,7 +79,7 @@ export default function Budgets() {
     <section className="view">
       <header className="view-head">
         <div>
-          <h2>Budgets</h2>
+          <h2>Budgets <SyncBadge /></h2>
           <p className="sub">{new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} · Day {dayOfMonth} of {daysIn}</p>
         </div>
         <div className="head-actions">
