@@ -123,10 +123,12 @@ export default function Dashboard() {
 
   return (
     <section className="view">
-      {/* Sticky header is now a brand mark (fixed content, same on every
-          visit) rather than the greeting — the greeting is time/name-
-          dependent and reads oddly pinned in place while you scroll past it. */}
-      <header className="view-head has-toggle">
+      {/* Sticky header is a brand mark on mobile (there's no sidebar there to
+          show it) rather than the greeting — the greeting is time/name-
+          dependent and reads oddly pinned in place while you scroll past it.
+          Hidden on desktop entirely: the sidebar already shows the brand, and
+          the theme toggle lives in Settings there instead of duplicating it. */}
+      <header className="view-head has-toggle dashboard-head">
         <div className="dashboard-brand">
           <svg viewBox="0 0 48 48" width="26" height="26"><use href="/icon.svg#mark" /></svg>
           <span>RupeeFlow</span>

@@ -308,7 +308,19 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 
 /* Dashboard: brand mark in the sticky header, greeting moved into the body. */
 .dashboard-brand { display: flex; align-items: center; gap: 9px; font-size: 1.05rem; font-weight: 700; }
+/* Desktop already has the sidebar's own brand mark right above these same
+   nav items, so the Dashboard header (brand + theme toggle) is pure
+   duplication there — mobile has no sidebar, so it stays visible there. */
+@media (min-width: 761px) {
+  .dashboard-head { display: none; }
+}
 .dashboard-greeting { margin-bottom: 24px; }
+/* With .dashboard-head hidden on desktop, nothing above the greeting supplies
+   top breathing room anymore (.main has no top padding of its own — see the
+   sticky-header comment above) — restore it here instead. */
+@media (min-width: 761px) {
+  .dashboard-greeting { margin-top: 32px; }
+}
 .dashboard-greeting h2 { font-size: 1.3rem; display: flex; align-items: center; gap: 9px; }
 .dashboard-greeting h2 > svg { color: var(--accent); flex-shrink: 0; }
 
