@@ -320,6 +320,14 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .card-head h3 { margin-bottom: 0; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
+/* ── settings footer (brand mark, below Sign out) ── */
+.settings-foot {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  text-align: center; padding: 28px 0 12px; color: var(--muted);
+}
+.settings-foot b { font-size: .92rem; color: var(--text); font-family: var(--font-display), var(--font-body), system-ui, sans-serif; }
+.settings-foot span { font-size: .78rem; }
+
 /* ── hero ── */
 .hero-card {
   background: var(--surface); border: 1px solid var(--line);
@@ -619,9 +627,13 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .trend-labels {
   display: flex; margin-top: 6px; width: 100%;
 }
+/* overflow stays visible: in the month view each column is ~11px wide and a
+   2-digit day number is wider than that — it must spill into the neighboring
+   columns (which are empty, labels render only every Nth slot) instead of
+   getting clipped mid-digit. */
 .trend-labels span {
   flex: 1; min-width: 0; text-align: center; font-size: .62rem;
-  color: var(--muted); white-space: nowrap; overflow: hidden;
+  color: var(--muted); white-space: nowrap;
 }
 
 /* ═══ KPI strip (dashboard hero) ═══ */

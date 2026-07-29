@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, Wallet, CalendarDays,
   Flame, PiggyBank, Target, ArrowRight, Check,
+  Sunrise, Sun, Moon,
 } from 'lucide-react';
 import ThemeToggle from '../ThemeToggle';
 import SyncBadge from '../SyncBadge';
@@ -122,10 +123,14 @@ export default function Dashboard() {
 
   return (
     <section className="view">
-      {/* No screen icon here by design — the greeting is the Dashboard's identity. */}
+      {/* Instead of a screen icon, the greeting leads with a time-of-day icon
+          (sunrise / sun / moon) matching the wording next to it. */}
       <header className="view-head has-toggle">
         <div>
-          <h2>{h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'}{shortName ? `, ${shortName}` : ''}</h2>
+          <h2>
+            {h < 12 ? <Sunrise size={19} strokeWidth={2} /> : h < 17 ? <Sun size={19} strokeWidth={2} /> : <Moon size={19} strokeWidth={2} />}
+            {h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'}{shortName ? `, ${shortName}` : ''}
+          </h2>
           <p className="sub">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
         <ThemeToggle />

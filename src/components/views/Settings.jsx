@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 // aliased — this module's own default export is already named Settings
 import { Download, LogOut, RefreshCw, Plus, Wallet, Trash2, Pencil, Check, X, Bell, Settings as SettingsIcon } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
-import { rupees } from '@/lib/client/constants';
+import { rupees, TAGLINE } from '@/lib/client/constants';
 import { pushSupported, currentSubscription, enablePush, disablePush } from '@/lib/client/pushClient';
 import { useUI } from '../App';
 import SyncBadge from '../SyncBadge';
@@ -70,6 +70,12 @@ export default function Settings() {
         <NameRow />
         <button className="btn danger-ghost" onClick={store.logout}><LogOut size={14} /> Sign out</button>
       </div>
+
+      <footer className="settings-foot">
+        <svg viewBox="0 0 48 48" width="30" height="30"><use href="/icon.svg#mark" /></svg>
+        <b>RupeeFlow</b>
+        <span>{TAGLINE}</span>
+      </footer>
     </section>
   );
 }
