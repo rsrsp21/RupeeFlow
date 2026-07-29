@@ -2,7 +2,7 @@
 // Runtime caching: pages network-first (cache fallback), static assets
 // stale-while-revalidate, CDN libs cache-first. API calls skip the SW —
 // the app itself queues mutations in IndexedDB while offline.
-const CACHE = 'rupeeflow-next-v3';
+const CACHE = 'rupeeflow-next-v4';
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
