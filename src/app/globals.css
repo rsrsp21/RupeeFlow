@@ -283,14 +283,19 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .sync-dot.pending span { background: #d97706; }
 .sync-dot em { font-style: normal; }
 
-.main { flex: 1; padding: 32px clamp(18px, 4.5vw, 56px) 120px; max-width: 920px; }
+/* No top padding here — the sticky header supplies its own (see .view-head),
+   so it sits flush against the very top of the viewport from the first
+   pixel of scroll, the same way the bottom tab bar is always flush. With
+   top padding on .main instead, the header only reached the top after you'd
+   scrolled past that padding, leaving a bare gap above it before then. */
+.main { flex: 1; padding: 0 clamp(18px, 4.5vw, 56px) 120px; max-width: 920px; }
 /* Sticks to the top of the page (the window scrolls, not .main — see the
    view-transition comment in App.jsx) once you scroll past it, the same way
    the bottom tab bar is always pinned. Needs its own opaque background since
    content now scrolls underneath it instead of past it. */
 .view-head {
   display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
-  position: sticky; top: 0; z-index: 15; background: var(--bg); padding: 14px 0; margin-bottom: 10px;
+  position: sticky; top: 0; z-index: 15; background: var(--bg); padding: 26px 0 14px; margin-bottom: 10px;
 }
 /* flex so a leading screen icon sits on the text's optical centre line;
    Dashboard has no icon and is unaffected by the gap. overflow-wrap is a
@@ -959,7 +964,7 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
   /* Settings isn't a tab at all on mobile — it's reached via SettingsLink
      beside each screen's heading (.view-head-utils below) instead. */
   .settings-item { display: none; }
-  .main { padding: 22px 16px 170px; }
+  .main { padding: 0 16px 170px; }   /* top padding moved onto the sticky .view-head itself */
   .grid-2 { grid-template-columns: 1fr; }
   .filter-row { grid-template-columns: 1fr 1fr 1fr; }
   /* Sits inside the bar's own height (button ~= bar height) rather than
@@ -994,7 +999,7 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
   .view-head { padding-right: 100px; }
   .view-head-utils {
     display: flex; align-items: center; gap: 6px;
-    position: absolute; top: 14px; right: 0;
+    position: absolute; top: 26px; right: 0;
   }
   .settings-link { display: grid; }
   .period-seg { flex: 1; min-width: 0; width: auto; }
