@@ -1,5 +1,4 @@
 // Export engine — CSV / PDF / JSON with configurable scope, grouping and columns.
-import { rupees, monthKey, CATEGORIES } from './constants';
 import { DAY_MS, startOfDay, startOfWeek, startOfMonth, startOfYear } from './period';
 
 export const COLUMNS = {
@@ -33,10 +32,37 @@ export const RANGES = {
   all: { label: 'All time', from: () => 0 },
 };
 
-export function selectRows(all, opts) {
+// Resolved absolute [from, to) instants for whatever range/custom dates were
+// picked — the single source of truth for filtering, labels and filenames.
+export function resolveRange(opts) {
   const r = RANGES[opts.range] || RANGES.all;
   const from = opts.customFrom ?? r.from();
   const to = opts.customTo ?? (r.to ? r.to() : Date.now() + DAY_MS);
+  return { from, to };
+}
+
+const fmtDate = (ts) => new Date(ts).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+// A relative label like "This month" means nothing once a document has been
+// downloaded and opened later, so exports always spell out the actual dates.
+export function formatRangeLabel(opts) {
+  if (opts.range === 'all' && opts.customFrom == null && opts.customTo == null) return 'All time';
+  const { from, to } = resolveRange(opts);
+  const endInclusive = to - DAY_MS;
+  return fmtDate(from) === fmtDate(endInclusive) ? fmtDate(from) : `${fmtDate(from)} – ${fmtDate(endInclusive)}`;
+}
+
+// Compact, sortable date tag for filenames — no ambiguous words like "month".
+export function rangeFileTag(opts) {
+  if (opts.range === 'all' && opts.customFrom == null && opts.customTo == null) return 'all-time';
+  const { from, to } = resolveRange(opts);
+  const iso = (ts) => new Date(ts).toISOString().slice(0, 10);
+  const endIso = iso(to - DAY_MS);
+  return iso(from) === endIso ? iso(from) : `${iso(from)}_to_${endIso}`;
+}
+
+export function selectRows(all, opts) {
+  const { from, to } = resolveRange(opts);
   let rows = all.filter((t) => t.occurred_at >= from && t.occurred_at < to);
   if (opts.type) rows = rows.filter((t) => t.type === opts.type);
   if (opts.category) rows = rows.filter((t) => t.category === opts.category);
@@ -100,7 +126,7 @@ export async function ensureJsPDF() {
 export async function toPDF(rows, opts, meta) {
   const JsPDF = await ensureJsPDF();
   const doc = new JsPDF({ orientation: opts.orientation || 'portrait' });
-  const rangeLabel = RANGES[opts.range]?.label || 'Custom range';
+  const rangeLabel = formatRangeLabel(opts);
 
   const inc = rows.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const exp = rows.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
@@ -157,5 +183,5 @@ export async function toPDF(rows, opts, meta) {
     doc.text(doc.splitTextToSize(opts.aiSummary, 180), 14, 30);
   }
 
-  doc.save(`rupeeflow-${opts.range}-${new Date().toISOString().slice(0, 10)}.pdf`);
+  doc.save(`rupeeflow-${rangeFileTag(opts)}.pdf`);
 }

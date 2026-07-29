@@ -6,7 +6,7 @@ import { FileText, FileSpreadsheet, Braces, Check, Sparkles } from 'lucide-react
 import { useStore } from '@/lib/client/store';
 import { CATEGORIES, rupees } from '@/lib/client/constants';
 import {
-  RANGES, COLUMNS, selectRows, toCSV, toPDF, summarize, download,
+  RANGES, COLUMNS, selectRows, toCSV, toPDF, summarize, download, formatRangeLabel, rangeFileTag,
 } from '@/lib/client/exporters';
 import { backdropMotion, panelMotion } from './TxModal';
 
@@ -16,6 +16,8 @@ export default function ExportModal({ onClose }) {
   const store = useStore();
   const [format, setFormat] = useState('pdf');
   const [range, setRange] = useState('month');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
   const [type, setType] = useState('');
   const [category, setCategory] = useState('');
   const [groupBy, setGroupBy] = useState('category');
@@ -25,8 +27,13 @@ export default function ExportModal({ onClose }) {
   const [withAI, setWithAI] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const opts = { range, type, category, groupBy, columns: cols, includeSummary, includeTransactions };
-  const rows = useMemo(() => selectRows(store.live(), opts), [store.txs, range, type, category]); // eslint-disable-line
+  const opts = {
+    range, type, category, groupBy, columns: cols, includeSummary, includeTransactions,
+    customFrom: range === 'custom' && customFrom ? new Date(`${customFrom}T00:00:00`).getTime() : undefined,
+    customTo: range === 'custom' && customTo ? new Date(`${customTo}T00:00:00`).getTime() + 86400000 : undefined,
+  };
+  const rows = useMemo(() => selectRows(store.live(), opts),
+    [store.txs, range, type, category, customFrom, customTo]); // eslint-disable-line
   const totals = store.totals(rows);
 
   const toggleCol = (c) =>
@@ -37,15 +44,15 @@ export default function ExportModal({ onClose }) {
     if (!rows.length) return store.toast('Nothing to export in that range');
     setBusy(true);
     try {
-      const stamp = new Date().toISOString().slice(0, 10);
+      const tag = rangeFileTag(opts);
       if (format === 'csv') {
         const csv = includeSummary && !includeTransactions
           ? ['Group,Entries,Spent (INR),Received (INR)',
              ...summarize(rows, groupBy).map((g) => `${JSON.stringify(g.key)},${g.count},${(g.expense / 100).toFixed(2)},${(g.income / 100).toFixed(2)}`)].join('\n')
           : toCSV(rows, cols);
-        download(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }), `rupeeflow-${range}-${stamp}.csv`);
+        download(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }), `rupeeflow-${tag}.csv`);
       } else if (format === 'json') {
-        download(new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' }), `rupeeflow-${range}-${stamp}.json`);
+        download(new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' }), `rupeeflow-${tag}.json`);
       } else {
         let aiSummary = '';
         if (withAI) {
@@ -96,7 +103,23 @@ export default function ExportModal({ onClose }) {
               {Object.entries(RANGES).map(([k, v]) => (
                 <button key={k} className={`pill-btn ${range === k ? 'on' : ''}`} onClick={() => setRange(k)}>{v.label}</button>
               ))}
+              <button className={`pill-btn ${range === 'custom' ? 'on' : ''}`} onClick={() => setRange('custom')}>Custom range</button>
             </div>
+            {range === 'custom' && (
+              <div className="form-row labelled" style={{ marginTop: 8 }}>
+                <label>
+                  <span>From</span>
+                  <input type="date" value={customFrom} max={customTo || undefined}
+                    onChange={(e) => setCustomFrom(e.target.value)} />
+                </label>
+                <label>
+                  <span>To</span>
+                  <input type="date" value={customTo} min={customFrom || undefined}
+                    max={new Date().toISOString().slice(0, 10)} onChange={(e) => setCustomTo(e.target.value)} />
+                </label>
+              </div>
+            )}
+            <p className="muted small" style={{ marginTop: 8 }}>Exporting: {formatRangeLabel(opts)}</p>
           </div>
 
           <div className="field">
