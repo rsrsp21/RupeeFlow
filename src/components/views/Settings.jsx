@@ -1,7 +1,8 @@
 
 'use client';
 import { useEffect, useState } from 'react';
-import { Download, LogOut, RefreshCw, Plus, Wallet, Trash2, Pencil, Check, X, Bell } from 'lucide-react';
+// aliased — this module's own default export is already named Settings
+import { Download, LogOut, RefreshCw, Plus, Wallet, Trash2, Pencil, Check, X, Bell, Settings as SettingsIcon } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees } from '@/lib/client/constants';
 import { pushSupported, currentSubscription, enablePush, disablePush } from '@/lib/client/pushClient';
@@ -26,7 +27,7 @@ export default function Settings() {
   return (
     <section className="view">
       <header className="view-head">
-        <div><h2>Settings</h2><p className="sub">{store.name ? `${store.name} · ${store.email}` : store.email}</p></div>
+        <div><h2><SettingsIcon size={19} strokeWidth={2} /> Settings</h2><p className="sub">{store.name ? `${store.name} · ${store.email}` : store.email}</p></div>
         <div className="view-head-utils"><SyncBadge /><SettingsLink /></div>
       </header>
 

@@ -273,7 +273,10 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 
 .main { flex: 1; padding: 32px clamp(18px, 4.5vw, 56px) 120px; max-width: 920px; }
 .view-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; gap: 12px; }
-.view-head h2 { font-size: 1.3rem; }
+/* flex so a leading screen icon sits on the text's optical centre line;
+   Dashboard has no icon and is unaffected by the gap. */
+.view-head h2 { font-size: 1.3rem; display: flex; align-items: center; gap: 9px; }
+.view-head h2 > svg { color: var(--accent); flex-shrink: 0; }
 .sub { color: var(--muted); font-size: .84rem; margin-top: 3px; }
 
 .sync-badge {

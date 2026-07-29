@@ -84,7 +84,7 @@ export default function Insights() {
     <section className="view">
       <header className="view-head">
         <div>
-          <h2>AI insights</h2>
+          <h2><Sparkles size={19} strokeWidth={2} /> AI Insights</h2>
           <p className="sub">Analysis grounded in your actual entries</p>
         </div>
         <div className="view-head-utils"><SyncBadge /><SettingsLink /></div>

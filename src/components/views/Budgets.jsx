@@ -3,7 +3,7 @@
 // and one-tap AI budget suggestions from real spending history.
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Sparkles, Check, RefreshCw, Target, TrendingUp, X, Pencil } from 'lucide-react';
+import { Plus, Sparkles, Check, RefreshCw, Target, TrendingUp, X, Pencil, PieChart } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees, monthKey, CATEGORIES } from '@/lib/client/constants';
 import { DAY_MS, startOfMonth } from '@/lib/client/period';
@@ -80,7 +80,7 @@ export default function Budgets() {
     <section className="view">
       <header className="view-head">
         <div>
-          <h2>Budgets</h2>
+          <h2><PieChart size={19} strokeWidth={2} /> Budgets</h2>
           <p className="sub">{new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} · Day {dayOfMonth} of {daysIn}</p>
         </div>
         <div className="head-actions">

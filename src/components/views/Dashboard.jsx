@@ -8,6 +8,8 @@ import {
   Flame, PiggyBank, Target, ArrowRight, Check,
 } from 'lucide-react';
 import ThemeToggle from '../ThemeToggle';
+import SyncBadge from '../SyncBadge';
+import SettingsLink from '../SettingsLink';
 import { useStore } from '@/lib/client/store';
 import { rupees, monthKey, CATEGORIES } from '@/lib/client/constants';
 import { DAY_MS, startOfDay, startOfWeek, startOfMonth } from '@/lib/client/period';
@@ -109,15 +111,20 @@ export default function Dashboard() {
 
   const recent = [...all].sort((a, b) => b.occurred_at - a.occurred_at).slice(0, 5);
   const h = new Date().getHours();
+  // A long full name would push the greeting onto several lines on mobile —
+  // first two words is enough to feel personal without wrapping.
+  const shortName = (store.name || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).join(' ');
 
   return (
     <section className="view">
+      {/* No screen icon here by design — the greeting is the Dashboard's identity. */}
       <header className="view-head has-toggle">
         <div>
-          <h2>{h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'}{store.name ? `, ${store.name}` : ''}</h2>
+          <h2>{h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'}{shortName ? `, ${shortName}` : ''}</h2>
           <p className="sub">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
         <ThemeToggle />
+        <div className="view-head-utils"><SyncBadge /><SettingsLink /></div>
       </header>
 
       {/* ── hero + KPI strip ── */}

@@ -3,7 +3,7 @@
 // deep filters, and date-grouped entries with per-day subtotals.
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, SlidersHorizontal, X, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, SlidersHorizontal, X, Download, List } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { CATEGORIES, rupees, toPaise } from '@/lib/client/constants';
 import {
@@ -134,7 +134,7 @@ export default function Ledger() {
     <section className="view">
       <header className="view-head">
         <div>
-          <h2>Ledger</h2>
+          <h2><List size={19} strokeWidth={2} /> Ledger</h2>
           <p className="sub">{list.length} {list.length === 1 ? 'entry' : 'entries'}{activeFilters ? ' · filtered' : ''}</p>
         </div>
         <div className="head-actions">
