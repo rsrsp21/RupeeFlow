@@ -86,6 +86,17 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 input::placeholder, textarea::placeholder { color: var(--muted); }
 textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 
+/* One consistent custom arrow for every <select> instead of each browser's
+   own native one (which sits at wildly different spots/sizes per platform —
+   e.g. jammed against the text on some, or far from it if the box is
+   width: auto and only as wide as its content). */
+select {
+  appearance: none; -webkit-appearance: none;
+  padding-right: 34px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239ca3af' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+}
+
 /* ── buttons ── */
 .btn {
   font: inherit; font-size: .86rem; font-weight: 550; border-radius: var(--radius-sm);
@@ -686,6 +697,17 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .kpi-delta.up { color: var(--red); } .kpi-delta.down { color: var(--green); }
 
 /* ═══ insight tiles ═══ */
+/* Renders above each view's own (sticky) header, and .main has no top
+   padding of its own anymore (the sticky header supplies its own) — so this
+   needs its own top margin, or it'd sit flush against the viewport edge. */
+.no-account-notice {
+  display: flex; align-items: center; gap: 8px; font-size: .82rem; line-height: 1.4;
+  background: var(--accent-soft); border: 1px solid var(--accent);
+  color: var(--text); padding: 10px 14px; border-radius: var(--radius-sm); margin: 16px 0;
+}
+.no-account-notice svg { flex-shrink: 0; color: var(--accent-text); }
+.no-account-notice a { color: var(--accent-text); font-weight: 600; }
+
 .insight-strip {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(238px, 1fr));
   gap: 10px; margin-bottom: 16px;

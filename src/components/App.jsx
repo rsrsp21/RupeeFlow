@@ -2,7 +2,7 @@
 // App shell: auth gate, nav, animated view transitions, FAB cluster, modals, toast.
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Mic, ScanLine, PenLine, Type } from 'lucide-react';
+import { Plus, Mic, ScanLine, PenLine, Type, Wallet } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { CATEGORIES, rupees } from '@/lib/client/constants';
 import { readSharedPayload } from '@/lib/client/shareTarget';
@@ -17,6 +17,7 @@ import VoiceModal from './modals/VoiceModal';
 import PromptModal from './modals/PromptModal';
 import BudgetModal from './modals/BudgetModal';
 import ExportModal from './modals/ExportModal';
+import AddAccountModal from './modals/AddAccountModal';
 import InstallPrompt from './InstallPrompt';
 import ErrorBoundary from './ErrorBoundary';
 import { Nav } from './Nav';
@@ -60,8 +61,20 @@ export default function App() {
   const [exportOpen, setExportOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
+  const [onboardOpen, setOnboardOpen] = useState(false);
   const fileRef = useRef(null);
   const fabRef = useRef(null);
+
+  // "Add your first account" shows once for a genuinely new signup (zero
+  // accounts) and auto-closes itself the moment that's no longer true —
+  // whether because they added one here, or store.jsx derived one from real
+  // transaction history in the background (an existing user's case; see the
+  // comment there). Re-showing on every load is suppressed once skipped.
+  useEffect(() => {
+    if (!store.booted || !store.token) return;
+    const skipped = localStorage.getItem('rf_onboard_skip') === '1';
+    setOnboardOpen(store.accounts.length === 0 && !skipped);
+  }, [store.booted, store.token, store.accounts.length]);
 
   // remember sidebar preference
   useEffect(() => { setCollapsed(localStorage.getItem('rf_nav') === 'collapsed'); }, []);
@@ -147,6 +160,15 @@ export default function App() {
       <div className={`app ${collapsed ? 'nav-collapsed' : ''}`}>
         <Nav view={view} setView={setView} collapsed={collapsed} setCollapsed={toggleNav} />
         <main className="main">
+          {/* Nudge on every screen while there's no account to record entries
+              against — not just at onboarding, since "Maybe later" leaves
+              accounts empty indefinitely. Disappears the moment one exists. */}
+          {store.accounts.length === 0 && (
+            <div className="no-account-notice">
+              <Wallet size={14} />
+              <span>You should <a href="#" onClick={(e) => { e.preventDefault(); setView('settings'); }}>add an account in Settings</a> to start recording entries.</span>
+            </div>
+          )}
           {/* Plain key-remount + enter-only animation, deliberately NOT wrapped in
               AnimatePresence: mode="wait" has to fully finish the outgoing view's
               exit before mounting the next one, and a burst of store updates
@@ -203,6 +225,13 @@ export default function App() {
           )}
           {budgetModal && <BudgetModal key="budget" category={budgetModal.category} onClose={() => setBudgetModal(null)} />}
           {exportOpen && <ExportModal key="export" onClose={() => setExportOpen(false)} />}
+          {onboardOpen && (
+            <AddAccountModal
+              key="onboard"
+              onDone={() => { setOnboardOpen(false); setView('transactions'); openTx(); }}
+              onSkip={() => { localStorage.setItem('rf_onboard_skip', '1'); setOnboardOpen(false); }}
+            />
+          )}
         </AnimatePresence>
 
         <InstallPrompt />

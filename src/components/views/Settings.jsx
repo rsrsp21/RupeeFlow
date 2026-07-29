@@ -2,7 +2,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 // aliased — this module's own default export is already named Settings
-import { Download, LogOut, RefreshCw, Plus, Wallet, Trash2, Pencil, Check, X, Bell, Settings as SettingsIcon } from 'lucide-react';
+import { Download, LogOut, RefreshCw, Plus, Wallet, Trash2, Pencil, Check, X, Bell, Settings as SettingsIcon, AlertTriangle } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees, TAGLINE, ACCOUNT_TYPES } from '@/lib/client/constants';
 import { pushSupported, currentSubscription, enablePush, disablePush } from '@/lib/client/pushClient';
@@ -16,6 +16,7 @@ export default function Settings() {
   const store = useStore();
   const { openExport } = useUI();
   const [dark, setDark] = useState(true);
+  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
   useEffect(() => { setDark(document.documentElement.dataset.theme === 'dark'); }, []);
 
   function toggleTheme(v) {
@@ -72,6 +73,26 @@ export default function Settings() {
         <NameRow />
         <button className="btn danger-ghost" onClick={store.logout}><LogOut size={14} /> Sign out</button>
       </div>
+
+      <div className="card">
+        <div className="card-head"><h3><AlertTriangle size={13} style={{ verticalAlign: '-2px' }} /> Danger zone</h3></div>
+        <p className="muted small" style={{ marginBottom: 12 }}>
+          Permanently deletes your account and every entry, budget, and notification subscription tied to it. This can't be undone.
+        </p>
+        <button className="btn danger-ghost" onClick={() => setConfirmDeleteAccount(true)}>
+          <Trash2 size={14} /> Delete account
+        </button>
+      </div>
+
+      {confirmDeleteAccount && (
+        <ConfirmModal
+          title="Delete your account?"
+          message={`Everything for ${store.email} — every entry, budget, and account — will be permanently deleted. This can't be undone.`}
+          confirmLabel="Delete account"
+          onConfirm={() => { setConfirmDeleteAccount(false); store.deleteAccount(); }}
+          onCancel={() => setConfirmDeleteAccount(false)}
+        />
+      )}
 
       <footer className="settings-foot">
         <svg viewBox="0 0 48 48" width="30" height="30"><use href="/icon.svg#mark" /></svg>

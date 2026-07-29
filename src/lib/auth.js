@@ -84,6 +84,16 @@ export async function login(email, password) {
   return { token: await signJWT({ sub: user.id, email: user.email }), email: user.email, name: user.name || '' };
 }
 
+// Permanently erases the account and everything tied to it. Order matters
+// only in that the user row goes last, so a crash partway through never
+// leaves an orphaned user with no way to log in and retry the delete.
+export async function deleteAccount(userId) {
+  await q('DELETE FROM transactions WHERE user_id = ?', [userId]);
+  await q('DELETE FROM budgets WHERE user_id = ?', [userId]);
+  await q('DELETE FROM push_subscriptions WHERE user_id = ?', [userId]);
+  await q('DELETE FROM users WHERE id = ?', [userId]);
+}
+
 export class HttpError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
 }

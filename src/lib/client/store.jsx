@@ -37,7 +37,11 @@ export function StoreProvider({ children }) {
   const [booted, setBooted] = useState(false);
   const [txs, setTxs] = useState({});           // id → transaction
   const [budgets, setBudgets] = useState([]);
-  const [accounts, setAccounts] = useState(DEFAULT_ACCOUNTS);
+  // Starts empty rather than defaulting to Cash/Bank/UPI/... — a genuinely
+  // new user picks their own first account (see AddAccountModal) instead of
+  // being handed five they may not all use. See the boot effect for how an
+  // *existing* user's account list gets derived if they never explicitly saved one.
+  const [accounts, setAccounts] = useState([]);
   const [syncState, setSyncState] = useState('offline'); // offline|pending|online|error
   const [lastSync, setLastSync] = useState(0);
   const [toastMsg, setToastMsg] = useState('');
@@ -183,6 +187,20 @@ export function StoreProvider({ children }) {
     window.location.reload();
   }, []);
 
+  // Permanent: erases the account and every entry/budget/subscription tied
+  // to it server-side, then wipes the local cache too (unlike logout, which
+  // leaves it in place so signing back in as the same user is instant —
+  // that cache would just be orphaned data once the account is gone).
+  const deleteAccount = useCallback(async () => {
+    await api('/auth/profile', { method: 'DELETE' });
+    localStorage.removeItem('rf_token');
+    localStorage.removeItem('rf_email');
+    localStorage.removeItem('rf_name');
+    localStorage.removeItem('rf_view');
+    await idbClear('tx'); await idbClear('outbox'); await idbClear('meta');
+    window.location.reload();
+  }, [api]);
+
   // ── boot: restore session + hydrate from IndexedDB (works fully offline) ──
   useEffect(() => {
     const t = localStorage.getItem('rf_token');
@@ -206,6 +224,26 @@ export function StoreProvider({ children }) {
     })();
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
   }, []);
+
+  // If there's no explicit account list yet but real transactions exist —
+  // an existing user who never happened to add/rename/remove one, so
+  // saveAccounts() was never called — derive one from the accounts those
+  // transactions actually reference instead of leaving the list empty
+  // under their feet (which would otherwise look identical to a genuinely
+  // new user and trigger the "add your first account" onboarding).
+  // Re-runs whenever txs changes, so it also self-heals on a fresh device
+  // once the first sync pull arrives (local cache is empty at boot there).
+  useEffect(() => {
+    if (!booted || accounts.length > 0) return;
+    const list = Object.values(txs).filter((t) => !t.deleted);
+    if (!list.length) return;
+    const names = new Set();
+    for (const t of list) { if (t.account) names.add(t.account); if (t.to_account) names.add(t.to_account); }
+    if (!names.size) return;
+    const derived = [...names].map(normalizeAccount);
+    setAccounts(derived);
+    idbPut('meta', { k: 'accounts', v: derived });
+  }, [txs, booted, accounts.length]);
 
   // ── near-real-time: poll while visible, sync on focus/online ──
   useEffect(() => {
@@ -330,7 +368,7 @@ export function StoreProvider({ children }) {
 
   const value = {
     token, email, name, booted, txs, budgets, accounts, syncState, lastSync, toastMsg,
-    api, toast, syncNow, saveTx, saveBudget, deleteBudget, saveAccounts, authenticate, saveName, logout,
+    api, toast, syncNow, saveTx, saveBudget, deleteBudget, saveAccounts, authenticate, saveName, logout, deleteAccount,
     live, totals, inMonth, catSpend, effectiveBudget, noteHistory, accountBalances, accountType, buildSummary,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

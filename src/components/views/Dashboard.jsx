@@ -66,12 +66,18 @@ export default function Dashboard() {
     const daysInMonth = new Date(new Date(mStart).getFullYear(), new Date(mStart).getMonth() + 1, 0).getDate();
     const projected = dailyAvg * daysInMonth;
 
-    // spend-free streak
+    // spend-free streak — only meaningful once there's at least one real
+    // expense on record; otherwise a brand-new account with zero history
+    // would count every day back to the loop's own limit as a "streak"
+    // (59 no-spend days on day one), which isn't a streak at all.
     let streak = 0;
-    for (let d = todayS - DAY_MS; d > todayS - 60 * DAY_MS; d -= DAY_MS) {
-      const spent = all.some((t) => t.type === 'expense' && t.occurred_at >= d && t.occurred_at < d + DAY_MS);
-      if (spent) break;
-      streak++;
+    const hasAnyExpense = all.some((t) => t.type === 'expense');
+    if (hasAnyExpense) {
+      for (let d = todayS - DAY_MS; d > todayS - 60 * DAY_MS; d -= DAY_MS) {
+        const spent = all.some((t) => t.type === 'expense' && t.occurred_at >= d && t.occurred_at < d + DAY_MS);
+        if (spent) break;
+        streak++;
+      }
     }
     return { today, week, lastWeek, lastMonth, dailyAvg, projected, daysInMonth, streak };
   }, [all, mt.exp, mStart, now]);
