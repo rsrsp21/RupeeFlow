@@ -11,7 +11,7 @@ export default function SettingsLink() {
   if (view === 'settings') return null;
   return (
     <button className="icon-btn settings-link" onClick={() => setView('settings')} title="Settings" aria-label="Settings">
-      <Settings size={16} strokeWidth={1.9} />
+      <Settings size={20} strokeWidth={1.9} />
     </button>
   );
 }

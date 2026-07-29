@@ -64,7 +64,7 @@ export default function ExportModal({ onClose }) {
             aiSummary = insight;
           } catch { /* export still proceeds without it */ }
         }
-        await toPDF(rows, { ...opts, aiSummary }, { email: store.email });
+        await toPDF(rows, { ...opts, aiSummary }, { name: store.name });
       }
       store.toast(`Exported ${rows.length} entries`);
       onClose();

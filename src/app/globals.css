@@ -113,9 +113,14 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 
 /* ── auth ── */
 .auth { display: grid; place-items: center; min-height: 100dvh; padding: 24px; background: var(--bg); }
+/* Fixed width AND height regardless of login vs. register (register adds a
+   name field + password checklist) — sized to fit register comfortably;
+   login just leaves the extra space below the form. overflow-y is a safety
+   net, not the intended fit, for unusually large text/zoom settings. */
 .auth-card {
-  position: relative; width: min(360px, 100%); background: var(--surface); border: 1px solid var(--line);
-  border-radius: 18px; padding: 40px 32px; box-shadow: var(--shadow-lg);
+  position: relative; width: 380px; height: 600px; max-width: 100%; max-height: calc(100dvh - 48px);
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 18px; padding: 40px 32px; box-shadow: var(--shadow-lg); overflow-y: auto;
 }
 .auth-close { position: absolute; top: 12px; right: 12px; }
 .logo-lockup { text-align: center; margin-bottom: 30px; }
@@ -895,15 +900,16 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
   .app { flex-direction: column; }
   .nav {
     order: 2; position: fixed; bottom: 0; left: 0; right: 0; top: auto; height: auto;
-    flex-direction: row; width: 100%; padding: 4px 8px calc(4px + env(safe-area-inset-bottom));
+    flex-direction: row; width: 100%; padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
     border-right: none; border-top: 1px solid var(--line); z-index: 50;
   }
   .nav-top, .nav-spacer, .sync-dot { display: none; }
-  .nav.collapsed { width: 100%; padding: 4px 8px calc(4px + env(safe-area-inset-bottom)); }
+  .nav.collapsed { width: 100%; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); }
   .nav-item, .nav.collapsed .nav-item {
     flex-direction: column; gap: 3px; font-size: .62rem; flex: 1;
-    padding: 7px 2px; align-items: center; justify-content: center;
+    padding: 9px 2px; align-items: center; justify-content: center;
   }
+  .nav-item svg { width: 20px; height: 20px; } /* bigger than the desktop 17px; the + FAB is untouched */
   .nav.collapsed .nav-text { display: block; }   /* labels always show on mobile tab bar */
   .nav-fab-slot { display: block; flex: 1; }      /* gap the centered FAB sits over */
   /* Settings isn't a tab at all on mobile — it's reached via SettingsLink
@@ -916,8 +922,8 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
      poking up above it, centered over the gap reserved between Ledger/Budgets. */
   .fab-cluster { left: 50%; right: auto; bottom: calc(env(safe-area-inset-bottom) + 3px); transform: translateX(-50%); z-index: 56; }
   .fab-minis {
-    flex-direction: row; left: 50%; right: auto; bottom: 60px; transform: translateX(-50%);
-    border-radius: 20px; padding: 8px; gap: 8px;
+    flex-direction: row; left: 50%; right: auto; bottom: 66px; transform: translateX(-50%);
+    border-radius: 22px; padding: 10px; gap: 10px;
     background: transparent; border: 1px solid transparent; box-shadow: none;
     transition: background .15s, border-color .15s, box-shadow .15s;
   }
@@ -925,7 +931,10 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
      permanently-visible empty pill even while "closed" (the mini buttons were
      individually hidden, but the container's own background/border weren't). */
   .fab-cluster.open .fab-minis { background: var(--surface); border-color: var(--line-strong); box-shadow: var(--shadow-lg); }
-  .fab.mini { border: none; box-shadow: none; }
+  /* Mini buttons (and the pill itself) get a little bigger on mobile; the +
+     that opens them stays exactly as-is per the ask. */
+  .fab.mini { border: none; box-shadow: none; width: 50px; height: 50px; }
+  .fab.mini svg { width: 21px; height: 21px; }
   .install-prompt { bottom: calc(78px + env(safe-area-inset-bottom)); }
   input, select { font-size: 16px; }   /* prevent iOS Safari auto-zoom on focus */
   .view-head { flex-direction: column; align-items: stretch; gap: 12px; }
@@ -935,7 +944,7 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
   /* Sync status + settings link: pinned to the view-head's own top-right
      corner (not the viewport) so it lines up with the heading exactly,
      regardless of how tall the stacked head-actions row below it gets. */
-  .view-head { position: relative; padding-right: 92px; }
+  .view-head { position: relative; padding-right: 100px; }
   .view-head-utils {
     display: flex; align-items: center; gap: 6px;
     position: absolute; top: 0; right: 0;

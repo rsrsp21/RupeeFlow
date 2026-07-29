@@ -133,7 +133,9 @@ export async function toPDF(rows, opts, meta) {
 
   doc.setFontSize(18); doc.text('RupeeFlow', 14, 18);
   doc.setFontSize(10); doc.setTextColor(120);
-  doc.text(`${rangeLabel}  ·  ${meta.email}  ·  generated ${new Date().toLocaleDateString('en-IN')}`, 14, 25);
+  const headLine = [rangeLabel, meta.name || '', `generated ${new Date().toLocaleDateString('en-IN')}`]
+    .filter(Boolean).join('  ·  ');
+  doc.text(headLine, 14, 25);
 
   // fixed 2 decimals throughout so a column of amounts lines up digit-under-
   // digit once right-aligned in a monospace font (e.g. 120.00 under 50.08)
