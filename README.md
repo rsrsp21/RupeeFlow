@@ -26,9 +26,9 @@ A minimalist, offline-first budget and expense tracker built for busy profession
 - [Features](#features)
 - [Tech stack](#tech-stack)
 - [Folder structure](#folder-structure)
-- [Setup: Cloudflare D1](#setup-cloudflare-d1-one-time-3-minutes)
+- [Cloudflare D1 Setup](#cloudflare-d1-setup)
 - [Run locally](#run-locally)
-- [Why it works on serverless](#why-it-works-on-serverless-vercel)
+- [Why it works on serverless](#why-it-works-on-serverless)
 - [How sync stays correct](#how-sync-stays-correct)
 - [License](#license)
 
