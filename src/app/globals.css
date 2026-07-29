@@ -113,14 +113,16 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 
 /* ── auth ── */
 .auth { display: grid; place-items: center; min-height: 100dvh; padding: 24px; background: var(--bg); }
-/* Fixed width AND height regardless of login vs. register (register adds a
-   name field + password checklist) — sized to fit register comfortably;
-   login just leaves the extra space below the form. overflow-y is a safety
-   net, not the intended fit, for unusually large text/zoom settings. */
+/* Fixed width AND height so switching login <-> register never resizes the
+   card. Height is sized to the LOGIN layout (~430px computed at the 14.5px
+   base), not register — sizing it to the taller register form left a dead
+   band of empty space under the sign-in fields. Register's extra name field
+   and password checklist scroll inside instead. */
 .auth-card {
-  position: relative; width: 380px; height: 600px; max-width: 100%; max-height: calc(100dvh - 48px);
+  position: relative; width: 380px; height: 440px; max-width: 100%; max-height: calc(100dvh - 48px);
   background: var(--surface); border: 1px solid var(--line);
-  border-radius: 18px; padding: 40px 32px; box-shadow: var(--shadow-lg); overflow-y: auto;
+  border-radius: 18px; padding: 40px 32px; box-shadow: var(--shadow-lg);
+  overflow-y: auto; overscroll-behavior: contain;
 }
 .auth-close { position: absolute; top: 12px; right: 12px; }
 .logo-lockup { text-align: center; margin-bottom: 30px; }
