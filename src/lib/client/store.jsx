@@ -218,21 +218,40 @@ export function StoreProvider({ children }) {
         cursor.current = metas.find((m) => m.k === 'cursor')?.v || 0;
         setBudgets(metas.find((m) => m.k === 'budgets')?.v || []);
         const savedAccounts = metas.find((m) => m.k === 'accounts')?.v;
-        if (savedAccounts?.length) setAccounts(savedAccounts.map(normalizeAccount));
+        if (savedAccounts?.length) {
+          setAccounts(savedAccounts.map(normalizeAccount));
+        } else {
+          // No explicit list saved (an existing user who never happened to
+          // add/rename/remove an account, so saveAccounts() was never
+          // called) — derive one from their real transaction history right
+          // here, synchronously, before setBooted(true). Doing this as part
+          // of the same state update booted flips in (rather than as a
+          // separate effect reacting to `booted` afterwards) matters: React
+          // batches all the setState calls below into one commit since nothing
+          // more is awaited, so the app never observes an in-between render
+          // where booted is already true but accounts is still incorrectly
+          // empty — which is what briefly showed the "add your first
+          // account" onboarding to an existing user before self-correcting.
+          const names = new Set();
+          for (const tx of all) { if (tx.account) names.add(tx.account); if (tx.to_account) names.add(tx.to_account); }
+          if (names.size) {
+            const derived = [...names].map(normalizeAccount);
+            setAccounts(derived);
+            idbPut('meta', { k: 'accounts', v: derived });
+          }
+        }
       }
       setBooted(true);
     })();
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
   }, []);
 
-  // If there's no explicit account list yet but real transactions exist —
-  // an existing user who never happened to add/rename/remove one, so
-  // saveAccounts() was never called — derive one from the accounts those
-  // transactions actually reference instead of leaving the list empty
-  // under their feet (which would otherwise look identical to a genuinely
-  // new user and trigger the "add your first account" onboarding).
-  // Re-runs whenever txs changes, so it also self-heals on a fresh device
-  // once the first sync pull arrives (local cache is empty at boot there).
+  // Same derivation as in the boot effect above, but reactive — covers the
+  // one case that one-time check at boot can't: a *fresh device* with no
+  // local IndexedDB cache, where accounts only becomes derivable once the
+  // first sync pull actually arrives (which happens well after booted flips
+  // to true). Harmless no-op otherwise, since it bails out the instant
+  // accounts is non-empty.
   useEffect(() => {
     if (!booted || accounts.length > 0) return;
     const list = Object.values(txs).filter((t) => !t.deleted);
