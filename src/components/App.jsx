@@ -140,19 +140,24 @@ export default function App() {
       <div className={`app ${collapsed ? 'nav-collapsed' : ''}`}>
         <Nav view={view} setView={setView} collapsed={collapsed} setCollapsed={toggleNav} />
         <main className="main">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={view}
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 6 }}
-              transition={{ duration: 0.18, ease: 'easeOut' }}
-            >
-              <ErrorBoundary resetKey={view}>
-                <ActiveView />
-              </ErrorBoundary>
-            </motion.div>
-          </AnimatePresence>
+          {/* Plain key-remount + enter-only animation, deliberately NOT wrapped in
+              AnimatePresence: mode="wait" has to fully finish the outgoing view's
+              exit before mounting the next one, and a burst of store updates
+              (exactly what adding an entry triggers) re-rendering the parent
+              while that wait is in flight can leave it stuck indefinitely — the
+              incoming view then sits at its initial (opacity: 0) state forever,
+              i.e. a blank screen with nothing to unstick it but a reload. An
+              instant swap with a fade-in has no wait step to get stuck in. */}
+          <motion.div
+            key={view}
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+          >
+            <ErrorBoundary resetKey={view}>
+              <ActiveView />
+            </ErrorBoundary>
+          </motion.div>
         </main>
 
         {/* + expands into Voice / Scan / Prompt / Manual and morphs into an X; tap again or pick one to close */}
