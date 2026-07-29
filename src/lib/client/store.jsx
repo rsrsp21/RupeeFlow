@@ -9,7 +9,14 @@ import { buildNoteHistory } from '../noteMatch';
 const Ctx = createContext(null);
 export const useStore = () => useContext(Ctx);
 
-const POLL_MS = 5000;
+// This interval fires a real API call (/api/tx/pull, and /api/tx/push if the
+// outbox isn't empty) for every open, visible tab — regardless of whether
+// anything changed. It exists only to notice edits made on ANOTHER device
+// while this tab sits open and idle; your own edits already sync instantly
+// via syncSoon(), and focus/reconnect already trigger an immediate sync too.
+// Kept long specifically to avoid hammering the serverless functions with a
+// steady drumbeat of calls per concurrent user.
+const POLL_MS = 60000;
 
 export function StoreProvider({ children }) {
   const [token, setToken] = useState(null);

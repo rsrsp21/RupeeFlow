@@ -9,6 +9,7 @@ import { pushSupported, currentSubscription, enablePush, disablePush } from '@/l
 import { useUI } from '../App';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
+import AccountIcon from '../AccountIcon';
 
 export default function Settings() {
   const store = useStore();
@@ -217,6 +218,7 @@ function AccountsCard() {
           const bal = balances[a] || 0;
           return (
             <div className="acct-row" key={a}>
+              <AccountIcon account={a} tile size={15} />
               <span className="acct-name">{a}</span>
               <span className="acct-count">{usage[a] || 0} entries</span>
               <b className="acct-bal" style={{ color: bal < 0 ? 'var(--red)' : bal > 0 ? 'var(--green)' : 'var(--muted)' }}>

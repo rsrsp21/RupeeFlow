@@ -155,10 +155,14 @@ export default function App() {
               incoming view then sits at its initial (opacity: 0) state forever,
               i.e. a blank screen with nothing to unstick it but a reload. An
               instant swap with a fade-in has no wait step to get stuck in. */}
+          {/* opacity-only: Framer Motion keeps a `transform` style applied for any
+              animated x/y/scale even at rest, and a transformed ancestor breaks
+              position: sticky for every .view-head nested inside it — the
+              sticky header just silently never stuck to anything. */}
           <motion.div
             key={view}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
           >
             <ErrorBoundary resetKey={view}>

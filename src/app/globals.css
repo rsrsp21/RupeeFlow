@@ -879,6 +879,7 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .name-edit { display: flex; gap: 6px; align-items: center; padding: 4px 0; }
 .name-edit input { flex: 1; }
 .tx-acct {
+  display: inline-flex; align-items: center; gap: 3px;
   font-size: .67rem; color: var(--muted); border: 1px solid var(--line);
   padding: 0 6px; border-radius: 4px;
 }
@@ -965,7 +966,7 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
      poking up above it, centered over the gap reserved between Ledger/Budgets. */
   .fab-cluster { left: 50%; right: auto; bottom: calc(env(safe-area-inset-bottom) + 3px); transform: translateX(-50%); z-index: 56; }
   .fab-minis {
-    flex-direction: row; left: 50%; right: auto; bottom: 66px; transform: translateX(-50%);
+    flex-direction: row; left: 50%; right: auto; bottom: 80px; transform: translateX(-50%);
     border-radius: 22px; padding: 10px; gap: 10px;
     background: transparent; border: 1px solid transparent; box-shadow: none;
     transition: background .15s, border-color .15s, box-shadow .15s;
@@ -986,11 +987,14 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
   .view-head.has-toggle .theme-toggle { display: none; }
   /* Sync status + settings link: pinned to the view-head's own top-right
      corner (not the viewport) so it lines up with the heading exactly,
-     regardless of how tall the stacked head-actions row below it gets. */
-  .view-head { position: relative; padding-right: 100px; }
+     regardless of how tall the stacked head-actions row below it gets.
+     Sticky (set above) already establishes a containing block for the
+     absolutely-positioned utils below — don't override it back to
+     relative here, that silently cancels the sticky behavior on mobile. */
+  .view-head { padding-right: 100px; }
   .view-head-utils {
     display: flex; align-items: center; gap: 6px;
-    position: absolute; top: 0; right: 0;
+    position: absolute; top: 14px; right: 0;
   }
   .settings-link { display: grid; }
   .period-seg { flex: 1; min-width: 0; width: auto; }

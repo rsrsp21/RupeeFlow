@@ -4,6 +4,7 @@ import { Mic, Camera } from 'lucide-react';
 import { rupees } from '@/lib/client/constants';
 import { useUI } from './App';
 import CategoryIcon from './CategoryIcon';
+import AccountIcon from './AccountIcon';
 
 export default function TxItem({ t, index = 0 }) {
   const { openTx } = useUI();
@@ -24,8 +25,14 @@ export default function TxItem({ t, index = 0 }) {
         <div className="tx-meta">
           <span>{date}</span>
           <span>·</span>
-          <span>{t.type === 'transfer' ? `${t.account} → ${t.to_account}` : t.category}</span>
-          {t.type !== 'transfer' && t.account && <span className="tx-acct">{t.account}</span>}
+          {t.type === 'transfer' ? (
+            <span className="tx-acct">
+              <AccountIcon account={t.account} size={11} /> {t.account} → <AccountIcon account={t.to_account} size={11} /> {t.to_account}
+            </span>
+          ) : <span>{t.category}</span>}
+          {t.type !== 'transfer' && t.account && (
+            <span className="tx-acct"><AccountIcon account={t.account} size={11} /> {t.account}</span>
+          )}
           {t.source === 'voice' && <Mic size={11} />}
           {t.source === 'receipt' && <Camera size={11} />}
         </div>

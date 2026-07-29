@@ -54,7 +54,7 @@ A minimalist, offline-first budget and expense tracker built for busy profession
 - Transfers between accounts (Cash/Bank/UPI/Credit Card/Savings) are first-class entries, not a workaround.
 
 **Cross-device sync, offline-first**
-- Offline outbox plus incremental pull with last-write-wins merge; auto-syncs every few seconds, on focus, and on reconnect.
+- Offline outbox plus incremental pull with last-write-wins merge; your own edits sync instantly, plus a periodic background pull (to pick up changes from another device) and immediate sync on focus/reconnect.
 - Installable PWA (Add to Home Screen), works fully offline via IndexedDB.
 - A view crash shows a recoverable inline error instead of taking down the whole app.
 
@@ -151,7 +151,7 @@ Verified with an empty database: cold start auto-creates tables, warm paths add 
 
 ## How sync stays correct
 
-Every entry has a client-generated UUID, `updated_at`, and `rev`. Offline edits queue in an IndexedDB outbox; on reconnect they push in a batch and the server applies **last-write-wins** per entry. Deletes are soft (`deleted=1`) so they propagate to all devices instead of resurrecting. Devices pull incrementally using an `updated_at` cursor and poll every few seconds while the tab is visible (plus on focus/reconnect), so changes appear on your other devices within seconds. Balances are never stored; they're always derived, so no edit can ever corrupt history.
+Every entry has a client-generated UUID, `updated_at`, and `rev`. Offline edits queue in an IndexedDB outbox; on reconnect they push in a batch and the server applies **last-write-wins** per entry. Deletes are soft (`deleted=1`) so they propagate to all devices instead of resurrecting. Devices pull incrementally using an `updated_at` cursor. Your own edits sync right away; a longer background poll while the tab is visible (plus immediate sync on focus/reconnect) catches edits made on another device without polling the serverless functions every few seconds for every open tab. Balances are never stored; they're always derived, so no edit can ever corrupt history.
 
 ## License
 
