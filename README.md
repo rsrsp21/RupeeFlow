@@ -116,7 +116,7 @@ A minimalist, offline-first budget and expense tracker built for busy profession
 └── public/                        # PWA: manifest, sw.js, icons
 ```
 
-## Setup: Cloudflare D1 (one time, ~3 minutes)
+## Cloudflare D1 Setup
 
 1. **Create the database**: Cloudflare dashboard → Storage & Databases → D1 → Create, or run:
    ```bash
@@ -138,7 +138,7 @@ npm run dev              # http://localhost:3000
 
 Push notifications and the daily reminder cron are optional. Leave their env vars blank to skip that setup (see `.env.example` for what each one does).
 
-## Why it works on serverless (Vercel)
+## Why it works on serverless
 
 Serverless normally breaks database apps because each invocation is a fresh, short-lived instance, so traditional Postgres connection pools get exhausted. RupeeFlow avoids that entirely:
 
