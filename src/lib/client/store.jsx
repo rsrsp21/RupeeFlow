@@ -116,6 +116,15 @@ export function StoreProvider({ children }) {
     api('/budgets', { method: 'PUT', body: JSON.stringify({ budgets: [b] }) }).catch(() => {});
   }, [api]);
 
+  const deleteBudget = useCallback((month, category) => {
+    setBudgets((prev) => {
+      const next = prev.filter((x) => !(x.month === month && x.category === category));
+      idbPut('meta', { k: 'budgets', v: next });
+      return next;
+    });
+    api('/budgets', { method: 'DELETE', body: JSON.stringify({ month, category }) }).catch(() => {});
+  }, [api]);
+
   // ── auth ──
   const authenticate = useCallback(async (mode, emailIn, password, nameIn) => {
     const res = await fetch(`/api/auth/${mode}`, {
@@ -235,7 +244,6 @@ export function StoreProvider({ children }) {
     }
     return amt;
   };
-  const projects = () => [...new Set(live().map((t) => t.project).filter(Boolean))].sort();
   const noteHistory = () => buildNoteHistory(live());
 
   // ── accounts ──
@@ -267,34 +275,33 @@ export function StoreProvider({ children }) {
     const cut = Date.now() - daysBack * 86400000;
     const list = live().filter((t) => t.occurred_at >= cut);
     const mk = monthKey();
-    const byCat = {}, byProject = {}, byWeek = { thisWeek: 0, lastWeek: 0 };
+    const byCat = {}, byWeek = { thisWeek: 0, lastWeek: 0 };
     const weekStart = Date.now() - 7 * 86400000, prevStart = Date.now() - 14 * 86400000;
     for (const t of list) {
       if (t.type !== 'expense') continue;
       byCat[t.category] = (byCat[t.category] || 0) + t.amount / 100;
-      if (t.project) byProject[t.project] = (byProject[t.project] || 0) + t.amount / 100;
       if (t.occurred_at >= weekStart) byWeek.thisWeek += t.amount / 100;
       else if (t.occurred_at >= prevStart) byWeek.lastWeek += t.amount / 100;
     }
     const mt = totals(live().filter((t) => inMonth(t)));
     return {
       month_income_rupees: mt.inc / 100, month_expense_rupees: mt.exp / 100,
-      spend_by_category_rupees: byCat, spend_by_project_rupees: byProject,
+      spend_by_category_rupees: byCat,
       week_compare_rupees: byWeek,
       budgets: budgets.filter((b) => b.month === mk).map((b) => ({
         category: b.category || 'overall', budget_rupees: Number(b.amount) / 100,
       })),
       biggest_recent_expenses: list.filter((t) => t.type === 'expense')
         .sort((a, b) => b.amount - a.amount).slice(0, 5)
-        .map((t) => ({ note: t.note || t.category, category: t.category, rupees: t.amount / 100, project: t.project || undefined })),
+        .map((t) => ({ note: t.note || t.category, category: t.category, rupees: t.amount / 100 })),
       entry_count: list.length,
     };
   };
 
   const value = {
     token, email, name, booted, txs, budgets, accounts, syncState, lastSync, toastMsg,
-    api, toast, syncNow, saveTx, saveBudget, saveAccounts, authenticate, saveName, logout,
-    live, totals, inMonth, catSpend, effectiveBudget, projects, noteHistory, accountBalances, buildSummary,
+    api, toast, syncNow, saveTx, saveBudget, deleteBudget, saveAccounts, authenticate, saveName, logout,
+    live, totals, inMonth, catSpend, effectiveBudget, noteHistory, accountBalances, buildSummary,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

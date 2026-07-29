@@ -3,7 +3,7 @@
 // and one-tap AI budget suggestions from real spending history.
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Sparkles, Check, RefreshCw, Target, TrendingUp, X } from 'lucide-react';
+import { Plus, Sparkles, Check, RefreshCw, Target, TrendingUp, X, Pencil } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees, monthKey, CATEGORIES } from '@/lib/client/constants';
 import { DAY_MS, startOfMonth } from '@/lib/client/period';
@@ -91,6 +91,11 @@ export default function Budgets() {
 
       {/* ── overall ── */}
       <div className="card budget-hero">
+        {overall > 0 && (
+          <button className="icon-btn budget-hero-edit" onClick={() => openBudget('')} title="Edit or delete overall budget">
+            <Pencil size={14} />
+          </button>
+        )}
         {overall > 0 ? (
           <>
             <div className="budget-hero-main">

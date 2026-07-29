@@ -10,7 +10,7 @@ import {
 } from '@/lib/client/exporters';
 import { backdropMotion, panelMotion } from './TxModal';
 
-const DEFAULT_COLS = ['date', 'type', 'amount', 'category', 'note', 'project', 'account'];
+const DEFAULT_COLS = ['date', 'type', 'category', 'note', 'account', 'amount'];
 
 export default function ExportModal({ onClose }) {
   const store = useStore();
@@ -18,7 +18,6 @@ export default function ExportModal({ onClose }) {
   const [range, setRange] = useState('month');
   const [type, setType] = useState('');
   const [category, setCategory] = useState('');
-  const [project, setProject] = useState('');
   const [groupBy, setGroupBy] = useState('category');
   const [cols, setCols] = useState(DEFAULT_COLS);
   const [includeSummary, setIncludeSummary] = useState(true);
@@ -26,8 +25,8 @@ export default function ExportModal({ onClose }) {
   const [withAI, setWithAI] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const opts = { range, type, category, project, groupBy, columns: cols, includeSummary, includeTransactions };
-  const rows = useMemo(() => selectRows(store.live(), opts), [store.txs, range, type, category, project]); // eslint-disable-line
+  const opts = { range, type, category, groupBy, columns: cols, includeSummary, includeTransactions };
+  const rows = useMemo(() => selectRows(store.live(), opts), [store.txs, range, type, category]); // eslint-disable-line
   const totals = store.totals(rows);
 
   const toggleCol = (c) =>
@@ -111,10 +110,6 @@ export default function ExportModal({ onClose }) {
                 <option value="">All categories</option>
                 {Object.keys(CATEGORIES).map((c) => <option key={c}>{c}</option>)}
               </select>
-              <select value={project} onChange={(e) => setProject(e.target.value)}>
-                <option value="">All projects</option>
-                {store.projects().map((p) => <option key={p}>{p}</option>)}
-              </select>
             </div>
           </div>
 
@@ -122,7 +117,7 @@ export default function ExportModal({ onClose }) {
             <div className="field">
               <span className="field-label">Summarise by</span>
               <div className="pill-grid">
-                {[['category', 'Category'], ['month', 'Month'], ['day', 'Day'], ['project', 'Project'], ['account', 'Account']]
+                {[['category', 'Category'], ['month', 'Month'], ['day', 'Day'], ['account', 'Account']]
                   .map(([k, label]) => (
                     <button key={k} className={`pill-btn ${groupBy === k ? 'on' : ''}`} onClick={() => setGroupBy(k)}>{label}</button>
                   ))}

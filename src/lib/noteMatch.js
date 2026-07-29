@@ -19,8 +19,8 @@ export function normalizeNote(text) {
 }
 
 // Groups transactions by normalized note, keeping the most recently used
-// category/project/account/amount per recurring item so a near-duplicate
-// note reuses what was picked last time instead of drifting.
+// category/account/amount per recurring item so a near-duplicate note
+// reuses what was picked last time instead of drifting.
 export function buildNoteHistory(transactions) {
   const map = new Map();
   const list = (transactions || [])
@@ -34,7 +34,6 @@ export function buildNoteHistory(transactions) {
       key,
       note: t.note.trim(),
       category: t.category,
-      project: t.project || '',
       account: t.account,
       amount: t.amount,
       type: t.type,

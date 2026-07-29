@@ -21,12 +21,18 @@ export default function BudgetModal({ category: initial, onClose }) {
     store.toast('Budget saved ✓');
   }
 
+  function remove() {
+    store.deleteBudget(existing.month, existing.category);
+    onClose();
+    store.toast('Budget deleted');
+  }
+
   return (
     <motion.div className="modal-backdrop" {...backdropMotion}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <motion.div className="modal" {...panelMotion}>
         <div className="modal-head">
-          <h3>Set budget</h3>
+          <h3>{existing ? 'Edit budget' : 'Set budget'}</h3>
           <button className="icon-btn" onClick={onClose}>✕</button>
         </div>
         <form onSubmit={save}>
@@ -43,7 +49,10 @@ export default function BudgetModal({ category: initial, onClose }) {
             <span>Carry unused forward</span>
             <input type="checkbox" className="switch" checked={carry} onChange={(e) => setCarry(e.target.checked)} />
           </label>
-          <button className="btn primary" type="submit">Save budget</button>
+          <div className="btn-row">
+            {existing && <button type="button" className="btn danger-ghost" onClick={remove}>Delete</button>}
+            <button className="btn primary grow" type="submit">Save budget</button>
+          </div>
         </form>
       </motion.div>
     </motion.div>

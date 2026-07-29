@@ -1,6 +1,6 @@
 'use client';
 // Dashboard — KPI strip, spend trend, category ranking, budget rings,
-// project split, top merchants, and auto-computed insight cards.
+// top merchants, and auto-computed insight cards.
 import { useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
@@ -94,13 +94,6 @@ export default function Dashboard() {
   const overall = store.effectiveBudget('', monthKey());
   const pct = overall ? Math.min(100, (mt.exp / overall) * 100) : 0;
   const monthBudgets = store.budgets.filter((b) => b.month === monthKey() && b.category);
-
-  // ── project split ──
-  const projectSpend = useMemo(() => {
-    const map = {};
-    for (const t of monthList) if (t.type === 'expense' && t.project) map[t.project] = (map[t.project] || 0) + t.amount;
-    return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 4);
-  }, [monthList]);
 
   // ── recurring / top notes ──
   const topNotes = useMemo(() => {
@@ -210,60 +203,34 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── budgets + projects ── */}
-      <div className="grid-2">
-        {monthBudgets.length > 0 && (
-          <div className="card">
-            <div className="card-head"><h3>Budget progress</h3>
-              <a href="#" className="link" onClick={(e) => { e.preventDefault(); setView('budgets'); }}>Manage</a>
-            </div>
-            <div className="mini-budgets">
-              {monthBudgets.slice(0, 5).map((b) => {
-                const eff = store.effectiveBudget(b.category, monthKey());
-                const spent = catSpend[b.category] || 0;
-                const p = eff ? Math.min(100, (spent / eff) * 100) : 0;
-                return (
-                  <div className="mini-budget" key={b.category} onClick={() => openBudget(b.category)}>
-                    <div className="mini-budget-top">
-                      <span><CategoryIcon category={b.category} size={12} /> {b.category}</span>
-                      <span className="muted small">{rupees(spent)} / {rupees(eff)}</span>
-                    </div>
-                    <div className="budget-track">
-                      <motion.div className={`budget-fill ${spent > eff ? 'over' : ''}`}
-                        initial={{ width: 0 }} animate={{ width: `${p}%` }}
-                        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+      {/* ── budget progress ── */}
+      {monthBudgets.length > 0 && (
+        <div className="card">
+          <div className="card-head"><h3>Budget progress</h3>
+            <a href="#" className="link" onClick={(e) => { e.preventDefault(); setView('budgets'); }}>Manage</a>
           </div>
-        )}
-
-        {projectSpend.length > 0 && (
-          <div className="card">
-            <h3>By project · this month</h3>
-            <div className="mini-budgets">
-              {projectSpend.map(([name, val]) => {
-                const top = projectSpend[0][1];
-                return (
-                  <div className="mini-budget" key={name}>
-                    <div className="mini-budget-top">
-                      <span className="tx-tag">{name}</span>
-                      <span className="muted small">{rupees(val)}</span>
-                    </div>
-                    <div className="budget-track">
-                      <motion.div className="budget-fill" initial={{ width: 0 }}
-                        animate={{ width: `${(val / top) * 100}%` }}
-                        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }} />
-                    </div>
+          <div className="mini-budgets">
+            {monthBudgets.slice(0, 5).map((b) => {
+              const eff = store.effectiveBudget(b.category, monthKey());
+              const spent = catSpend[b.category] || 0;
+              const p = eff ? Math.min(100, (spent / eff) * 100) : 0;
+              return (
+                <div className="mini-budget" key={b.category} onClick={() => openBudget(b.category)}>
+                  <div className="mini-budget-top">
+                    <span><CategoryIcon category={b.category} size={12} /> {b.category}</span>
+                    <span className="muted small">{rupees(spent)} / {rupees(eff)}</span>
                   </div>
-                );
-              })}
-            </div>
+                  <div className="budget-track">
+                    <motion.div className={`budget-fill ${spent > eff ? 'over' : ''}`}
+                      initial={{ width: 0 }} animate={{ width: `${p}%` }}
+                      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* ── frequent spends ── */}
       {topNotes.length > 0 && (

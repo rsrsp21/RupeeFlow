@@ -35,7 +35,6 @@ export default function Ledger() {
   const [q, setQ] = useState('');
   const [type, setType] = useState('');
   const [cat, setCat] = useState('');
-  const [proj, setProj] = useState('');
   const [account, setAccount] = useState('');
   const [minAmt, setMinAmt] = useState('');
   const [maxAmt, setMaxAmt] = useState('');
@@ -44,7 +43,6 @@ export default function Ledger() {
   const [allTime, setAllTime] = useState(false);
 
   const end = periodEnd(kind, start);
-  const projects = store.projects();
 
   function switchKind(k) {
     setKind(k);
@@ -52,11 +50,11 @@ export default function Ledger() {
     setAllTime(false);
   }
 
-  const extraFilters = [type, cat, proj, account, minAmt, maxAmt].filter(Boolean).length;
+  const extraFilters = [type, cat, account, minAmt, maxAmt].filter(Boolean).length;
   const activeFilters = extraFilters + (q ? 1 : 0);
 
   function clearFilters() {
-    setQ(''); setType(''); setCat(''); setProj(''); setAccount(''); setMinAmt(''); setMaxAmt('');
+    setQ(''); setType(''); setCat(''); setAccount(''); setMinAmt(''); setMaxAmt('');
   }
 
   // period slice (or all time)
@@ -70,17 +68,16 @@ export default function Ledger() {
     let l = periodTx;
     if (type) l = l.filter((t) => t.type === type);
     if (cat) l = l.filter((t) => t.category === cat);
-    if (proj) l = l.filter((t) => t.project === proj);
     if (account) l = l.filter((t) => t.account === account || t.to_account === account);
     const lo = toPaise(minAmt), hi = toPaise(maxAmt);
     if (Number.isFinite(lo)) l = l.filter((t) => t.amount >= lo);
     if (Number.isFinite(hi)) l = l.filter((t) => t.amount <= hi);
     if (q) {
       const s = q.toLowerCase();
-      l = l.filter((t) => `${t.note} ${t.category} ${t.project} ${t.account}`.toLowerCase().includes(s));
+      l = l.filter((t) => `${t.note} ${t.category} ${t.account}`.toLowerCase().includes(s));
     }
     return [...l].sort(SORTS[sort].fn);
-  }, [periodTx, q, type, cat, proj, account, minAmt, maxAmt, sort]);
+  }, [periodTx, q, type, cat, account, minAmt, maxAmt, sort]);
 
   const totals = store.totals(list);
   const net = totals.inc - totals.exp;
@@ -209,7 +206,7 @@ export default function Ledger() {
       {/* ── search + filters ── */}
       <div className="card filters">
         <div className="filter-top">
-          <input type="search" className="search" placeholder="Search notes, categories, projects…"
+          <input type="search" className="search" placeholder="Search notes, categories…"
             value={q} onChange={(e) => setQ(e.target.value)} />
           <button className={`btn ghost filter-toggle ${extraFilters ? 'has' : ''}`} onClick={() => setShowFilters((v) => !v)}>
             <SlidersHorizontal size={15} strokeWidth={1.9} />
@@ -233,12 +230,6 @@ export default function Ledger() {
                   <select value={cat} onChange={(e) => setCat(e.target.value)}>
                     <option value="">Any</option>
                     {Object.keys(CATEGORIES).map((c) => <option key={c}>{c}</option>)}
-                  </select>
-                </label>
-                <label><span>Project</span>
-                  <select value={proj} onChange={(e) => setProj(e.target.value)}>
-                    <option value="">Any</option>
-                    {projects.map((p) => <option key={p}>{p}</option>)}
                   </select>
                 </label>
                 <label><span>Account</span>

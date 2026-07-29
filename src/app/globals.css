@@ -722,7 +722,8 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .coach-detail { font-size: .76rem; color: var(--muted); margin-top: 4px; line-height: 1.5; }
 
 /* ═══ budgets ═══ */
-.budget-hero { padding: 22px; }
+.budget-hero { padding: 22px; position: relative; }
+.budget-hero-edit { position: absolute; top: 14px; right: 14px; }
 .budget-hero-main { display: flex; align-items: center; gap: 22px; }
 .budget-hero-amt { font-size: 1.9rem; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
 .budget-hero-text { min-width: 0; }

@@ -29,7 +29,6 @@ export default function TxModal({ state, onClose }) {
   const [amount, setAmount] = useState(existing ? existing.amount / 100 : pre.amount ? pre.amount / 100 : '');
   const [note, setNote] = useState(existing?.note ?? pre.note ?? '');
   const [category, setCategory] = useState(existing?.category || pre.category || 'Food & Dining');
-  const [project, setProject] = useState(existing?.project ?? pre.project ?? '');
   const [account, setAccount] = useState(existing?.account || store.accounts[0] || 'Cash');
   const [toAccount, setToAccount] = useState(existing?.to_account || store.accounts[1] || 'Bank');
   const [date, setDate] = useState(() => {
@@ -50,14 +49,13 @@ export default function TxModal({ state, onClose }) {
     return history.filter((h) => h.key !== noteKey && h.key.includes(noteKey)).slice(0, 8);
   }, [history, noteKey, existing]);
 
-  // auto-fill category (and project) from the user's own history first, since
-  // it reflects what they actually picked before; fall back to keyword rules
+  // auto-fill category from the user's own history first, since it reflects
+  // what they actually picked before; fall back to keyword rules
   useEffect(() => {
     if (existing) return;
     const hit = noteKey && historyIndex.get(noteKey);
     if (hit) {
       setCategory(hit.category);
-      if (hit.project) setProject((p) => p || hit.project);
       return;
     }
     for (const [re, cat] of AUTO_RULES) if (re.test(note)) { setCategory(cat); break; }
@@ -66,7 +64,6 @@ export default function TxModal({ state, onClose }) {
   function pickSuggestion(m) {
     setNote(m.note);
     setCategory(m.category);
-    if (m.project) setProject((p) => p || m.project);
     setAmount((a) => (a === '' ? String(m.amount / 100) : a));
     setNoteFocused(false);
   }
@@ -78,7 +75,7 @@ export default function TxModal({ state, onClose }) {
     try {
       const out = await store.api('/ai/categorize', {
         method: 'POST',
-        body: JSON.stringify({ note: v, history: history.slice(0, 40).map((h) => ({ note: h.note, category: h.category, project: h.project })) }),
+        body: JSON.stringify({ note: v, history: history.slice(0, 40).map((h) => ({ note: h.note, category: h.category })) }),
       });
       if (out?.category && CATEGORIES[out.category]) { setCategory(out.category); store.toast(`Categorized as ${out.category}`); }
       else store.toast('Could not determine a category');
@@ -98,7 +95,7 @@ export default function TxModal({ state, onClose }) {
       id: existing?.id || crypto.randomUUID(),
       type, amount: paise,
       category: type === 'transfer' ? 'Other' : category,
-      note: note.trim(), project: project.trim(),
+      note: note.trim(),
       account, to_account: type === 'transfer' ? toAccount : '',
       occurred_at: occurred,
       created_at: existing?.created_at || Date.now(),
@@ -150,7 +147,7 @@ export default function TxModal({ state, onClose }) {
                   <li key={m.key} onMouseDown={() => pickSuggestion(m)}>
                     <CategoryIcon category={m.category} size={12} />
                     <span className="note-suggest-text">{m.note}</span>
-                    <em>{m.category}{m.project ? ` · ${m.project}` : ''}</em>
+                    <em>{m.category}</em>
                   </li>
                 ))}
               </ul>
@@ -161,18 +158,11 @@ export default function TxModal({ state, onClose }) {
               <Sparkles size={13} className={aiBusy ? 'spin' : ''} /> Auto-categorize with AI
             </button>
           )}
-          <div className="form-row">
-            {type !== 'transfer' && (
-              <select value={category} onChange={(e) => setCategory(e.target.value)}>
-                {Object.keys(CATEGORIES).map((c) => <option key={c}>{c}</option>)}
-              </select>
-            )}
-            <input list="rf-projects" placeholder="Project / label"
-              value={project} onChange={(e) => setProject(e.target.value)} />
-            <datalist id="rf-projects">
-              {store.projects().map((p) => <option key={p} value={p} />)}
-            </datalist>
-          </div>
+          {type !== 'transfer' && (
+            <select value={category} onChange={(e) => setCategory(e.target.value)}>
+              {Object.keys(CATEGORIES).map((c) => <option key={c}>{c}</option>)}
+            </select>
+          )}
           <div className="form-row labelled">
             <label>
               <span>{type === 'transfer' ? 'From account' : type === 'income' ? 'Into account' : 'Paid from'}</span>

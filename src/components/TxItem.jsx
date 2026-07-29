@@ -26,7 +26,6 @@ export default function TxItem({ t, index = 0 }) {
           <span>·</span>
           <span>{t.type === 'transfer' ? `${t.account} → ${t.to_account}` : t.category}</span>
           {t.type !== 'transfer' && t.account && <span className="tx-acct">{t.account}</span>}
-          {t.project ? <span className="tx-tag">{t.project}</span> : null}
           {t.source === 'voice' && <Mic size={11} />}
           {t.source === 'receipt' && <Camera size={11} />}
         </div>

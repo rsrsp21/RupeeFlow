@@ -23,7 +23,6 @@ export async function applyParsedTransactions(store, out, source) {
       amount,
       category: CATEGORIES[e.category] ? e.category : 'Other',
       note: String(e.note || '').slice(0, 200),
-      project: String(e.project || '').slice(0, 60),
       account: 'Cash', to_account: '',
       occurred_at: occurred,
       created_at: Date.now(), updated_at: Date.now(), rev: 1, deleted: 0, source,

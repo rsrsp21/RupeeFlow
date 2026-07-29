@@ -42,7 +42,7 @@ export default function VoiceModal({ onClose }) {
       const b64 = await blobToB64(blob);
       const out = await store.api('/ai/voice', {
         method: 'POST',
-        body: JSON.stringify({ audio: b64, mimeType: rec.mimeType, projects: store.projects(), history: store.noteHistory().slice(0, 60) }),
+        body: JSON.stringify({ audio: b64, mimeType: rec.mimeType, history: store.noteHistory().slice(0, 60) }),
       });
       const { added, sum } = await applyParsedTransactions(store, out, 'voice');
       store.toast(added ? `Added ${added} ${added > 1 ? 'entries' : 'entry'} · ${rupees(sum)} ✓` : `Heard: "${out?.transcript || '…'}", no amounts found`);
@@ -57,7 +57,7 @@ export default function VoiceModal({ onClose }) {
           <Mic size={30} strokeWidth={1.8} />
         </div>
         <p>{status}</p>
-        <p className="muted small">“450 lunch with client for Acme project, 120 auto to office”</p>
+        <p className="muted small">“450 lunch with client, 120 auto to office”</p>
         <div className="btn-row">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
           <button className="btn primary" onClick={finish} disabled={thinking}>Done</button>

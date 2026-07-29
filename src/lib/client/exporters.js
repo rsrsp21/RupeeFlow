@@ -5,14 +5,19 @@ import { DAY_MS, startOfDay, startOfWeek, startOfMonth, startOfYear } from './pe
 export const COLUMNS = {
   date: { label: 'Date', get: (t) => new Date(Number(t.occurred_at)).toLocaleDateString('en-IN') },
   type: { label: 'Type', get: (t) => t.type },
-  amount: { label: 'Amount (INR)', get: (t) => (t.amount / 100).toFixed(2) },
   category: { label: 'Category', get: (t) => t.category },
   note: { label: 'Note', get: (t) => t.note },
-  project: { label: 'Project', get: (t) => t.project },
   account: { label: 'Account', get: (t) => t.account },
   to_account: { label: 'To account', get: (t) => t.to_account },
   source: { label: 'Added via', get: (t) => t.source },
+  // declared last so it sorts last by default — see orderForOutput()
+  amount: { label: 'Amount (INR)', get: (t) => (t.amount / 100).toFixed(2) },
 };
+
+// Amount reads best as the right-hand column regardless of how columns were
+// toggled on/off, so force it last at output time rather than relying on
+// insertion order.
+const orderForOutput = (cols) => [...cols.filter((c) => c !== 'amount'), ...cols.filter((c) => c === 'amount')];
 
 export const RANGES = {
   month: { label: 'This month', from: () => startOfMonth() },
@@ -35,7 +40,6 @@ export function selectRows(all, opts) {
   let rows = all.filter((t) => t.occurred_at >= from && t.occurred_at < to);
   if (opts.type) rows = rows.filter((t) => t.type === opts.type);
   if (opts.category) rows = rows.filter((t) => t.category === opts.category);
-  if (opts.project) rows = rows.filter((t) => t.project === opts.project);
   return rows.sort((a, b) => a.occurred_at - b.occurred_at);
 }
 
@@ -45,8 +49,9 @@ const esc = (v) => {
 };
 
 export function toCSV(rows, cols) {
-  const head = cols.map((c) => COLUMNS[c].label).join(',');
-  const body = rows.map((t) => cols.map((c) => esc(COLUMNS[c].get(t))).join(','));
+  const ordered = orderForOutput(cols);
+  const head = ordered.map((c) => COLUMNS[c].label).join(',');
+  const body = rows.map((t) => ordered.map((c) => esc(COLUMNS[c].get(t))).join(','));
   return [head, ...body].join('\n');
 }
 
@@ -55,7 +60,6 @@ export function summarize(rows, groupBy) {
   const map = new Map();
   const keyOf = (t) => {
     if (groupBy === 'category') return t.category;
-    if (groupBy === 'project') return t.project || '(no project)';
     if (groupBy === 'account') return t.account;
     if (groupBy === 'month') return new Date(Number(t.occurred_at)).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
     if (groupBy === 'day') return new Date(Number(t.occurred_at)).toLocaleDateString('en-IN');
@@ -105,10 +109,14 @@ export async function toPDF(rows, opts, meta) {
   doc.setFontSize(10); doc.setTextColor(120);
   doc.text(`${rangeLabel}  ·  ${meta.email}  ·  generated ${new Date().toLocaleDateString('en-IN')}`, 14, 25);
 
+  // fixed 2 decimals throughout so a column of amounts lines up digit-under-
+  // digit once right-aligned in a monospace font (e.g. 120.00 under 50.08)
+  const inr = (paise) => (paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   doc.setTextColor(20); doc.setFontSize(11);
-  doc.text(`Income  Rs ${(inc / 100).toLocaleString('en-IN')}`, 14, 36);
-  doc.text(`Expenses  Rs ${(exp / 100).toLocaleString('en-IN')}`, 74, 36);
-  doc.text(`Net  Rs ${((inc - exp) / 100).toLocaleString('en-IN')}`, 144, 36);
+  doc.text(`Income  Rs ${inr(inc)}`, 14, 36);
+  doc.text(`Expenses  Rs ${inr(exp)}`, 74, 36);
+  doc.text(`Net  Rs ${inr(inc - exp)}`, 144, 36);
 
   let y = 44;
   if (opts.includeSummary) {
@@ -116,19 +124,20 @@ export async function toPDF(rows, opts, meta) {
     doc.autoTable({
       startY: y,
       head: [[opts.groupBy === 'month' ? 'Month' : opts.groupBy === 'day' ? 'Day'
-        : opts.groupBy === 'project' ? 'Project' : opts.groupBy === 'account' ? 'Account' : 'Category',
+        : opts.groupBy === 'account' ? 'Account' : 'Category',
         'Entries', 'Spent (Rs)', 'Received (Rs)']],
-      body: groups.map((g) => [g.key, g.count, (g.expense / 100).toLocaleString('en-IN'),
-        (g.income / 100).toLocaleString('en-IN')]),
+      body: groups.map((g) => [g.key, g.count, inr(g.expense), inr(g.income)]),
       theme: 'striped',
       headStyles: { fillColor: [23, 23, 26], fontSize: 9 },
       styles: { fontSize: 9, cellPadding: 3 },
+      columnStyles: { 2: { halign: 'right', font: 'courier' }, 3: { halign: 'right', font: 'courier' } },
     });
     y = doc.lastAutoTable.finalY + 10;
   }
 
   if (opts.includeTransactions) {
-    const cols = opts.columns.filter((c) => c !== 'to_account' || rows.some((t) => t.to_account));
+    const cols = orderForOutput(opts.columns.filter((c) => c !== 'to_account' || rows.some((t) => t.to_account)));
+    const amtIdx = cols.indexOf('amount');
     doc.autoTable({
       startY: y,
       head: [cols.map((c) => COLUMNS[c].label)],
@@ -136,6 +145,7 @@ export async function toPDF(rows, opts, meta) {
       theme: 'grid',
       headStyles: { fillColor: [23, 23, 26], fontSize: 8 },
       styles: { fontSize: 7.5, cellPadding: 2 },
+      columnStyles: amtIdx >= 0 ? { [amtIdx]: { halign: 'right', font: 'courier' } } : {},
     });
   }
 

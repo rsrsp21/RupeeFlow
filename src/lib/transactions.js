@@ -104,6 +104,11 @@ export async function putBudgets(userId, items) {
   }
 }
 
+export async function deleteBudget(userId, month, category) {
+  await q('DELETE FROM budgets WHERE user_id = ? AND month = ? AND category = ?',
+    [userId, String(month || '').slice(0, 7), String(category || '').slice(0, 60)]);
+}
+
 const csvEscape = (v) => {
   const s = String(v ?? '');
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -112,10 +117,10 @@ const csvEscape = (v) => {
 export async function buildCSV(userId) {
   const { rows } = await q(
     `SELECT ${TX_FIELDS} FROM transactions WHERE user_id = ? AND deleted = 0 ORDER BY occurred_at ASC`, [userId]);
-  const header = 'Date,Type,Amount (INR),Category,Note,Project,Account,To Account,Source';
+  const header = 'Date,Type,Category,Note,Account,To Account,Source,Amount (INR)';
   const lines = rows.map((t) => [
     new Date(Number(t.occurred_at)).toISOString().slice(0, 10),
-    t.type, (t.amount / 100).toFixed(2), t.category, t.note, t.project, t.account, t.to_account, t.source,
+    t.type, t.category, t.note, t.account, t.to_account, t.source, (t.amount / 100).toFixed(2),
   ].map(csvEscape).join(','));
   return [header, ...lines].join('\n');
 }
