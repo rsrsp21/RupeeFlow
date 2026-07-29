@@ -62,6 +62,10 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
   const [onboardOpen, setOnboardOpen] = useState(false);
+  // Set by Ledger while it's browsing a single specific day (not "today",
+  // not a week/month/year view) — lets a manually-added entry default to
+  // that day instead of always defaulting to right now.
+  const [entryDate, setEntryDate] = useState(null);
   const fileRef = useRef(null);
   const fabRef = useRef(null);
 
@@ -119,7 +123,9 @@ export default function App() {
   if (!store.booted) return null;
   if (!store.token) return <Landing />;
 
-  const openTx = (arg) => setTxModal(arg || {});
+  // A bare openTx() (new manual entry, no explicit prefill — e.g. the FAB)
+  // defaults to the day Ledger is currently browsing, if it's browsing one.
+  const openTx = (arg) => setTxModal(arg || (entryDate ? { prefill: { occurred_at: entryDate } } : {}));
   const openBudget = (category = '') => setBudgetModal({ category });
 
   async function scanReceipt(file) {
@@ -145,7 +151,7 @@ export default function App() {
     } catch (e) { store.toast('Receipt scan failed: ' + e.message); }
   }
 
-  const ui = { view, setView, openTx, openBudget, openExport: () => setExportOpen(true) };
+  const ui = { view, setView, openTx, openBudget, openExport: () => setExportOpen(true), setEntryDate };
   const ActiveView = VIEWS[view] || Dashboard;
 
   const fabActions = [

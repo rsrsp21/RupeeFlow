@@ -109,6 +109,26 @@ export async function deleteBudget(userId, month, category) {
     [userId, String(month || '').slice(0, 7), String(category || '').slice(0, 60)]);
 }
 
+export async function getCategories(userId) {
+  const { rows } = await q('SELECT name, icon_svg, color FROM categories WHERE user_id = ? ORDER BY created_at ASC', [userId]);
+  return rows;
+}
+
+export async function putCategory(userId, { name, icon_svg, color }) {
+  name = String(name || '').trim().slice(0, 60);
+  if (!name) throw new Error('Category name required');
+  await q(
+    `INSERT INTO categories (user_id, name, icon_svg, color, created_at)
+     VALUES (?,?,?,?,?)
+     ON CONFLICT(user_id, name) DO UPDATE SET icon_svg=excluded.icon_svg, color=excluded.color`,
+    [userId, name, String(icon_svg || ''), String(color || '#9ca3af').slice(0, 20), Date.now()]);
+  return { name, icon_svg: icon_svg || '', color: color || '#9ca3af' };
+}
+
+export async function deleteCategory(userId, name) {
+  await q('DELETE FROM categories WHERE user_id = ? AND name = ?', [userId, String(name || '').slice(0, 60)]);
+}
+
 const csvEscape = (v) => {
   const s = String(v ?? '');
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;

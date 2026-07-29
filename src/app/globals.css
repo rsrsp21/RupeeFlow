@@ -574,6 +574,9 @@ select {
 .modal form { display: flex; flex-direction: column; gap: 11px; }
 .form-row { display: flex; gap: 8px; }
 .form-row > * { flex: 1; min-width: 0; }
+.new-cat-row { display: flex; align-items: center; gap: 6px; }
+.new-cat-row input { flex: 1; min-width: 0; }
+.new-cat-row .btn { flex-shrink: 0; white-space: nowrap; }
 .seg { display: flex; background: var(--surface-2); border-radius: var(--radius-sm); padding: 3px; gap: 3px; }
 .seg button {
   flex: 1; font: inherit; font-size: .78rem; font-weight: 550; border: none;

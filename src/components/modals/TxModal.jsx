@@ -3,7 +3,7 @@
 // rev + updated_at, so history stays consistent on every synced device.
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, RefreshCw, X } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { CATEGORIES, AUTO_RULES, rupees, toPaise } from '@/lib/client/constants';
 import { normalizeNote } from '@/lib/noteMatch';
@@ -40,6 +40,9 @@ export default function TxModal({ state, onClose }) {
   const [noteFocused, setNoteFocused] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [catBusy, setCatBusy] = useState(false);
 
   // note history, keyed by normalized text (quantity/units stripped) so
   // "chicken 300g" and "chicken 300 grams" resolve to the same past entry
@@ -117,6 +120,25 @@ export default function TxModal({ state, onClose }) {
     store.toast('Entry deleted, totals recalculated');
   }
 
+  function handleCategoryChange(e) {
+    if (e.target.value === '__new__') { setAddingCategory(true); return; }
+    setCategory(e.target.value);
+  }
+
+  async function createCategory() {
+    const nm = newCatName.trim();
+    if (!nm || catBusy) return;
+    setCatBusy(true);
+    try {
+      const saved = await store.addCustomCategory(nm);
+      setCategory(saved.name);
+      setAddingCategory(false);
+      setNewCatName('');
+      store.toast(`Added "${saved.name}" category ✓`);
+    } catch (err) { store.toast('Could not create category: ' + err.message); }
+    setCatBusy(false);
+  }
+
   return (
     <motion.div className="modal-backdrop" {...backdropMotion}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -160,10 +182,25 @@ export default function TxModal({ state, onClose }) {
               <Sparkles size={13} className={aiBusy ? 'spin' : ''} /> Auto-categorize with AI
             </button>
           )}
-          {type !== 'transfer' && (
-            <select value={category} onChange={(e) => setCategory(e.target.value)}>
-              {Object.keys(CATEGORIES).map((c) => <option key={c}>{c}</option>)}
+          {type !== 'transfer' && !addingCategory && (
+            <select value={category} onChange={handleCategoryChange}>
+              {[...Object.keys(CATEGORIES), ...store.customCategories.map((c) => c.name)].map((c) => <option key={c}>{c}</option>)}
+              <option value="__new__">+ Add new category…</option>
             </select>
+          )}
+          {type !== 'transfer' && addingCategory && (
+            <div className="new-cat-row">
+              <input autoFocus placeholder="Name your category (e.g. Pets, Hobbies)" maxLength={60}
+                value={newCatName} onChange={(e) => setNewCatName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); createCategory(); } }} />
+              <button type="button" className="btn ghost sm" onClick={createCategory} disabled={catBusy || !newCatName.trim()}>
+                <Sparkles size={12} className={catBusy ? 'spin' : ''} /> {catBusy ? 'Generating icon…' : 'Create'}
+              </button>
+              <button type="button" className="icon-btn" title="Cancel"
+                onClick={() => { setAddingCategory(false); setNewCatName(''); }}>
+                <X size={14} />
+              </button>
+            </div>
           )}
           <div className="form-row labelled">
             <label>

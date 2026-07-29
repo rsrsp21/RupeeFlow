@@ -1,7 +1,7 @@
 'use client';
 // Ledger — period switcher (Day/Week/Month/Year), period totals + trend,
 // deep filters, and date-grouped entries with per-day subtotals.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, SlidersHorizontal, X, Download, List } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
@@ -31,7 +31,7 @@ function dayHeading(dayStart) {
 
 export default function Ledger() {
   const store = useStore();
-  const { openExport } = useUI();
+  const { openExport, setEntryDate } = useUI();
   const [kind, setKind] = useState('day');
   const [start, setStart] = useState(() => periodStart('day'));
   const [q, setQ] = useState('');
@@ -45,6 +45,15 @@ export default function Ledger() {
   const [allTime, setAllTime] = useState(false);
 
   const end = periodEnd(kind, start);
+
+  // Browsing a specific day (not "all time", not a week/month/year span —
+  // those don't map to one date) sets the day new manual entries should
+  // default to instead of always defaulting to right now. Clears itself on
+  // unmount so leaving Ledger for another screen doesn't leave it stuck.
+  useEffect(() => {
+    setEntryDate(kind === 'day' && !allTime ? start : null);
+    return () => setEntryDate(null);
+  }, [kind, start, allTime, setEntryDate]);
 
   function switchKind(k) {
     setKind(k);
@@ -232,7 +241,7 @@ export default function Ledger() {
                 <label><span>Category</span>
                   <select value={cat} onChange={(e) => setCat(e.target.value)}>
                     <option value="">Any</option>
-                    {Object.keys(CATEGORIES).map((c) => <option key={c}>{c}</option>)}
+                    {[...Object.keys(CATEGORIES), ...store.customCategories.map((c) => c.name)].map((c) => <option key={c}>{c}</option>)}
                   </select>
                 </label>
                 <label><span>Account</span>

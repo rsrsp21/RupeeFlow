@@ -45,7 +45,15 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
   auth TEXT NOT NULL,
   created_at INTEGER NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id);`;
+CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id);
+CREATE TABLE IF NOT EXISTS categories (
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  icon_svg TEXT NOT NULL DEFAULT '',
+  color TEXT NOT NULL DEFAULT '#9ca3af',
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, name)
+);`;
 
 function endpoint() {
   const acct = process.env.CLOUDFLARE_ACCOUNT_ID;

@@ -38,7 +38,7 @@ export default function BudgetModal({ category: initial, onClose }) {
         <form onSubmit={save}>
           <select value={category} onChange={(e) => setCategory(e.target.value)}>
             <option value="">Overall monthly</option>
-            {Object.keys(CATEGORIES).map((c) => <option key={c}>{c}</option>)}
+            {[...Object.keys(CATEGORIES), ...store.customCategories.map((c) => c.name)].map((c) => <option key={c}>{c}</option>)}
           </select>
           <div className="amount-input">
             <span>₹</span>

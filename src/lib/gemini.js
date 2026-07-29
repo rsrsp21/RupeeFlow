@@ -102,6 +102,24 @@ The total is the final payable amount (after GST/discounts). If unreadable, set 
   ]);
 }
 
+// Generates a small line-icon (in the style of the built-in category icons)
+// for a user-created custom category. The SVG is untrusted output from here
+// on — route.js sanitizes it (sanitizeSvg) before it's ever stored, and the
+// client sanitizes again before rendering.
+export function categoryIcon(name) {
+  return gemini([{
+    text: `Design a minimal line icon representing the personal-finance category "${name}", in the same visual style as Lucide icons: a single simple concept, geometric, built from a small number of basic shapes.
+Return ONLY JSON: {"svg":"...","color":"#rrggbb"}
+The svg value must be a complete, valid, self-contained SVG string meeting ALL of these rules:
+- Root element exactly: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"> ... </svg>
+- Only these child elements are allowed, any number of them: path, circle, rect, line, ellipse, polygon, polyline, g.
+- Only these attributes are allowed on any element: d, cx, cy, r, rx, ry, x, y, x1, y1, x2, y2, width, height, points, fill, stroke, stroke-width, stroke-linecap, stroke-linejoin, fill-rule, clip-rule.
+- No script, style, image, foreignObject, href, or xlink:href anywhere, no event attributes, no external references, no comments, no text nodes.
+- Keep it recognizable but simple — 1 to 4 shapes, coordinates within the 0-24 viewBox.
+color is a single hex color that suits the category (not necessarily the icon's own stroke color — it's used separately as a themed background tint).`,
+  }], { temperature: 0.6 });
+}
+
 export function weeklyInsights(summary) {
   return gemini([{
     text: `You are a sharp, friendly personal-finance coach for a busy Indian professional. All amounts in ₹.

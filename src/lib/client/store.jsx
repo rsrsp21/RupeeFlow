@@ -42,6 +42,7 @@ export function StoreProvider({ children }) {
   // being handed five they may not all use. See the boot effect for how an
   // *existing* user's account list gets derived if they never explicitly saved one.
   const [accounts, setAccounts] = useState([]);
+  const [customCategories, setCustomCategories] = useState([]); // [{name, icon_svg, color}]
   const [syncState, setSyncState] = useState('offline'); // offline|pending|online|error
   const [lastSync, setLastSync] = useState(0);
   const [toastMsg, setToastMsg] = useState('');
@@ -217,6 +218,7 @@ export function StoreProvider({ children }) {
         const metas = await idbAll('meta');
         cursor.current = metas.find((m) => m.k === 'cursor')?.v || 0;
         setBudgets(metas.find((m) => m.k === 'budgets')?.v || []);
+        setCustomCategories(metas.find((m) => m.k === 'categories')?.v || []);
         const savedAccounts = metas.find((m) => m.k === 'accounts')?.v;
         if (savedAccounts?.length) {
           setAccounts(savedAccounts.map(normalizeAccount));
@@ -272,6 +274,11 @@ export function StoreProvider({ children }) {
       try {
         const { budgets: remote } = await api('/budgets');
         if (remote?.length) { setBudgets(remote); idbPut('meta', { k: 'budgets', v: remote }); }
+      } catch {}
+      try {
+        const { categories: remote } = await api('/categories');
+        setCustomCategories(remote || []);
+        idbPut('meta', { k: 'categories', v: remote || [] });
       } catch {}
     })();
     const iv = setInterval(() => { if (document.visibilityState === 'visible') syncNow(); }, POLL_MS);
@@ -340,6 +347,29 @@ export function StoreProvider({ children }) {
   // 'Other' for anything renamed/removed since the transaction was recorded.
   const accountType = (name) => accounts.find((a) => a.name === name)?.type || 'Other';
 
+  // ── custom categories ──
+  // Generates the icon and persists the category server-side in one round
+  // trip (see /api/ai/category-icon) — returns the saved record so the
+  // caller (TxModal) can select it immediately.
+  const addCustomCategory = useCallback(async (name) => {
+    const saved = await api('/ai/category-icon', { method: 'POST', body: JSON.stringify({ name }) });
+    setCustomCategories((prev) => {
+      const next = [...prev.filter((c) => c.name !== saved.name), saved];
+      idbPut('meta', { k: 'categories', v: next });
+      return next;
+    });
+    return saved;
+  }, [api]);
+
+  const removeCustomCategory = useCallback(async (name) => {
+    setCustomCategories((prev) => {
+      const next = prev.filter((c) => c.name !== name);
+      idbPut('meta', { k: 'categories', v: next });
+      return next;
+    });
+    api('/categories', { method: 'DELETE', body: JSON.stringify({ name }) }).catch(() => {});
+  }, [api]);
+
   // Balance per account, derived from the ledger: income in, expense out,
   // transfers move between the two named accounts.
   const accountBalances = useCallback(() => {
@@ -386,9 +416,10 @@ export function StoreProvider({ children }) {
   };
 
   const value = {
-    token, email, name, booted, txs, budgets, accounts, syncState, lastSync, toastMsg,
+    token, email, name, booted, txs, budgets, accounts, customCategories, syncState, lastSync, toastMsg,
     api, toast, syncNow, saveTx, saveBudget, deleteBudget, saveAccounts, authenticate, saveName, logout, deleteAccount,
     live, totals, inMonth, catSpend, effectiveBudget, noteHistory, accountBalances, accountType, buildSummary,
+    addCustomCategory, removeCustomCategory,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
