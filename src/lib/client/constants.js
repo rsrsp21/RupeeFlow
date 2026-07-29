@@ -23,7 +23,17 @@ export const CATEGORIES = {
   'Other':            { ico: '📌', color: '#9ca3af' },
 };
 
-export const ACCOUNTS = ['Cash', 'Bank', 'UPI', 'Credit Card', 'Savings'];
+// Type drives the icon (AccountIcon); name is what you actually see and pick
+// from. Kept separate so a custom-named account ("HDFC", "Wife's card")
+// still gets a correct icon instead of falling back to a generic wallet.
+export const ACCOUNT_TYPES = ['Cash', 'Bank', 'UPI', 'Credit Card', 'Savings', 'Other'];
+export const ACCOUNTS = [
+  { name: 'Cash', type: 'Cash' },
+  { name: 'Bank', type: 'Bank' },
+  { name: 'UPI', type: 'UPI' },
+  { name: 'Credit Card', type: 'Credit Card' },
+  { name: 'Savings', type: 'Savings' },
+];
 
 export const AUTO_RULES = [
   [/\b(lunch|dinner|breakfast|chai|coffee|tea|swiggy|zomato|restaurant|biryani|pizza|snack|tiffin|dosa|canteen)\b/i, 'Food & Dining'],

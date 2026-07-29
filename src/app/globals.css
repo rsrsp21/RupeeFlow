@@ -100,6 +100,8 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .btn.ghost:hover { background: var(--surface-2); border-color: var(--muted); }
 .btn.danger-ghost { background: transparent; color: var(--red); border-color: transparent; width: auto; }
 .btn.danger-ghost:hover { background: var(--red-soft); }
+.btn.danger { background: var(--red); color: #fff; width: 100%; }
+.btn.danger:hover { opacity: .88; }
 .btn.grow { flex: 1; }
 .btn-row { display: flex; gap: 8px; margin-top: 4px; }
 .icon-btn {
@@ -307,7 +309,9 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .sub { color: var(--muted); font-size: .84rem; margin-top: 3px; }
 
 /* Dashboard: brand mark in the sticky header, greeting moved into the body. */
-.dashboard-brand { display: flex; align-items: center; gap: 9px; font-size: 1.05rem; font-weight: 700; }
+/* Matches the 1.3rem/19px used by every other screen's <h2>+icon header. */
+.dashboard-brand { display: flex; align-items: center; gap: 9px; font-size: 1.3rem; font-weight: 700; }
+.dashboard-brand svg { width: 22px; height: 22px; }
 /* Desktop already has the sidebar's own brand mark right above these same
    nav items, so the Dashboard header (brand + theme toggle) is pure
    duplication there — mobile has no sidebar, so it stays visible there. */
@@ -552,6 +556,9 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
   max-height: 90dvh; overflow-y: auto; overscroll-behavior: contain;
 }
 .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.confirm-modal { width: min(340px, 100%); }
+.confirm-modal h3 { font-size: .98rem; margin-bottom: 8px; }
+.confirm-modal p { margin-bottom: 18px; line-height: 1.5; }
 .modal-head h3 { font-size: .95rem; }
 .modal form { display: flex; flex-direction: column; gap: 11px; }
 .form-row { display: flex; gap: 8px; }
@@ -891,8 +898,9 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .acct-bal { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 78px; text-align: right; }
 .acct-row .icon-btn:disabled { opacity: .25; cursor: default; }
 .acct-row .icon-btn:disabled:hover { background: none; color: var(--muted); }
-.acct-add { display: flex; gap: 8px; margin-top: 14px; }
-.acct-add input { flex: 1; }
+.acct-add { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.acct-add select { flex: 0 0 auto; width: auto; }
+.acct-add input { flex: 1; min-width: 140px; }
 .name-edit { display: flex; gap: 6px; align-items: center; padding: 4px 0; }
 .name-edit input { flex: 1; }
 .tx-acct {

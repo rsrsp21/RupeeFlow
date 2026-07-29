@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react';
 // aliased — this module's own default export is already named Settings
 import { Download, LogOut, RefreshCw, Plus, Wallet, Trash2, Pencil, Check, X, Bell, Settings as SettingsIcon } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
-import { rupees, TAGLINE } from '@/lib/client/constants';
+import { rupees, TAGLINE, ACCOUNT_TYPES } from '@/lib/client/constants';
 import { pushSupported, currentSubscription, enablePush, disablePush } from '@/lib/client/pushClient';
 import { useUI } from '../App';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
 import AccountIcon from '../AccountIcon';
+import ConfirmModal from '../modals/ConfirmModal';
 
 export default function Settings() {
   const store = useStore();
@@ -179,7 +180,9 @@ function NotificationsCard() {
 
 function AccountsCard() {
   const store = useStore();
-  const [adding, setAdding] = useState('');
+  const [addingName, setAddingName] = useState('');
+  const [addingType, setAddingType] = useState('Cash');
+  const [confirmRemove, setConfirmRemove] = useState(null); // the account object, or null
   const balances = store.accountBalances();
   const usage = {};
   for (const t of store.live()) {
@@ -189,21 +192,26 @@ function AccountsCard() {
 
   async function add(e) {
     e.preventDefault();
-    const name = adding.trim();
-    if (!name) return;
-    if (store.accounts.some((a) => a.toLowerCase() === name.toLowerCase())) {
+    // Name is optional — falling back to the type keeps every account
+    // nameable/identifiable without forcing you to type "Cash" for cash.
+    const name = addingName.trim() || addingType;
+    if (store.accounts.some((a) => a.name.toLowerCase() === name.toLowerCase())) {
       return store.toast('That account already exists');
     }
-    await store.saveAccounts([...store.accounts, name]);
-    setAdding('');
+    await store.saveAccounts([...store.accounts, { name, type: addingType }]);
+    setAddingName('');
     store.toast(`Added ${name}`);
   }
 
-  async function remove(name) {
-    if (usage[name]) return store.toast(`${name} is used by ${usage[name]} entries and can't be removed`);
+  function requestRemove(a) {
+    if (usage[a.name]) return store.toast(`${a.name} is used by ${usage[a.name]} entries and can't be removed`);
     if (store.accounts.length <= 1) return store.toast('Keep at least one account');
-    await store.saveAccounts(store.accounts.filter((a) => a !== name));
-    store.toast(`Removed ${name}`);
+    setConfirmRemove(a);
+  }
+
+  async function doRemove(a) {
+    await store.saveAccounts(store.accounts.filter((x) => x.name !== a.name));
+    store.toast(`Removed ${a.name}`);
   }
 
   return (
@@ -215,16 +223,16 @@ function AccountsCard() {
 
       <div className="acct-list">
         {store.accounts.map((a) => {
-          const bal = balances[a] || 0;
+          const bal = balances[a.name] || 0;
           return (
-            <div className="acct-row" key={a}>
-              <AccountIcon account={a} tile size={15} />
-              <span className="acct-name">{a}</span>
-              <span className="acct-count">{usage[a] || 0} entries</span>
+            <div className="acct-row" key={a.name}>
+              <AccountIcon type={a.type} tile size={15} />
+              <span className="acct-name">{a.name}</span>
+              <span className="acct-count">{usage[a.name] || 0} entries</span>
               <b className="acct-bal" style={{ color: bal < 0 ? 'var(--red)' : bal > 0 ? 'var(--green)' : 'var(--muted)' }}>
                 {bal < 0 ? '−' : ''}{rupees(Math.abs(bal))}
               </b>
-              <button className="icon-btn" onClick={() => remove(a)} title="Remove account" disabled={!!usage[a]}>
+              <button className="icon-btn" onClick={() => requestRemove(a)} title="Remove account" disabled={!!usage[a.name]}>
                 <Trash2 size={14} />
               </button>
             </div>
@@ -233,10 +241,22 @@ function AccountsCard() {
       </div>
 
       <form className="acct-add" onSubmit={add}>
-        <input placeholder="Add an account (e.g. HDFC, Paytm, Wife's card)"
-          value={adding} onChange={(e) => setAdding(e.target.value)} />
+        <select value={addingType} onChange={(e) => setAddingType(e.target.value)} title="Account type (sets the icon)">
+          {ACCOUNT_TYPES.map((t) => <option key={t}>{t}</option>)}
+        </select>
+        <input placeholder="Name (optional, e.g. HDFC, Wife's card)"
+          value={addingName} onChange={(e) => setAddingName(e.target.value)} />
         <button className="btn ghost" type="submit"><Plus size={14} /> Add</button>
       </form>
+
+      {confirmRemove && (
+        <ConfirmModal
+          title="Remove this account?"
+          message={`"${confirmRemove.name}" will be removed from your account list. This can't be undone.`}
+          onConfirm={() => { doRemove(confirmRemove); setConfirmRemove(null); }}
+          onCancel={() => setConfirmRemove(null)}
+        />
+      )}
     </div>
   );
 }

@@ -238,7 +238,7 @@ export default function Ledger() {
                 <label><span>Account</span>
                   <select value={account} onChange={(e) => setAccount(e.target.value)}>
                     <option value="">Any</option>
-                    {store.accounts.map((a) => <option key={a}>{a}</option>)}
+                    {store.accounts.map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
                   </select>
                 </label>
                 <label><span>Min ₹</span>

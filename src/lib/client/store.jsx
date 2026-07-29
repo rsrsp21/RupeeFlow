@@ -9,6 +9,18 @@ import { buildNoteHistory } from '../noteMatch';
 const Ctx = createContext(null);
 export const useStore = () => useContext(Ctx);
 
+// Accounts used to be plain strings; migrate anything saved before the
+// type/name split (a plain string, or an object missing type) by matching
+// against the known default names, falling back to 'Other'.
+function normalizeAccount(raw) {
+  if (raw && typeof raw === 'object' && raw.name) {
+    return { name: String(raw.name).trim(), type: raw.type || 'Other' };
+  }
+  const name = String(raw || '').trim();
+  const known = DEFAULT_ACCOUNTS.find((d) => d.name.toLowerCase() === name.toLowerCase());
+  return { name, type: known ? known.type : 'Other' };
+}
+
 // This interval fires a real API call (/api/tx/pull, and /api/tx/push if the
 // outbox isn't empty) for every open, visible tab — regardless of whether
 // anything changed. It exists only to notice edits made on ANOTHER device
@@ -188,7 +200,7 @@ export function StoreProvider({ children }) {
         cursor.current = metas.find((m) => m.k === 'cursor')?.v || 0;
         setBudgets(metas.find((m) => m.k === 'budgets')?.v || []);
         const savedAccounts = metas.find((m) => m.k === 'accounts')?.v;
-        if (savedAccounts?.length) setAccounts(savedAccounts);
+        if (savedAccounts?.length) setAccounts(savedAccounts.map(normalizeAccount));
       }
       setBooted(true);
     })();
@@ -255,16 +267,27 @@ export function StoreProvider({ children }) {
 
   // ── accounts ──
   const saveAccounts = useCallback(async (list) => {
-    const clean = [...new Set(list.map((a) => String(a).trim()).filter(Boolean))];
+    const seen = new Set();
+    const clean = [];
+    for (const raw of list) {
+      const a = normalizeAccount(raw);
+      if (!a.name || seen.has(a.name.toLowerCase())) continue;
+      seen.add(a.name.toLowerCase());
+      clean.push(a);
+    }
     setAccounts(clean);
     await idbPut('meta', { k: 'accounts', v: clean });
   }, []);
+
+  // What icon an account (by name, as stored on a transaction) should use —
+  // 'Other' for anything renamed/removed since the transaction was recorded.
+  const accountType = (name) => accounts.find((a) => a.name === name)?.type || 'Other';
 
   // Balance per account, derived from the ledger: income in, expense out,
   // transfers move between the two named accounts.
   const accountBalances = useCallback(() => {
     const map = {};
-    for (const a of accounts) map[a] = 0;
+    for (const a of accounts) map[a.name] = 0;
     for (const t of live()) {
       const amt = Number(t.amount);
       if (t.type === 'income') map[t.account] = (map[t.account] || 0) + amt;
@@ -308,7 +331,7 @@ export function StoreProvider({ children }) {
   const value = {
     token, email, name, booted, txs, budgets, accounts, syncState, lastSync, toastMsg,
     api, toast, syncNow, saveTx, saveBudget, deleteBudget, saveAccounts, authenticate, saveName, logout,
-    live, totals, inMonth, catSpend, effectiveBudget, noteHistory, accountBalances, buildSummary,
+    live, totals, inMonth, catSpend, effectiveBudget, noteHistory, accountBalances, accountType, buildSummary,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

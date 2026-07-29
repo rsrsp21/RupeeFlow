@@ -3,11 +3,13 @@ import { motion } from 'framer-motion';
 import { Mic, Camera } from 'lucide-react';
 import { rupees } from '@/lib/client/constants';
 import { useUI } from './App';
+import { useStore } from '@/lib/client/store';
 import CategoryIcon from './CategoryIcon';
 import AccountIcon from './AccountIcon';
 
 export default function TxItem({ t, index = 0 }) {
   const { openTx } = useUI();
+  const { accountType } = useStore();
   const sign = t.type === 'income' ? '+' : t.type === 'expense' ? '−' : '';
   const date = new Date(Number(t.occurred_at)).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
   return (
@@ -27,11 +29,11 @@ export default function TxItem({ t, index = 0 }) {
           <span>·</span>
           {t.type === 'transfer' ? (
             <span className="tx-acct">
-              <AccountIcon account={t.account} size={11} /> {t.account} → <AccountIcon account={t.to_account} size={11} /> {t.to_account}
+              <AccountIcon type={accountType(t.account)} size={11} /> {t.account} → <AccountIcon type={accountType(t.to_account)} size={11} /> {t.to_account}
             </span>
           ) : <span>{t.category}</span>}
           {t.type !== 'transfer' && t.account && (
-            <span className="tx-acct"><AccountIcon account={t.account} size={11} /> {t.account}</span>
+            <span className="tx-acct"><AccountIcon type={accountType(t.account)} size={11} /> {t.account}</span>
           )}
           {t.source === 'voice' && <Mic size={11} />}
           {t.source === 'receipt' && <Camera size={11} />}

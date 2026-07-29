@@ -5,9 +5,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
-import { CATEGORIES, ACCOUNTS, AUTO_RULES, rupees, toPaise } from '@/lib/client/constants';
+import { CATEGORIES, AUTO_RULES, rupees, toPaise } from '@/lib/client/constants';
 import { normalizeNote } from '@/lib/noteMatch';
 import CategoryIcon from '../CategoryIcon';
+import ConfirmModal from './ConfirmModal';
 
 export const backdropMotion = {
   initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 },
@@ -29,8 +30,8 @@ export default function TxModal({ state, onClose }) {
   const [amount, setAmount] = useState(existing ? existing.amount / 100 : pre.amount ? pre.amount / 100 : '');
   const [note, setNote] = useState(existing?.note ?? pre.note ?? '');
   const [category, setCategory] = useState(existing?.category || pre.category || 'Food & Dining');
-  const [account, setAccount] = useState(existing?.account || store.accounts[0] || 'Cash');
-  const [toAccount, setToAccount] = useState(existing?.to_account || store.accounts[1] || 'Bank');
+  const [account, setAccount] = useState(existing?.account || store.accounts[0]?.name || 'Cash');
+  const [toAccount, setToAccount] = useState(existing?.to_account || store.accounts[1]?.name || 'Bank');
   const [date, setDate] = useState(() => {
     const d = new Date(Number(existing?.occurred_at ?? pre.occurred_at ?? Date.now()));
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -38,6 +39,7 @@ export default function TxModal({ state, onClose }) {
 
   const [noteFocused, setNoteFocused] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // note history, keyed by normalized text (quantity/units stripped) so
   // "chicken 300g" and "chicken 300 grams" resolve to the same past entry
@@ -167,14 +169,14 @@ export default function TxModal({ state, onClose }) {
             <label>
               <span>{type === 'transfer' ? 'From account' : type === 'income' ? 'Into account' : 'Paid from'}</span>
               <select value={account} onChange={(e) => setAccount(e.target.value)}>
-                {store.accounts.map((a) => <option key={a}>{a}</option>)}
+                {store.accounts.map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
               </select>
             </label>
             {type === 'transfer' && (
               <label>
                 <span>To account</span>
                 <select value={toAccount} onChange={(e) => setToAccount(e.target.value)}>
-                  {store.accounts.map((a) => <option key={a}>{a}</option>)}
+                  {store.accounts.map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
                 </select>
               </label>
             )}
@@ -184,11 +186,19 @@ export default function TxModal({ state, onClose }) {
             </label>
           </div>
           <div className="btn-row">
-            {existing && <button type="button" className="btn danger-ghost" onClick={remove}>Delete</button>}
+            {existing && <button type="button" className="btn danger-ghost" onClick={() => setConfirmDelete(true)}>Delete</button>}
             <button type="submit" className="btn primary grow">Save</button>
           </div>
         </form>
       </motion.div>
+      {confirmDelete && (
+        <ConfirmModal
+          title="Delete this entry?"
+          message={`"${note.trim() || category}" · ${rupees(toPaise(amount) || 0)} will be removed from your ledger. This can't be undone.`}
+          onConfirm={() => { setConfirmDelete(false); remove(); }}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
     </motion.div>
   );
 }

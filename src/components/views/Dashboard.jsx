@@ -130,7 +130,7 @@ export default function Dashboard() {
           the theme toggle lives in Settings there instead of duplicating it. */}
       <header className="view-head has-toggle dashboard-head">
         <div className="dashboard-brand">
-          <svg viewBox="0 0 48 48" width="26" height="26"><use href="/icon.svg#mark" /></svg>
+          <svg viewBox="0 0 48 48" width="22" height="22"><use href="/icon.svg#mark" /></svg>
           <span>RupeeFlow</span>
         </div>
         <ThemeToggle />
