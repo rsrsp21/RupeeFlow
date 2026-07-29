@@ -114,16 +114,24 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 /* ── auth ── */
 .auth { display: grid; place-items: center; min-height: 100dvh; padding: 24px; background: var(--bg); }
 /* Fixed width AND height so switching login <-> register never resizes the
-   card. Height is sized to the LOGIN layout (~430px computed at the 14.5px
-   base), not register — sizing it to the taller register form left a dead
-   band of empty space under the sign-in fields. Register's extra name field
-   and password checklist scroll inside instead. */
+   card. Registration is split into three steps (see AuthView) precisely so
+   no state is taller than this box — nothing should ever actually scroll;
+   overflow-y is only a safety net for very small viewports or large text
+   zoom. Sized off the login screen, which is the tallest single state. */
 .auth-card {
-  position: relative; width: 380px; height: 440px; max-width: 100%; max-height: calc(100dvh - 48px);
+  position: relative; width: 380px; height: 480px; max-width: 100%; max-height: calc(100dvh - 48px);
   background: var(--surface); border: 1px solid var(--line);
   border-radius: 18px; padding: 40px 32px; box-shadow: var(--shadow-lg);
   overflow-y: auto; overscroll-behavior: contain;
 }
+.auth-back { position: absolute; top: 12px; left: 12px; }
+/* Progress dots for the 3-step registration flow. */
+.auth-steps { display: flex; justify-content: center; gap: 6px; margin: -14px 0 18px; }
+.auth-steps span {
+  width: 6px; height: 6px; border-radius: 99px; background: var(--line-strong);
+  transition: background .2s, width .2s;
+}
+.auth-steps span.on { width: 18px; background: var(--accent); }
 .auth-close { position: absolute; top: 12px; right: 12px; }
 .logo-lockup { text-align: center; margin-bottom: 30px; }
 .logo-lockup h1 { font-size: 1.35rem; margin-top: 12px; }
@@ -132,7 +140,9 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .password-field { position: relative; }
 .password-field input { padding-right: 38px; }
 .password-eye { position: absolute; right: 2px; top: 0; bottom: 10px; }
-.password-checklist { list-style: none; display: flex; flex-direction: column; gap: 4px; margin: -2px 0 14px; }
+/* two columns so the four rules take two rows, not four — keeps the password
+   step inside the fixed card height without a scrollbar */
+.password-checklist { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 5px 10px; margin: -2px 0 14px; }
 .password-checklist li {
   display: flex; align-items: center; gap: 6px; font-size: .74rem; color: var(--muted); transition: color .15s;
 }
