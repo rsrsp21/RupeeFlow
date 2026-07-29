@@ -2,17 +2,29 @@
 import { LayoutGrid, List, PieChart, Sparkles, Settings, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 
-const ITEMS = [
+// Split around a middle slot so the FAB has a gap to sit in on the mobile tab
+// bar (see .nav-fab-slot / .fab-cluster in globals.css) — desktop just renders
+// straight through, the slot collapses to nothing there.
+const LEFT_ITEMS = [
   ['dashboard', 'Home', LayoutGrid],
   ['transactions', 'Ledger', List],
+];
+const RIGHT_ITEMS = [
   ['budgets', 'Budgets', PieChart],
   ['insights', 'Insights', Sparkles],
-  ['settings', 'Settings', Settings],
 ];
 
 export function Nav({ view, setView, collapsed, setCollapsed }) {
   const { syncState } = useStore();
   const syncText = syncState === 'online' ? 'Synced' : syncState === 'pending' ? 'Syncing' : 'Offline';
+
+  const item = ([id, label, Icon]) => (
+    <button key={id} className={`nav-item ${view === id ? 'active' : ''}`}
+      onClick={() => setView(id)} title={label} aria-label={label}>
+      <Icon size={17} strokeWidth={1.9} />
+      <span className="nav-text">{label}</span>
+    </button>
+  );
 
   return (
     <aside className={`nav ${collapsed ? 'collapsed' : ''}`}>
@@ -27,13 +39,18 @@ export function Nav({ view, setView, collapsed, setCollapsed }) {
         </button>
       </div>
 
-      {ITEMS.map(([id, label, Icon]) => (
-        <button key={id} className={`nav-item ${view === id ? 'active' : ''}`}
-          onClick={() => setView(id)} title={label} aria-label={label}>
-          <Icon size={17} strokeWidth={1.9} />
-          <span className="nav-text">{label}</span>
-        </button>
-      ))}
+      {LEFT_ITEMS.map(item)}
+      {/* mobile-only gap the FAB floats over; collapses on desktop */}
+      <div className="nav-fab-slot" aria-hidden="true" />
+      {RIGHT_ITEMS.map(item)}
+
+      {/* On mobile this becomes a fixed top-right corner button (see globals.css)
+          instead of a sixth tab, so the bottom bar stays a clean 4 + centered FAB. */}
+      <button key="settings" className={`nav-item settings-item ${view === 'settings' ? 'active' : ''}`}
+        onClick={() => setView('settings')} title="Settings" aria-label="Settings">
+        <Settings size={17} strokeWidth={1.9} />
+        <span className="nav-text">Settings</span>
+      </button>
 
       <div className="nav-spacer" />
       <div className={`sync-dot ${syncState === 'online' ? 'online' : syncState === 'pending' ? 'pending' : ''}`}

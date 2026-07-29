@@ -167,24 +167,21 @@ export default function App() {
           </motion.div>
         </main>
 
-        {/* + expands into Voice / Scan / Prompt / Manual and morphs into an X; tap again or pick one to close */}
+        {/* + expands into Voice / Scan / Prompt / Manual and morphs into an X; tap again or pick one to close.
+            Desktop stacks the minis in a column above the corner FAB; mobile reflows them into a
+            horizontal pill above the centered tab-bar FAB instead (see .fab-minis in globals.css) —
+            same buttons, same animation, just a different flex-direction/position per breakpoint. */}
         <div className={`fab-cluster ${fabOpen ? 'open' : ''}`} ref={fabRef}>
-          {fabActions.map(({ key, Icon, title, onClick }, i) => {
-            // Stacked bottom-up above the main button: last in the array (Manual)
-            // sits closest, first (Voice) farthest. Absolute + a fixed offset per
-            // slot means these buttons never affect the cluster's own box size,
-            // so the "+" stays pinned to its corner whether open or closed.
-            const slot = fabActions.length - 1 - i;
-            const bottom = 52 + 10 + slot * (44 + 10);
-            return (
-              <motion.button key={key} className="fab mini" title={title} style={{ bottom, pointerEvents: fabOpen ? 'auto' : 'none' }}
+          <div className="fab-minis">
+            {fabActions.map(({ key, Icon, title, onClick }, i) => (
+              <motion.button key={key} className="fab mini" title={title} style={{ pointerEvents: fabOpen ? 'auto' : 'none' }}
                 custom={i} variants={FAB_ITEM} initial="hidden" animate={fabOpen ? 'visible' : 'hidden'}
                 whileHover={fabOpen ? FAB_HOVER : undefined} whileTap={fabOpen ? FAB_TAP : undefined}
                 onClick={onClick}>
                 <Icon size={18} strokeWidth={1.9} />
               </motion.button>
-            );
-          })}
+            ))}
+          </div>
           <button className="fab main-fab" title={fabOpen ? 'Close' : 'Add entry'} onClick={() => setFabOpen((v) => !v)}>
             <motion.span className="fab-plus" animate={{ rotate: fabOpen ? 45 : 0 }} transition={FAB_ROTATE}>
               <Plus size={22} strokeWidth={2.2} />

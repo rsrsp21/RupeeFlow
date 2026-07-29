@@ -258,6 +258,7 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .nav-item:hover { background: var(--surface-2); color: var(--text); }
 .nav-item.active { background: var(--surface-2); color: var(--text); font-weight: 600; }
 .nav-item.active svg { color: var(--accent); }
+.nav-fab-slot { display: none; } /* mobile-only gap the centered FAB floats over — see mobile block */
 .nav-spacer { flex: 1; }
 .sync-dot { display: flex; align-items: center; gap: 7px; padding: 8px 12px; font-size: .72rem; color: var(--muted); }
 .sync-dot span { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); transition: background .3s; }
@@ -442,10 +443,10 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .switch:checked::after { left: 18px; background: #fff; }
 
 /* ── FAB ──
-   The mini buttons stay mounted at all times (see App.jsx) and are absolutely
-   positioned with a per-slot `bottom` offset — that keeps the cluster's own
-   box exactly the size of the main button always, so it stays pinned to its
-   corner whether the mini buttons are visible or not. */
+   The mini buttons stay mounted at all times (see App.jsx); .fab-minis lays
+   them out with flexbox (column-reverse on desktop, row on mobile — see the
+   mobile block) instead of individual computed offsets, so the same markup
+   can reflow from a vertical stack to a horizontal strip per breakpoint. */
 .fab-cluster { position: fixed; right: 28px; bottom: 28px; width: 52px; height: 52px; z-index: 40; }
 .fab {
   border: none; border-radius: 14px; display: grid; place-items: center;
@@ -458,11 +459,18 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 }
 .main-fab:hover { transform: translateY(-1px); }
 .main-fab:active { transform: scale(.95); }
+/* Never intercepts taps itself (pointer-events: none) — each mini button opts
+   back in individually via inline style only while the cluster is open, so a
+   closed-but-still-mounted stack can't block taps on whatever's underneath it. */
+.fab-minis {
+  position: absolute; right: 4px; bottom: 62px; display: flex;
+  flex-direction: column-reverse; gap: 10px; pointer-events: none;
+}
 /* .fab.mini's transform is driven entirely by Framer Motion (FAB_ITEM variants) —
    a CSS transition on the same property here would fight FM's own rAF-driven
    animation and stutter, so hover/tap feedback comes from whileHover/whileTap instead. */
 .fab.mini {
-  position: absolute; right: 4px; width: 44px; height: 44px;
+  width: 44px; height: 44px; flex-shrink: 0;
   background: var(--surface); color: var(--text); border: 1px solid var(--line-strong); will-change: transform, opacity;
 }
 .fab-plus { display: inline-flex; will-change: transform; }
@@ -892,15 +900,36 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
     padding: 7px 2px; align-items: center; justify-content: center;
   }
   .nav.collapsed .nav-text { display: block; }   /* labels always show on mobile tab bar */
+  .nav-fab-slot { display: block; flex: 1; }      /* gap the centered FAB sits over */
+  /* Settings moves off the tab bar entirely into a fixed corner button, freeing
+     the bar down to Home/Ledger/[FAB]/Budgets/Insights. Same button, same
+     handler — just taken out of the row's flow via position: fixed. */
+  .settings-item {
+    position: fixed; top: calc(env(safe-area-inset-top) + 10px); right: 12px;
+    flex: none; width: 36px; height: 36px; padding: 0;
+    background: var(--surface); border: 1px solid var(--line-strong); border-radius: 50%;
+    box-shadow: var(--shadow-lg); z-index: 56;
+  }
+  .settings-item .nav-text { display: none; }
   .main { padding: 22px 16px 170px; }
   .grid-2 { grid-template-columns: 1fr; }
   .filter-row { grid-template-columns: 1fr 1fr 1fr; }
-  .fab-cluster { bottom: 84px; right: 18px; }
+  /* Centered on the tab bar instead of floating off to the side, raised so it
+     reads as part of the bar rather than a separate floating button. */
+  .fab-cluster { left: 50%; right: auto; bottom: 22px; transform: translateX(-50%); z-index: 56; }
+  .fab-minis {
+    flex-direction: row; left: 50%; right: auto; bottom: 70px; transform: translateX(-50%);
+    background: var(--surface); border: 1px solid var(--line-strong); border-radius: 20px;
+    padding: 8px; gap: 8px; box-shadow: var(--shadow-lg);
+  }
+  .fab.mini { border: none; box-shadow: none; }
   .install-prompt { bottom: calc(78px + env(safe-area-inset-bottom)); }
   input, select { font-size: 16px; }   /* prevent iOS Safari auto-zoom on focus */
   .view-head { flex-direction: column; align-items: stretch; gap: 12px; }
-  .view-head.has-toggle { position: relative; padding-right: 40px; }
-  .view-head.has-toggle .theme-toggle { position: absolute; top: 0; right: 0; }
+  /* the theme toggle's quick-access spot on Dashboard is now the same corner
+     the Settings button lives in on every screen, so it'd collide — Settings
+     (with the same toggle inside it) supersedes it here. */
+  .view-head.has-toggle .theme-toggle { display: none; }
   .period-seg { flex: 1; min-width: 0; width: auto; }
   .period-seg button { flex: 1; padding: 7px 4px; }
   .kpi-strip { grid-template-columns: 1fr 1fr; }
