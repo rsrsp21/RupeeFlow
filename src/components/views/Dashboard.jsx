@@ -123,19 +123,27 @@ export default function Dashboard() {
 
   return (
     <section className="view">
-      {/* Instead of a screen icon, the greeting leads with a time-of-day icon
-          (sunrise / sun / moon) matching the wording next to it. */}
+      {/* Sticky header is now a brand mark (fixed content, same on every
+          visit) rather than the greeting — the greeting is time/name-
+          dependent and reads oddly pinned in place while you scroll past it. */}
       <header className="view-head has-toggle">
-        <div>
-          <h2>
-            {h < 12 ? <Sunrise size={19} strokeWidth={2} /> : h < 17 ? <Sun size={19} strokeWidth={2} /> : <Moon size={19} strokeWidth={2} />}
-            {h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'}{shortName ? `, ${shortName}` : ''}
-          </h2>
-          <p className="sub">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+        <div className="dashboard-brand">
+          <svg viewBox="0 0 48 48" width="26" height="26"><use href="/icon.svg#mark" /></svg>
+          <span>RupeeFlow</span>
         </div>
         <ThemeToggle />
         <div className="view-head-utils"><SyncBadge /><SettingsLink /></div>
       </header>
+
+      {/* Greeting + date moved down into the scrollable body (leads with a
+          time-of-day icon — sunrise / sun / moon — matching the wording). */}
+      <div className="dashboard-greeting">
+        <h2>
+          {h < 12 ? <Sunrise size={19} strokeWidth={2} /> : h < 17 ? <Sun size={19} strokeWidth={2} /> : <Moon size={19} strokeWidth={2} />}
+          {h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'}{shortName ? `, ${shortName}` : ''}
+        </h2>
+        <p className="sub">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+      </div>
 
       {/* ── hero + KPI strip ── */}
       <div className="hero-card">

@@ -284,7 +284,14 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .sync-dot em { font-style: normal; }
 
 .main { flex: 1; padding: 32px clamp(18px, 4.5vw, 56px) 120px; max-width: 920px; }
-.view-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; gap: 12px; }
+/* Sticks to the top of the page (the window scrolls, not .main — see the
+   view-transition comment in App.jsx) once you scroll past it, the same way
+   the bottom tab bar is always pinned. Needs its own opaque background since
+   content now scrolls underneath it instead of past it. */
+.view-head {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+  position: sticky; top: 0; z-index: 15; background: var(--bg); padding: 14px 0; margin-bottom: 10px;
+}
 /* flex so a leading screen icon sits on the text's optical centre line;
    Dashboard has no icon and is unaffected by the gap. overflow-wrap is a
    backstop for user-supplied text (the Dashboard greeting carries a name):
@@ -293,6 +300,12 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .view-head h2 { font-size: 1.3rem; display: flex; align-items: center; gap: 9px; min-width: 0; overflow-wrap: anywhere; }
 .view-head h2 > svg { color: var(--accent); flex-shrink: 0; }
 .sub { color: var(--muted); font-size: .84rem; margin-top: 3px; }
+
+/* Dashboard: brand mark in the sticky header, greeting moved into the body. */
+.dashboard-brand { display: flex; align-items: center; gap: 9px; font-size: 1.05rem; font-weight: 700; }
+.dashboard-greeting { margin-bottom: 24px; }
+.dashboard-greeting h2 { font-size: 1.3rem; display: flex; align-items: center; gap: 9px; }
+.dashboard-greeting h2 > svg { color: var(--accent); flex-shrink: 0; }
 
 .sync-badge {
   display: inline-flex; align-items: center; gap: 5px;
