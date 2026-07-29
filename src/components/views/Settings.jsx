@@ -7,6 +7,7 @@ import { rupees } from '@/lib/client/constants';
 import { pushSupported, currentSubscription, enablePush, disablePush } from '@/lib/client/pushClient';
 import { useUI } from '../App';
 import SyncBadge from '../SyncBadge';
+import SettingsLink from '../SettingsLink';
 
 export default function Settings() {
   const store = useStore();
@@ -25,7 +26,8 @@ export default function Settings() {
   return (
     <section className="view">
       <header className="view-head">
-        <div><h2>Settings <SyncBadge /></h2><p className="sub">{store.name ? `${store.name} · ${store.email}` : store.email}</p></div>
+        <div><h2>Settings</h2><p className="sub">{store.name ? `${store.name} · ${store.email}` : store.email}</p></div>
+        <div className="view-head-utils"><SyncBadge /><SettingsLink /></div>
       </header>
 
       <div className="card">

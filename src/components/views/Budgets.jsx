@@ -10,6 +10,7 @@ import { DAY_MS, startOfMonth } from '@/lib/client/period';
 import { useUI } from '../App';
 import CategoryIcon from '../CategoryIcon';
 import SyncBadge from '../SyncBadge';
+import SettingsLink from '../SettingsLink';
 
 export default function Budgets() {
   const store = useStore();
@@ -79,7 +80,7 @@ export default function Budgets() {
     <section className="view">
       <header className="view-head">
         <div>
-          <h2>Budgets <SyncBadge /></h2>
+          <h2>Budgets</h2>
           <p className="sub">{new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} · Day {dayOfMonth} of {daysIn}</p>
         </div>
         <div className="head-actions">
@@ -88,6 +89,7 @@ export default function Budgets() {
           </button>
           <button className="btn ghost" onClick={() => openBudget('')}><Plus size={14} /> New</button>
         </div>
+        <div className="view-head-utils"><SyncBadge /><SettingsLink /></div>
       </header>
 
       {/* ── overall ── */}

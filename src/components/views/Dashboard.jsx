@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import ThemeToggle from '../ThemeToggle';
 import SyncBadge from '../SyncBadge';
+import SettingsLink from '../SettingsLink';
 import { useStore } from '@/lib/client/store';
 import { rupees, monthKey, CATEGORIES } from '@/lib/client/constants';
 import { DAY_MS, startOfDay, startOfWeek, startOfMonth } from '@/lib/client/period';
@@ -115,10 +116,11 @@ export default function Dashboard() {
     <section className="view">
       <header className="view-head has-toggle">
         <div>
-          <h2>{h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'}{store.name ? `, ${store.name}` : ''} <SyncBadge /></h2>
+          <h2>{h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'}{store.name ? `, ${store.name}` : ''}</h2>
           <p className="sub">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
         <ThemeToggle />
+        <div className="view-head-utils"><SyncBadge /><SettingsLink /></div>
       </header>
 
       {/* ── hero + KPI strip ── */}

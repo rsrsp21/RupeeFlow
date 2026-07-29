@@ -44,8 +44,8 @@ export function Nav({ view, setView, collapsed, setCollapsed }) {
       <div className="nav-fab-slot" aria-hidden="true" />
       {RIGHT_ITEMS.map(item)}
 
-      {/* On mobile this becomes a fixed top-right corner button (see globals.css)
-          instead of a sixth tab, so the bottom bar stays a clean 4 + centered FAB. */}
+      {/* Desktop-only: on mobile Settings isn't a tab at all — it's reached via
+          SettingsLink beside each screen's heading instead (see globals.css). */}
       <button key="settings" className={`nav-item settings-item ${view === 'settings' ? 'active' : ''}`}
         onClick={() => setView('settings')} title="Settings" aria-label="Settings">
         <Settings size={17} strokeWidth={1.9} />

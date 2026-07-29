@@ -272,14 +272,19 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .sub { color: var(--muted); font-size: .84rem; margin-top: 3px; }
 
 .sync-badge {
-  display: inline-flex; align-items: center; gap: 5px; margin-left: 9px;
-  font-size: .62rem; font-weight: 600; color: var(--muted); vertical-align: middle;
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: .62rem; font-weight: 600; color: var(--muted);
   background: var(--surface-2); border: 1px solid var(--line);
   padding: 3px 9px 3px 7px; border-radius: 99px; white-space: nowrap;
 }
 .sync-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); flex-shrink: 0; transition: background .3s; }
 .sync-badge.online .sync-badge-dot { background: var(--green); }
 .sync-badge.pending .sync-badge-dot { background: #d97706; }
+
+/* Beside each screen's heading on mobile only — desktop already has the
+   sidebar's own sync-dot and Settings tab, so this stays hidden there. */
+.view-head-utils { display: none; }
+.settings-link { display: none; }
 
 /* ── cards ── */
 .card {
@@ -901,35 +906,41 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
   }
   .nav.collapsed .nav-text { display: block; }   /* labels always show on mobile tab bar */
   .nav-fab-slot { display: block; flex: 1; }      /* gap the centered FAB sits over */
-  /* Settings moves off the tab bar entirely into a fixed corner button, freeing
-     the bar down to Home/Ledger/[FAB]/Budgets/Insights. Same button, same
-     handler — just taken out of the row's flow via position: fixed. */
-  .settings-item {
-    position: fixed; top: calc(env(safe-area-inset-top) + 10px); right: 12px;
-    flex: none; width: 36px; height: 36px; padding: 0;
-    background: var(--surface); border: 1px solid var(--line-strong); border-radius: 50%;
-    box-shadow: var(--shadow-lg); z-index: 56;
-  }
-  .settings-item .nav-text { display: none; }
+  /* Settings isn't a tab at all on mobile — it's reached via SettingsLink
+     beside each screen's heading (.view-head-utils below) instead. */
+  .settings-item { display: none; }
   .main { padding: 22px 16px 170px; }
   .grid-2 { grid-template-columns: 1fr; }
   .filter-row { grid-template-columns: 1fr 1fr 1fr; }
-  /* Centered on the tab bar instead of floating off to the side, raised so it
-     reads as part of the bar rather than a separate floating button. */
-  .fab-cluster { left: 50%; right: auto; bottom: 22px; transform: translateX(-50%); z-index: 56; }
+  /* Sits inside the bar's own height (button ~= bar height) rather than
+     poking up above it, centered over the gap reserved between Ledger/Budgets. */
+  .fab-cluster { left: 50%; right: auto; bottom: calc(env(safe-area-inset-bottom) + 3px); transform: translateX(-50%); z-index: 56; }
   .fab-minis {
-    flex-direction: row; left: 50%; right: auto; bottom: 70px; transform: translateX(-50%);
-    background: var(--surface); border: 1px solid var(--line-strong); border-radius: 20px;
-    padding: 8px; gap: 8px; box-shadow: var(--shadow-lg);
+    flex-direction: row; left: 50%; right: auto; bottom: 60px; transform: translateX(-50%);
+    border-radius: 20px; padding: 8px; gap: 8px;
+    background: transparent; border: 1px solid transparent; box-shadow: none;
+    transition: background .15s, border-color .15s, box-shadow .15s;
   }
+  /* Only the OPEN cluster gets visible chrome — otherwise this sat there as a
+     permanently-visible empty pill even while "closed" (the mini buttons were
+     individually hidden, but the container's own background/border weren't). */
+  .fab-cluster.open .fab-minis { background: var(--surface); border-color: var(--line-strong); box-shadow: var(--shadow-lg); }
   .fab.mini { border: none; box-shadow: none; }
   .install-prompt { bottom: calc(78px + env(safe-area-inset-bottom)); }
   input, select { font-size: 16px; }   /* prevent iOS Safari auto-zoom on focus */
   .view-head { flex-direction: column; align-items: stretch; gap: 12px; }
-  /* the theme toggle's quick-access spot on Dashboard is now the same corner
-     the Settings button lives in on every screen, so it'd collide — Settings
-     (with the same toggle inside it) supersedes it here. */
+  /* the theme toggle's quick-access spot on Dashboard is superseded by
+     SettingsLink -> Appearance, and would otherwise collide with it. */
   .view-head.has-toggle .theme-toggle { display: none; }
+  /* Sync status + settings link: pinned to the view-head's own top-right
+     corner (not the viewport) so it lines up with the heading exactly,
+     regardless of how tall the stacked head-actions row below it gets. */
+  .view-head { position: relative; padding-right: 92px; }
+  .view-head-utils {
+    display: flex; align-items: center; gap: 6px;
+    position: absolute; top: 0; right: 0;
+  }
+  .settings-link { display: grid; }
   .period-seg { flex: 1; min-width: 0; width: auto; }
   .period-seg button { flex: 1; padding: 7px 4px; }
   .kpi-strip { grid-template-columns: 1fr 1fr; }
