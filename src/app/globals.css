@@ -856,13 +856,15 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .export-foot .btn.primary { width: auto; flex-shrink: 0; }
 
 /* ═══ offline banner ═══ */
+/* Deliberately tiny — just enough to notice, not enough to sit over the
+   header underneath it. Full explanation lives in the title tooltip. */
 .offline-banner {
-  position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 7px; z-index: 70;
+  position: fixed; top: 8px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 5px; z-index: 70;
   background: var(--surface); border: 1px solid var(--line-strong);
-  color: var(--muted); font-size: .76rem; font-weight: 500;
-  padding: 7px 14px; border-radius: 99px; box-shadow: var(--shadow-lg);
-  max-width: calc(100vw - 32px);
+  color: var(--muted); font-size: .68rem; font-weight: 600;
+  padding: 4px 10px; border-radius: 99px; box-shadow: var(--shadow-lg);
+  max-width: calc(100vw - 32px); white-space: nowrap;
 }
 
 /* ═══ install prompt ═══ */
