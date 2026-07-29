@@ -19,6 +19,7 @@ import BudgetModal from './modals/BudgetModal';
 import ExportModal from './modals/ExportModal';
 import OfflineBanner from './OfflineBanner';
 import InstallPrompt from './InstallPrompt';
+import ErrorBoundary from './ErrorBoundary';
 import { Nav } from './Nav';
 
 const UICtx = createContext(null);
@@ -147,7 +148,9 @@ export default function App() {
               exit={{ opacity: 0, y: 6 }}
               transition={{ duration: 0.18, ease: 'easeOut' }}
             >
-              <ActiveView />
+              <ErrorBoundary resetKey={view}>
+                <ActiveView />
+              </ErrorBoundary>
             </motion.div>
           </AnimatePresence>
         </main>
