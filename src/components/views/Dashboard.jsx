@@ -111,9 +111,14 @@ export default function Dashboard() {
 
   const recent = [...all].sort((a, b) => b.occurred_at - a.occurred_at).slice(0, 5);
   const h = new Date().getHours();
-  // A long full name would push the greeting onto several lines on mobile —
-  // first two words is enough to feel personal without wrapping.
-  const shortName = (store.name || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).join(' ');
+  // A long full name would push the greeting onto several lines on mobile.
+  // Two words is enough to feel personal, but two *long* words still overflow
+  // (and one long unbroken word has nowhere to wrap), so cap the characters too.
+  const shortName = (() => {
+    const words = (store.name || '').trim().split(/\s+/).filter(Boolean).slice(0, 2);
+    const joined = words.join(' ');
+    return joined.length > 20 ? `${joined.slice(0, 19).trimEnd()}…` : joined;
+  })();
 
   return (
     <section className="view">

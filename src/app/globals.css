@@ -276,8 +276,11 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
 .main { flex: 1; padding: 32px clamp(18px, 4.5vw, 56px) 120px; max-width: 920px; }
 .view-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; gap: 12px; }
 /* flex so a leading screen icon sits on the text's optical centre line;
-   Dashboard has no icon and is unaffected by the gap. */
-.view-head h2 { font-size: 1.3rem; display: flex; align-items: center; gap: 9px; }
+   Dashboard has no icon and is unaffected by the gap. overflow-wrap is a
+   backstop for user-supplied text (the Dashboard greeting carries a name):
+   a single long unbroken word has no wrap opportunity and would otherwise
+   run under the sync/settings utils pinned to the right. */
+.view-head h2 { font-size: 1.3rem; display: flex; align-items: center; gap: 9px; min-width: 0; overflow-wrap: anywhere; }
 .view-head h2 > svg { color: var(--accent); flex-shrink: 0; }
 .sub { color: var(--muted); font-size: .84rem; margin-top: 3px; }
 
