@@ -2,6 +2,7 @@
   "name": "rupeeflow",
   "version": "2.0.0",
   "private": true,
+  "license": "MIT",
   "description": "RupeeFlow — minimalist AI-powered budget & expenditure tracker (₹)",
   "scripts": {
     "dev": "next dev",
