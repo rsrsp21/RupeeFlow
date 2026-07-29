@@ -294,8 +294,8 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
    the bottom tab bar is always pinned. Needs its own opaque background since
    content now scrolls underneath it instead of past it. */
 .view-head {
-  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
-  position: sticky; top: 0; z-index: 15; background: var(--bg); padding: 26px 0 14px; margin-bottom: 10px;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  position: sticky; top: 0; z-index: 15; background: var(--bg); padding: 16px 0; margin-bottom: 10px;
 }
 /* flex so a leading screen icon sits on the text's optical centre line;
    Dashboard has no icon and is unaffected by the gap. overflow-wrap is a
@@ -999,7 +999,7 @@ textarea { resize: vertical; width: 100%; min-height: 72px; line-height: 1.5; }
   .view-head { padding-right: 100px; }
   .view-head-utils {
     display: flex; align-items: center; gap: 6px;
-    position: absolute; top: 26px; right: 0;
+    position: absolute; top: 16px; right: 0;
   }
   .settings-link { display: grid; }
   .period-seg { flex: 1; min-width: 0; width: auto; }
