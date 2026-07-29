@@ -149,6 +149,41 @@ export function StoreProvider({ children }) {
     api('/budgets', { method: 'DELETE', body: JSON.stringify({ month, category }) }).catch(() => {});
   }, [api]);
 
+  // Loads whatever's already cached in IndexedDB for this device — txs,
+  // budgets, custom categories, and accounts (falling back to deriving
+  // accounts from real transaction history if no explicit list was ever
+  // saved; see the inline comment where that matters). Shared by the boot
+  // effect and authenticate(): logging in through the form doesn't reload
+  // the page, so without this it never ran at all — accounts stayed at its
+  // initial empty state until the first sync pull arrived over the network,
+  // which is exactly the multi-second window where "add your first
+  // account" onboarding incorrectly flashed for an existing user signing in.
+  const hydrateFromCache = useCallback(async () => {
+    const all = await idbAll('tx');
+    const map = {};
+    for (const tx of all) map[tx.id] = tx;
+    setTxs(map);
+    const metas = await idbAll('meta');
+    cursor.current = metas.find((m) => m.k === 'cursor')?.v || 0;
+    setBudgets(metas.find((m) => m.k === 'budgets')?.v || []);
+    setCustomCategories(metas.find((m) => m.k === 'categories')?.v || []);
+    const savedAccounts = metas.find((m) => m.k === 'accounts')?.v;
+    if (savedAccounts?.length) {
+      setAccounts(savedAccounts.map(normalizeAccount));
+    } else {
+      // No explicit list saved (an existing user who never happened to
+      // add/rename/remove an account, so saveAccounts() was never called) —
+      // derive one from their real transaction history instead.
+      const names = new Set();
+      for (const tx of all) { if (tx.account) names.add(tx.account); if (tx.to_account) names.add(tx.to_account); }
+      if (names.size) {
+        const derived = [...names].map(normalizeAccount);
+        setAccounts(derived);
+        idbPut('meta', { k: 'accounts', v: derived });
+      }
+    }
+  }, []);
+
   // ── auth ──
   const authenticate = useCallback(async (mode, emailIn, password, nameIn) => {
     const res = await fetch(`/api/auth/${mode}`, {
@@ -163,8 +198,9 @@ export function StoreProvider({ children }) {
     // Also mirrored into IndexedDB — the service worker can't reach localStorage,
     // but needs the token to push the outbox during a Background Sync event.
     idbPut('meta', { k: 'token', v: data.token });
+    await hydrateFromCache();
     setToken(data.token); setEmail(data.email); setName(data.name || '');
-  }, []);
+  }, [hydrateFromCache]);
 
   // Optimistic: reflect the new name instantly, sync to the server in the
   // background, and roll back with a toast if that save actually fails.
@@ -211,42 +247,18 @@ export function StoreProvider({ children }) {
     (async () => {
       if (t) {
         idbPut('meta', { k: 'token', v: t }); // keep the SW's mirror in sync too
-        const all = await idbAll('tx');
-        const map = {};
-        for (const tx of all) map[tx.id] = tx;
-        setTxs(map);
-        const metas = await idbAll('meta');
-        cursor.current = metas.find((m) => m.k === 'cursor')?.v || 0;
-        setBudgets(metas.find((m) => m.k === 'budgets')?.v || []);
-        setCustomCategories(metas.find((m) => m.k === 'categories')?.v || []);
-        const savedAccounts = metas.find((m) => m.k === 'accounts')?.v;
-        if (savedAccounts?.length) {
-          setAccounts(savedAccounts.map(normalizeAccount));
-        } else {
-          // No explicit list saved (an existing user who never happened to
-          // add/rename/remove an account, so saveAccounts() was never
-          // called) — derive one from their real transaction history right
-          // here, synchronously, before setBooted(true). Doing this as part
-          // of the same state update booted flips in (rather than as a
-          // separate effect reacting to `booted` afterwards) matters: React
-          // batches all the setState calls below into one commit since nothing
-          // more is awaited, so the app never observes an in-between render
-          // where booted is already true but accounts is still incorrectly
-          // empty — which is what briefly showed the "add your first
-          // account" onboarding to an existing user before self-correcting.
-          const names = new Set();
-          for (const tx of all) { if (tx.account) names.add(tx.account); if (tx.to_account) names.add(tx.to_account); }
-          if (names.size) {
-            const derived = [...names].map(normalizeAccount);
-            setAccounts(derived);
-            idbPut('meta', { k: 'accounts', v: derived });
-          }
-        }
+        // Doing this before setBooted(true), with nothing else awaited in
+        // between, matters: React batches the setState calls inside it into
+        // the same commit as booted flipping, so the app never observes an
+        // in-between render where booted is already true but accounts is
+        // still empty (see hydrateFromCache's own comment for what that used
+        // to cause).
+        await hydrateFromCache();
       }
       setBooted(true);
     })();
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
-  }, []);
+  }, [hydrateFromCache]);
 
   // Same derivation as in the boot effect above, but reactive — covers the
   // one case that one-time check at boot can't: a *fresh device* with no
