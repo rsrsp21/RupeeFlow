@@ -52,7 +52,7 @@ const VIEWS = { dashboard: Dashboard, transactions: Ledger, budgets: Budgets, in
 
 export default function App() {
   const store = useStore();
-  const [view, setView] = useState('dashboard');
+  const [view, setViewState] = useState('dashboard');
   const [txModal, setTxModal] = useState(null);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [promptOpen, setPromptOpen] = useState(false);
@@ -67,6 +67,14 @@ export default function App() {
   // remember sidebar preference
   useEffect(() => { setCollapsed(localStorage.getItem('rf_nav') === 'collapsed'); }, []);
   const toggleNav = (v) => { setCollapsed(v); localStorage.setItem('rf_nav', v ? 'collapsed' : 'open'); };
+
+  // remember the active screen so a reload lands back where you were, not
+  // always on the dashboard
+  useEffect(() => {
+    const saved = localStorage.getItem('rf_view');
+    if (saved && VIEWS[saved]) setViewState(saved);
+  }, []);
+  const setView = (v) => { setViewState(v); localStorage.setItem('rf_view', v); };
 
   // Switching views shouldn't carry over the previous page's scroll position —
   // .main isn't its own scroll container, the window is, so it doesn't reset itself.
