@@ -133,7 +133,7 @@ export default function App() {
     try {
       const b64 = await downscaleImage(file, 1280);
       const out = await store.api('/ai/receipt', {
-        method: 'POST', body: JSON.stringify({ image: b64, mimeType: 'image/jpeg' }),
+        method: 'POST', body: JSON.stringify({ image: b64, mimeType: 'image/jpeg', history: store.noteHistory().slice(0, 60) }),
       });
       const amount = Math.round((Number(out.total_rupees) || 0) * 100);
       if (amount <= 0) { store.toast('Could not read a total from that photo'); return; }

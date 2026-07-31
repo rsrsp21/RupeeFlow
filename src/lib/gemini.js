@@ -93,11 +93,12 @@ Return ONLY JSON: {"category":"exact category name from the list above"}`,
   }], { temperature: 0.1 });
 }
 
-export function parseReceipt(imageB64, mimeType) {
+export function parseReceipt(imageB64, mimeType, history = []) {
   return gemini([
     { text: `Read this Indian receipt/bill photo. Return ONLY JSON:
 {"merchant":"store name","total_rupees":number,"date":"YYYY-MM-DD or null","category":"one of: ${CATEGORIES.join(', ')}","items":[{"name":"item","price_rupees":number}],"confidence":"high|medium|low"}.
-The total is the final payable amount (after GST/discounts). If unreadable, set total_rupees to 0 and confidence "low".` },
+The total is the final payable amount (after GST/discounts). If unreadable, set total_rupees to 0 and confidence "low".
+${historyHint(history)}`.trim() },
     { inlineData: { mimeType: mimeType || 'image/jpeg', data: imageB64 } },
   ]);
 }

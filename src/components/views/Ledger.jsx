@@ -166,16 +166,14 @@ export default function Ledger() {
           <button className="day-arrow" disabled={allTime} onClick={() => setStart((s) => shiftPeriod(kind, s, -1))} title="Previous">
             <ChevronLeft size={17} strokeWidth={2} />
           </button>
-          <AnimatePresence mode="wait">
-            <motion.div className="period-title" key={allTime ? 'all' : `${kind}-${start}`}
-              initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.14 }}>
-              <div className="day-label">{allTime ? 'All time' : periodLabel(kind, start)}</div>
-              {!allTime && !atNow && (
-                <button className="today-jump" onClick={() => setStart(periodStart(kind))}>Jump to current</button>
-              )}
-            </motion.div>
-          </AnimatePresence>
+          <motion.div className="period-title" key={allTime ? 'all' : `${kind}-${start}`}
+            initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.14 }}>
+            <div className="day-label">{allTime ? 'All time' : periodLabel(kind, start)}</div>
+            {!allTime && !atNow && (
+              <button className="today-jump" onClick={() => setStart(periodStart(kind))}>Jump to current</button>
+            )}
+          </motion.div>
           <button className="day-arrow" disabled={allTime || atNow} onClick={() => setStart((s) => shiftPeriod(kind, s, 1))} title="Next">
             <ChevronRight size={17} strokeWidth={2} />
           </button>
@@ -274,31 +272,29 @@ export default function Ledger() {
 
       {/* ── grouped entries ── */}
       <div className="card list-card">
-        <AnimatePresence mode="wait">
-          <motion.ul className="tx-list" key={`${kind}-${start}-${allTime}-${sort}`}
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
-            {groups.length ? groups.map(([k, items]) => {
-              const g = store.totals(items);
-              return (
-                <li key={k}>
-                  <div className="date-head">
-                    <span>{dayHeading(k)}</span>
-                    <span>
-                      {g.inc > 0 && <b style={{ color: 'var(--green)' }}>+{rupees(g.inc)}</b>}
-                      {g.inc > 0 && g.exp > 0 && '  '}
-                      {g.exp > 0 && <b style={{ color: 'var(--red)' }}>−{rupees(g.exp)}</b>}
-                    </span>
-                  </div>
-                  <ul className="tx-list">{items.map((t, i) => <TxItem key={t.id} t={t} index={i} />)}</ul>
-                </li>
-              );
-            }) : (
-              <li className="empty">
-                {activeFilters ? 'No entries match these filters.' : `No entries in ${allTime ? 'your ledger' : periodLabel(kind, start).toLowerCase()} yet.`}
+        <motion.ul className="tx-list" key={`${kind}-${start}-${allTime}-${sort}`}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.12 }}>
+          {groups.length ? groups.map(([k, items]) => {
+            const g = store.totals(items);
+            return (
+              <li key={k}>
+                <div className="date-head">
+                  <span>{dayHeading(k)}</span>
+                  <span>
+                    {g.inc > 0 && <b style={{ color: 'var(--green)' }}>+{rupees(g.inc)}</b>}
+                    {g.inc > 0 && g.exp > 0 && '  '}
+                    {g.exp > 0 && <b style={{ color: 'var(--red)' }}>−{rupees(g.exp)}</b>}
+                  </span>
+                </div>
+                <ul className="tx-list">{items.map((t, i) => <TxItem key={t.id} t={t} index={i} />)}</ul>
               </li>
-            )}
-          </motion.ul>
-        </AnimatePresence>
+            );
+          }) : (
+            <li className="empty">
+              {activeFilters ? 'No entries match these filters.' : `No entries in ${allTime ? 'your ledger' : periodLabel(kind, start).toLowerCase()} yet.`}
+            </li>
+          )}
+        </motion.ul>
       </div>
     </section>
   );

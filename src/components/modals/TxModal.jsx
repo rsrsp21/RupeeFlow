@@ -44,20 +44,30 @@ export default function TxModal({ state, onClose }) {
   const [newCatName, setNewCatName] = useState('');
   const [catBusy, setCatBusy] = useState(false);
 
+  // The note an edit opened with — used below to tell "just opened this
+  // entry" apart from "actually retyped the note while editing it", so
+  // autofill can work for edits too without silently re-categorizing an
+  // untouched entry the instant its modal opens.
+  const [openedWithNote] = useState(existing?.note ?? pre.note ?? '');
+
   // note history, keyed by normalized text (quantity/units stripped) so
   // "chicken 300g" and "chicken 300 grams" resolve to the same past entry
   const history = useMemo(() => store.noteHistory(), [store.txs]); // eslint-disable-line react-hooks/exhaustive-deps
   const historyIndex = useMemo(() => new Map(history.map((h) => [h.key, h])), [history]);
   const noteKey = normalizeNote(note);
   const matches = useMemo(() => {
-    if (existing || noteKey.length < 2) return [];
+    if (noteKey.length < 2) return [];
     return history.filter((h) => h.key !== noteKey && h.key.includes(noteKey)).slice(0, 8);
-  }, [history, noteKey, existing]);
+  }, [history, noteKey]);
 
   // auto-fill category from the user's own history first, since it reflects
-  // what they actually picked before; fall back to keyword rules
+  // what they actually picked before; fall back to keyword rules. Skipped
+  // for an edit until the note actually changes from what it opened with —
+  // otherwise opening an entry to fix, say, just the amount would silently
+  // flip a category you'd deliberately picked differently back to whatever
+  // history/rules suggest for that same unchanged note.
   useEffect(() => {
-    if (existing) return;
+    if (existing && note === openedWithNote) return;
     const hit = noteKey && historyIndex.get(noteKey);
     if (hit) {
       setCategory(hit.category);
