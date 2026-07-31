@@ -7,8 +7,8 @@ import { categorizeNote } from '@/lib/gemini';
 export async function POST(request) {
   try {
     if (!(await requireUser(request))) throw new HttpError('Unauthorized', 401);
-    const { note, history } = await request.json().catch(() => ({}));
+    const { note, history, customCategories } = await request.json().catch(() => ({}));
     if (!note || !note.trim()) throw new HttpError('Note required');
-    return jsonRes(await categorizeNote(note, history || []));
+    return jsonRes(await categorizeNote(note, history || [], customCategories || []));
   } catch (e) { return errRes(e); }
 }

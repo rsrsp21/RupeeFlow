@@ -4,8 +4,9 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Plus, Mic, ScanLine, PenLine, Type, Wallet } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
-import { CATEGORIES, rupees } from '@/lib/client/constants';
+import { rupees } from '@/lib/client/constants';
 import { readSharedPayload } from '@/lib/client/shareTarget';
+import { resolveCategory } from '@/lib/client/applyParsed';
 import Landing from './Landing';
 import Dashboard from './views/Dashboard';
 import Ledger from './views/Ledger';
@@ -133,16 +134,20 @@ export default function App() {
     try {
       const b64 = await downscaleImage(file, 1280);
       const out = await store.api('/ai/receipt', {
-        method: 'POST', body: JSON.stringify({ image: b64, mimeType: 'image/jpeg', history: store.noteHistory().slice(0, 60) }),
+        method: 'POST', body: JSON.stringify({
+          image: b64, mimeType: 'image/jpeg', history: store.noteHistory().slice(0, 60),
+          customCategories: store.customCategories.map((c) => c.name),
+        }),
       });
       const amount = Math.round((Number(out.total_rupees) || 0) * 100);
       if (amount <= 0) { store.toast('Could not read a total from that photo'); return; }
       const occurred = out.date ? new Date(out.date + 'T12:00:00').getTime() : Date.now();
+      const category = await resolveCategory(store, out.category);
       openTx({
         prefill: {
           type: 'expense', amount,
           note: out.merchant || 'Receipt',
-          category: CATEGORIES[out.category] ? out.category : 'Shopping',
+          category,
           occurred_at: Number.isFinite(occurred) ? occurred : Date.now(),
           source: 'receipt',
         },

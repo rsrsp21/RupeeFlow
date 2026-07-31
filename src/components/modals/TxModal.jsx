@@ -7,6 +7,7 @@ import { Sparkles, RefreshCw, X } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { CATEGORIES, AUTO_RULES, rupees, toPaise } from '@/lib/client/constants';
 import { normalizeNote } from '@/lib/noteMatch';
+import { resolveCategory } from '@/lib/client/applyParsed';
 import CategoryIcon from '../CategoryIcon';
 import ConfirmModal from './ConfirmModal';
 
@@ -90,10 +91,16 @@ export default function TxModal({ state, onClose }) {
     try {
       const out = await store.api('/ai/categorize', {
         method: 'POST',
-        body: JSON.stringify({ note: v, history: history.slice(0, 40).map((h) => ({ note: h.note, category: h.category })) }),
+        body: JSON.stringify({
+          note: v, history: history.slice(0, 40).map((h) => ({ note: h.note, category: h.category })),
+          customCategories: store.customCategories.map((c) => c.name),
+        }),
       });
-      if (out?.category && CATEGORIES[out.category]) { setCategory(out.category); store.toast(`Categorized as ${out.category}`); }
-      else store.toast('Could not determine a category');
+      if (out?.category) {
+        const resolved = await resolveCategory(store, out.category);
+        setCategory(resolved);
+        store.toast(`Categorized as ${resolved}`);
+      } else store.toast('Could not determine a category');
     } catch (e) { store.toast('AI categorize failed: ' + e.message); }
     setAiBusy(false);
   }
@@ -128,11 +135,6 @@ export default function TxModal({ state, onClose }) {
     await store.saveTx({ ...existing, deleted: 1, updated_at: Date.now(), rev: existing.rev + 1 });
     onClose();
     store.toast('Entry deleted, totals recalculated');
-  }
-
-  function handleCategoryChange(e) {
-    if (e.target.value === '__new__') { setAddingCategory(true); return; }
-    setCategory(e.target.value);
   }
 
   async function createCategory() {
@@ -193,10 +195,12 @@ export default function TxModal({ state, onClose }) {
             </button>
           )}
           {type !== 'transfer' && !addingCategory && (
-            <select value={category} onChange={handleCategoryChange}>
-              {[...Object.keys(CATEGORIES), ...store.customCategories.map((c) => c.name)].map((c) => <option key={c}>{c}</option>)}
-              <option value="__new__">+ Add new category…</option>
-            </select>
+            <div className="new-cat-row">
+              <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                {[...Object.keys(CATEGORIES), ...store.customCategories.map((c) => c.name)].map((c) => <option key={c}>{c}</option>)}
+              </select>
+              <button type="button" className="btn ghost sm" onClick={() => setAddingCategory(true)}>+ Custom</button>
+            </div>
           )}
           {type !== 'transfer' && addingCategory && (
             <div className="new-cat-row">

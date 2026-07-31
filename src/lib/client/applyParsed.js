@@ -1,5 +1,25 @@
 import { CATEGORIES } from './constants';
 
+// Gemini is told to reuse an existing category (built-in or this user's own
+// custom ones) whenever one genuinely fits, and only propose a new name when
+// none do — so anything that comes back not already known is a deliberate
+// "nothing fit" signal, not a hallucination to shrug off into "Other". Create
+// it (this also generates its icon) so voice/text/receipt entries can end up
+// in a fresh category exactly like typing one manually would.
+export async function resolveCategory(store, name) {
+  const clean = String(name || '').trim();
+  if (!clean) return 'Other';
+  if (CATEGORIES[clean]) return clean;
+  const existing = store.customCategories.find((c) => c.name.toLowerCase() === clean.toLowerCase());
+  if (existing) return existing.name;
+  try {
+    const saved = await store.addCustomCategory(clean);
+    return saved.name;
+  } catch {
+    return 'Other';
+  }
+}
+
 // Shared by voice and text quick-add: both hit Gemini endpoints returning the
 // same {transactions:[...]} shape (see entrySchema() in lib/gemini.js).
 export async function applyParsedTransactions(store, out, source) {
@@ -21,7 +41,7 @@ export async function applyParsedTransactions(store, out, source) {
       id: crypto.randomUUID(),
       type: ['expense', 'income', 'transfer'].includes(e.type) ? e.type : 'expense',
       amount,
-      category: CATEGORIES[e.category] ? e.category : 'Other',
+      category: await resolveCategory(store, e.category),
       note: String(e.note || '').slice(0, 200),
       account: 'Cash', to_account: '',
       occurred_at: occurred,

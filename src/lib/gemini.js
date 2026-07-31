@@ -50,11 +50,21 @@ async function gemini(parts, { asJson = true, temperature = 0.2 } = {}) {
   }
 }
 
-const entrySchema = () => {
+// Every category prompt offers the same choice: pick from what already
+// exists (built-ins + this user's own custom ones) so we don't fragment
+// their categories with near-duplicates, but invent a short new one when
+// nothing genuinely fits rather than force a bad match into "Other".
+function categoryChoices(extra = []) {
+  const names = [...CATEGORIES, ...(extra || []).filter(Boolean)];
+  return `Existing categories: ${names.join(', ')}.
+If one of these genuinely fits, use it exactly as written. Only if truly none of them fit, invent a new short category name (Title Case, 1-3 words, e.g. "Pet Care") instead of forcing a bad match — do not use a new name if an existing one is close enough.`;
+}
+
+const entrySchema = (extra = []) => {
   const today = new Date().toISOString().slice(0, 10);
   return `Today's date is ${today}.
-Return ONLY a JSON object: {"transactions":[{"type":"expense|income|transfer","amount_rupees":number,"category":"one of: ${CATEGORIES.join(', ')}","note":"short description","date":"YYYY-MM-DD or null"}],"transcript":"what was said"}.
-Rules: amounts are in Indian Rupees. "date" is when the expense happened: resolve ANY spoken date reference to an absolute YYYY-MM-DD — "yesterday", "last Friday", "on 26th July", "two days back", "26 tariq ko" all resolve relative to today (${today}); if the year isn't stated use the most recent past occurrence; if no date is mentioned use null (means today). Infer category from context (e.g. "chai" → Food & Dining, "Uber/auto/metro" → Transport, "recharge/electricity" → Bills & Utilities). Multiple expenses in one sentence become multiple transactions.`;
+Return ONLY a JSON object: {"transactions":[{"type":"expense|income|transfer","amount_rupees":number,"category":"a category name","note":"short description","date":"YYYY-MM-DD or null"}],"transcript":"what was said"}.
+Rules: amounts are in Indian Rupees. "date" is when the expense happened: resolve ANY spoken date reference to an absolute YYYY-MM-DD — "yesterday", "last Friday", "on 26th July", "two days back", "26 tariq ko" all resolve relative to today (${today}); if the year isn't stated use the most recent past occurrence; if no date is mentioned use null (means today). ${categoryChoices(extra)} Multiple expenses in one sentence become multiple transactions.`;
 };
 
 // Few-shot hint from the user's own note history, so a rephrased repeat of
@@ -67,37 +77,38 @@ function historyHint(history) {
   return `This user's own past entries and the category used for each — reuse the same category for the same kind of item even if the quantity, unit, or wording differs slightly, e.g. "chicken 300g" and "chicken 300 grams" are the same item: ${list}\n`;
 }
 
-export function parseText(text, history = []) {
+export function parseText(text, history = [], customCategories = []) {
   return gemini([{
     text: `You convert casual Indian-English/Hinglish speech about money into ledger entries.
-${historyHint(history)}${entrySchema()}\n\nSpeech: "${text}"`,
+${historyHint(history)}${entrySchema(customCategories)}\n\nSpeech: "${text}"`,
   }]);
 }
 
-export function parseVoice(audioB64, mimeType, history = []) {
+export function parseVoice(audioB64, mimeType, history = [], customCategories = []) {
   return gemini([
     { text: `Transcribe this audio (Indian English / Hinglish about money), then convert it into ledger entries.
-${historyHint(history)}${entrySchema()}` },
+${historyHint(history)}${entrySchema(customCategories)}` },
     { inlineData: { mimeType: mimeType || 'audio/webm', data: audioB64 } },
   ]);
 }
 
 // One-off AI category guess for the manual add/edit form — used when neither
 // the regex rules nor the user's own note history already resolved one.
-export function categorizeNote(note, history = []) {
+export function categorizeNote(note, history = [], customCategories = []) {
   return gemini([{
     text: `Categorize this personal-finance note into exactly one category.
-Categories: ${CATEGORIES.join(', ')}
+${categoryChoices(customCategories)}
 ${historyHint(history)}Note: "${note}"
-Return ONLY JSON: {"category":"exact category name from the list above"}`,
+Return ONLY JSON: {"category":"the category name"}`,
   }], { temperature: 0.1 });
 }
 
-export function parseReceipt(imageB64, mimeType, history = []) {
+export function parseReceipt(imageB64, mimeType, history = [], customCategories = []) {
   return gemini([
     { text: `Read this Indian receipt/bill photo. Return ONLY JSON:
-{"merchant":"store name","total_rupees":number,"date":"YYYY-MM-DD or null","category":"one of: ${CATEGORIES.join(', ')}","items":[{"name":"item","price_rupees":number}],"confidence":"high|medium|low"}.
+{"merchant":"store name","total_rupees":number,"date":"YYYY-MM-DD or null","category":"a category name","items":[{"name":"item","price_rupees":number}],"confidence":"high|medium|low"}.
 The total is the final payable amount (after GST/discounts). If unreadable, set total_rupees to 0 and confidence "low".
+${categoryChoices(customCategories)}
 ${historyHint(history)}`.trim() },
     { inlineData: { mimeType: mimeType || 'image/jpeg', data: imageB64 } },
   ]);

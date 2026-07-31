@@ -42,7 +42,7 @@ export default function VoiceModal({ onClose }) {
       const b64 = await blobToB64(blob);
       const out = await store.api('/ai/voice', {
         method: 'POST',
-        body: JSON.stringify({ audio: b64, mimeType: rec.mimeType, history: store.noteHistory().slice(0, 60) }),
+        body: JSON.stringify({ audio: b64, mimeType: rec.mimeType, history: store.noteHistory().slice(0, 60), customCategories: store.customCategories.map((c) => c.name) }),
       });
       const { added, sum } = await applyParsedTransactions(store, out, 'voice');
       store.toast(added ? `Added ${added} ${added > 1 ? 'entries' : 'entry'} · ${rupees(sum)} ✓` : `Heard: "${out?.transcript || '…'}", no amounts found`);
