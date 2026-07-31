@@ -331,10 +331,22 @@ export function StoreProvider({ children }) {
   // ── derived helpers (always recomputed from ledger — integrity by design) ──
   const live = useCallback(() => Object.values(txsRef.current).filter((t) => !t.deleted), []);
 
+  // Investments (SIPs, stocks, FDs, etc.) leave an account like an expense
+  // does, but the money isn't spent — it's still yours, just moved. Counting
+  // it as spend would inflate "Spent"/budget-pace numbers and make saving
+  // more look like the wrong outcome, so it's split out into `saved` instead
+  // of folded into `exp`. Per-category tracking (catSpend, an "Investments"
+  // budget) is untouched — this only affects the aggregate totals.
   const totals = (list) => {
-    let inc = 0, exp = 0;
-    for (const t of list) { if (t.type === 'income') inc += t.amount; else if (t.type === 'expense') exp += t.amount; }
-    return { inc, exp };
+    let inc = 0, exp = 0, saved = 0;
+    for (const t of list) {
+      if (t.type === 'income') inc += t.amount;
+      else if (t.type === 'expense') {
+        if (t.category === 'Investments') saved += t.amount;
+        else exp += t.amount;
+      }
+    }
+    return { inc, exp, saved };
   };
   const inMonth = (t, mk = monthKey()) => monthKey(new Date(Number(t.occurred_at))) === mk;
   const catSpend = (mk = monthKey()) => {

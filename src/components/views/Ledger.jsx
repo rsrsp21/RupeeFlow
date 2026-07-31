@@ -194,6 +194,12 @@ export default function Ledger() {
               {net >= 0 ? '+' : '−'}{rupees(Math.abs(net))}
             </b>
           </div>
+          {totals.saved > 0 && (
+            <div className="stat">
+              <span className="stat-k">Saved</span>
+              <b className="stat-v" style={{ color: 'var(--green)' }}>{rupees(totals.saved)}</b>
+            </div>
+          )}
           {!allTime && (
             <div className="stat">
               <span className="stat-k">Avg / day{(kind === 'day' || kind === 'week') ? ' (7d)' : ''}</span>

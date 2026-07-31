@@ -186,6 +186,11 @@ export default function Dashboard() {
 
       {/* ── insight cards ── */}
       <div className="insight-strip">
+        {mt.saved > 0 && (
+          <InsightCard icon={<PiggyBank size={15} />} tone="good"
+            title={`${rupees(mt.saved)} saved & invested this month`}
+            body="Kept out of your spending total — that money's still yours, just moved." />
+        )}
         {momDelta !== null && (
           <InsightCard
             icon={momDelta > 0 ? <TrendingUp size={15} /> : <TrendingDown size={15} />}
