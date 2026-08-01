@@ -9,11 +9,14 @@ import { useStore } from '@/lib/client/store';
 import { ACCOUNT_TYPES, toPaise } from '@/lib/client/constants';
 import { backdropMotion, panelMotion } from './TxModal';
 
-export default function AccountModal({ onClose }) {
+export default function AccountModal({ onClose, existing = null }) {
   const store = useStore();
-  const [type, setType] = useState('Cash');
-  const [name, setName] = useState('');
-  const [balance, setBalance] = useState('');
+  const editing = Boolean(existing);
+  const [type, setType] = useState(existing?.type || 'Cash');
+  const [name, setName] = useState(existing?.name || '');
+  const [balance, setBalance] = useState(
+    existing?.opening_balance ? String(Math.abs(existing.opening_balance) / 100) : '');
+  const [limit, setLimit] = useState(existing?.limit_amount ? String(existing.limit_amount / 100) : '');
   const [busy, setBusy] = useState(false);
   const isCard = type === 'Credit Card';
 
@@ -22,9 +25,9 @@ export default function AccountModal({ onClose }) {
     // Name is optional — falling back to the type keeps every account
     // identifiable without forcing you to type "Cash" for cash.
     const finalName = name.trim() || type;
-    if (store.accounts.some((a) => a.name.toLowerCase() === finalName.toLowerCase())) {
-      return store.toast('That account already exists');
-    }
+    const clash = store.accounts.some((a) =>
+      a.name.toLowerCase() === finalName.toLowerCase() && a.name !== existing?.name);
+    if (clash) return store.toast('That account already exists');
     setBusy(true);
     const entered = toPaise(balance);
     // A card's figure is what you OWE, stored negative — a credit limit is
@@ -32,11 +35,23 @@ export default function AccountModal({ onClose }) {
     const opening_balance = Number.isFinite(entered)
       ? (isCard ? -Math.abs(entered) : entered)
       : 0;
+    const enteredLimit = toPaise(limit);
+    const limit_amount = isCard && Number.isFinite(enteredLimit) ? Math.abs(enteredLimit) : 0;
     try {
-      await store.saveAccounts([...store.accounts, { name: finalName, type, opening_balance }]);
-      store.toast(`Added ${finalName}`);
+      if (editing) {
+        // Rename first: it rewrites every transaction pointing at the old
+        // name, and saveAccounts below would otherwise leave them orphaned.
+        if (finalName !== existing.name) await store.renameAccount(existing.name, finalName);
+        await store.saveAccounts(store.accounts.map((a) =>
+          a.name === (finalName !== existing.name ? finalName : existing.name)
+            ? { ...a, name: finalName, type, opening_balance, limit_amount } : a));
+        store.toast('Account updated');
+      } else {
+        await store.saveAccounts([...store.accounts, { name: finalName, type, opening_balance, limit_amount }]);
+        store.toast(`Added ${finalName}`);
+      }
       onClose();
-    } catch { setBusy(false); }
+    } catch (err) { store.toast(err.message || 'Could not save'); setBusy(false); }
   }
 
   return (
@@ -44,7 +59,7 @@ export default function AccountModal({ onClose }) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <motion.div className="modal" {...panelMotion}>
         <div className="modal-head">
-          <h3><Wallet size={16} style={{ verticalAlign: '-2px' }} /> Add account</h3>
+          <h3><Wallet size={16} style={{ verticalAlign: '-2px' }} /> {editing ? 'Edit account' : 'Add account'}</h3>
           <button className="icon-btn" onClick={onClose}>✕</button>
         </div>
         <form onSubmit={submit}>
@@ -56,7 +71,7 @@ export default function AccountModal({ onClose }) {
               </select>
             </label>
             <label>
-              <span>Name (optional)</span>
+              <span>Name{editing ? '' : ' (optional)'}</span>
               <input placeholder="e.g. HDFC, Wife&apos;s card" value={name}
                 onChange={(e) => setName(e.target.value)} />
             </label>
@@ -70,18 +85,29 @@ export default function AccountModal({ onClose }) {
             </div>
           </label>
           {isCard && (
+            <label className="stacked-label">
+              <span>Credit limit (optional)</span>
+              <div className="amount-input">
+                <span>₹</span>
+                <input inputMode="decimal" placeholder="0" value={limit}
+                  onChange={(e) => setLimit(e.target.value)} />
+              </div>
+            </label>
+          )}
+          {isCard && (
             <div className="callout">
               <AlertTriangle size={14} />
               <span>
                 Enter what you currently <b>owe</b> on this card — not its credit limit.
                 If you haven&apos;t used it and the full limit is still available, enter <b>0</b>.
-                A limit isn&apos;t your money, and counting it would inflate your balance by the whole limit.
+                A limit isn&apos;t your money — it&apos;s tracked separately above, purely to show how much of
+                the card you&apos;ve used.
               </span>
             </div>
           )}
           <div className="btn-row">
             <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn primary grow" disabled={busy}>Add account</button>
+            <button type="submit" className="btn primary grow" disabled={busy}>{editing ? 'Save' : 'Add account'}</button>
           </div>
         </form>
       </motion.div>

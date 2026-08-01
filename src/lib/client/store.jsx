@@ -18,11 +18,15 @@ function normalizeAccount(raw) {
   // so anything still carrying it lands on the closest surviving type.
   const fixType = (t) => (t === 'Savings' ? 'Bank' : t || 'Other');
   if (raw && typeof raw === 'object' && raw.name) {
-    return { name: String(raw.name).trim(), type: fixType(raw.type), opening_balance: Number(raw.opening_balance) || 0 };
+    return {
+      name: String(raw.name).trim(), type: fixType(raw.type),
+      opening_balance: Number(raw.opening_balance) || 0,
+      limit_amount: Math.max(0, Number(raw.limit_amount) || 0),
+    };
   }
   const name = String(raw || '').trim();
   const known = DEFAULT_ACCOUNTS.find((d) => d.name.toLowerCase() === name.toLowerCase());
-  return { name, type: known ? known.type : 'Other', opening_balance: 0 };
+  return { name, type: known ? known.type : 'Other', opening_balance: 0, limit_amount: 0 };
 }
 
 function normalizeHolding(raw) {
@@ -607,6 +611,19 @@ export function StoreProvider({ children }) {
     return { spendable, invested, dues, total: spendable + invested - dues };
   };
 
+  // Transactions reference accounts, holdings and categories by NAME, so a
+  // rename that only touched the definition would orphan every entry using
+  // it — the balance would reset to its opening value and the old name would
+  // linger on each row. These rewrite the affected transactions too, as
+  // ordinary versioned edits so the change syncs like any other.
+  const renameTxField = useCallback(async (field, oldName, newName) => {
+    const affected = Object.values(txsRef.current).filter((t) => !t.deleted && t[field] === oldName);
+    for (const t of affected) {
+      await saveTx({ ...t, [field]: newName, updated_at: Date.now(), rev: (t.rev || 0) + 1 });
+    }
+    return affected.length;
+  }, [saveTx]);
+
   const saveHoldings = useCallback(async (list) => {
     const seen = new Set();
     const clean = [];
@@ -628,6 +645,54 @@ export function StoreProvider({ children }) {
       throw e;
     }
   }, [api, toast]);
+
+  const renameAccount = useCallback(async (oldName, newName) => {
+    const clean = String(newName || '').trim();
+    if (!clean || clean === oldName) return 0;
+    if (accountsRef.current.some((a) => a.name.toLowerCase() === clean.toLowerCase())) {
+      throw new Error('An account with that name already exists');
+    }
+    const moved = await renameTxField('account', oldName, clean);
+    const moved2 = await renameTxField('to_account', oldName, clean);
+    await saveAccounts(accountsRef.current.map((a) => (a.name === oldName ? { ...a, name: clean } : a)));
+    return moved + moved2;
+  }, [renameTxField, saveAccounts]);
+
+  const renameHolding = useCallback(async (oldName, newName) => {
+    const clean = String(newName || '').trim();
+    if (!clean || clean === oldName) return 0;
+    if (holdingsRef.current.some((h) => h.name.toLowerCase() === clean.toLowerCase())) {
+      throw new Error('A holding with that name already exists');
+    }
+    const moved = await renameTxField('account', oldName, clean);
+    const moved2 = await renameTxField('to_account', oldName, clean);
+    await saveHoldings(holdingsRef.current.map((h) => (h.name === oldName ? { ...h, name: clean } : h)));
+    return moved + moved2;
+  }, [renameTxField, saveHoldings]);
+
+  // Categories are keyed by (user_id, name) server-side, so a rename is a
+  // create-then-delete rather than an update. The new name reuses the old
+  // icon instead of burning another AI generation on it.
+  const renameCustomCategory = useCallback(async (oldName, newName) => {
+    const clean = String(newName || '').trim();
+    if (!clean || clean === oldName) return 0;
+    const prev = customCategories.find((c) => c.name === oldName);
+    if (customCategories.some((c) => c.name.toLowerCase() === clean.toLowerCase())) {
+      throw new Error('A category with that name already exists');
+    }
+    await api('/categories', {
+      method: 'PUT',
+      body: JSON.stringify({ name: clean, icon_svg: prev?.icon_svg || '', color: prev?.color || '#9ca3af' }),
+    });
+    api('/categories', { method: 'DELETE', body: JSON.stringify({ name: oldName }) }).catch(() => {});
+    setCustomCategories((list) => {
+      const next = list.map((c) => (c.name === oldName ? { ...c, name: clean } : c));
+      idbPut('meta', { k: 'categories', v: next });
+      return next;
+    });
+    return renameTxField('category', oldName, clean);
+  }, [api, customCategories, renameTxField]);
+
 
   // AI summary for insights/Q&A — built from real ledger data
   const buildSummary = (daysBack = 35) => {
@@ -661,6 +726,7 @@ export function StoreProvider({ children }) {
     token, email, name, booted, txs, budgets, accounts, holdings, customCategories, syncState, lastSync, firstSyncDone, toastMsg,
     api, toast, syncNow, resync, saveTx, saveBudget, deleteBudget, saveAccounts, authenticate, saveName, logout, deleteAccount,
     live, totals, inMonth, catSpend, effectiveBudget, noteHistory, accountBalances, holdingBalances, netWorth, saveHoldings, accountType, buildSummary,
+    renameAccount, renameHolding, renameCustomCategory,
     addCustomCategory, removeCustomCategory,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS accounts (
   name TEXT NOT NULL,
   type TEXT NOT NULL DEFAULT 'Other',
   opening_balance INTEGER NOT NULL DEFAULT 0,
+  limit_amount INTEGER NOT NULL DEFAULT 0,
   sort_order INTEGER NOT NULL DEFAULT 0,
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (user_id, name)
@@ -106,6 +107,8 @@ async function rawQuery(sql, params = []) {
 // `CREATE TABLE IF NOT EXISTS` is a no-op on tables that already exist.
 const MIGRATIONS = [
   `ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''`,
+  // 'limit' is reserved in SQL, hence limit_amount. Credit cards only.
+  `ALTER TABLE accounts ADD COLUMN limit_amount INTEGER NOT NULL DEFAULT 0`,
 ];
 
 let schemaRun;

@@ -320,7 +320,7 @@ export default function Dashboard() {
         })()}
       </div>
 
-      <AccountsSummary onManage={() => setView('settings')} />
+      <AccountsSummary onManage={() => setView('money')} />
 
       {/* ── trend ── */}
       <div className="card">

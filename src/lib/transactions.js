@@ -131,7 +131,7 @@ export async function deleteCategory(userId, name) {
 
 export async function getAccounts(userId) {
   const { rows } = await q(
-    'SELECT name, type, opening_balance FROM accounts WHERE user_id = ? ORDER BY sort_order ASC', [userId]);
+    'SELECT name, type, opening_balance, limit_amount FROM accounts WHERE user_id = ? ORDER BY sort_order ASC', [userId]);
   return rows;
 }
 
@@ -147,9 +147,10 @@ export async function putAccounts(userId, items) {
     const name = String(a?.name || '').trim().slice(0, 60);
     if (!name) continue;
     await q(
-      `INSERT INTO accounts (user_id, name, type, opening_balance, sort_order, updated_at)
-       VALUES (?,?,?,?,?,?)`,
-      [userId, name, String(a.type || 'Other').slice(0, 30), Math.round(Number(a.opening_balance) || 0), i++, now]);
+      `INSERT INTO accounts (user_id, name, type, opening_balance, limit_amount, sort_order, updated_at)
+       VALUES (?,?,?,?,?,?,?)`,
+      [userId, name, String(a.type || 'Other').slice(0, 30), Math.round(Number(a.opening_balance) || 0),
+       Math.max(0, Math.round(Number(a.limit_amount) || 0)), i++, now]);
   }
 }
 

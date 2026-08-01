@@ -8,12 +8,16 @@ import { useStore } from '@/lib/client/store';
 import { HOLDING_TYPES, toPaise } from '@/lib/client/constants';
 import { backdropMotion, panelMotion } from './TxModal';
 
-export default function HoldingModal({ onClose }) {
+export default function HoldingModal({ onClose, existing = null }) {
   const store = useStore();
-  const [kind, setKind] = useState(HOLDING_TYPES[0]);
-  const [customKind, setCustomKind] = useState('');
-  const [name, setName] = useState('');
-  const [opening, setOpening] = useState('');
+  const editing = Boolean(existing);
+  // A custom kind saved earlier isn't in HOLDING_TYPES, so reopen the custom
+  // field with it rather than silently snapping to the first standard kind.
+  const known = existing && HOLDING_TYPES.includes(existing.kind);
+  const [kind, setKind] = useState(existing ? (known ? existing.kind : '__custom__') : HOLDING_TYPES[0]);
+  const [customKind, setCustomKind] = useState(existing && !known ? existing.kind : '');
+  const [name, setName] = useState(existing?.name || '');
+  const [opening, setOpening] = useState(existing?.opening_balance ? String(existing.opening_balance / 100) : '');
   const [busy, setBusy] = useState(false);
   const isCustom = kind === '__custom__';
 
@@ -22,17 +26,28 @@ export default function HoldingModal({ onClose }) {
     const finalKind = isCustom ? customKind.trim() : kind;
     const finalName = name.trim() || finalKind;
     if (!finalName) return store.toast('Give it a name');
-    if (store.holdings.some((h) => h.name.toLowerCase() === finalName.toLowerCase())) {
-      return store.toast('That already exists');
-    }
+    const clash = store.holdings.some((h) =>
+      h.name.toLowerCase() === finalName.toLowerCase() && h.name !== existing?.name);
+    if (clash) return store.toast('That already exists');
     setBusy(true);
     const ob = toPaise(opening);
+    const opening_balance = Number.isFinite(ob) ? ob : 0;
     try {
-      await store.saveHoldings([...store.holdings,
-        { name: finalName, kind: finalKind || 'Other', opening_balance: Number.isFinite(ob) ? ob : 0 }]);
-      store.toast(`Added ${finalName}`);
+      if (editing) {
+        // Rename first — it rewrites the transactions pointing at the old
+        // name, which saveHoldings below would otherwise orphan.
+        if (finalName !== existing.name) await store.renameHolding(existing.name, finalName);
+        await store.saveHoldings(store.holdings.map((h) =>
+          h.name === (finalName !== existing.name ? finalName : existing.name)
+            ? { ...h, name: finalName, kind: finalKind || 'Other', opening_balance } : h));
+        store.toast('Updated');
+      } else {
+        await store.saveHoldings([...store.holdings,
+          { name: finalName, kind: finalKind || 'Other', opening_balance }]);
+        store.toast(`Added ${finalName}`);
+      }
       onClose();
-    } catch { setBusy(false); }
+    } catch (err) { store.toast(err.message || 'Could not save'); setBusy(false); }
   }
 
   return (
@@ -40,7 +55,7 @@ export default function HoldingModal({ onClose }) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <motion.div className="modal" {...panelMotion}>
         <div className="modal-head">
-          <h3><PiggyBank size={16} style={{ verticalAlign: '-2px' }} /> Add savings or investment</h3>
+          <h3><PiggyBank size={16} style={{ verticalAlign: '-2px' }} /> {editing ? 'Edit holding' : 'Add savings or investment'}</h3>
           <button className="icon-btn" onClick={onClose}>✕</button>
         </div>
         <form onSubmit={submit}>
@@ -53,7 +68,7 @@ export default function HoldingModal({ onClose }) {
               </select>
             </label>
             <label>
-              <span>{isCustom ? 'Custom kind' : 'Name (optional)'}</span>
+              <span>{isCustom ? 'Custom kind' : `Name${editing ? '' : ' (optional)'}`}</span>
               {isCustom
                 ? <input placeholder="e.g. PPF, Gold" value={customKind}
                     onChange={(e) => setCustomKind(e.target.value)} />
@@ -81,7 +96,7 @@ export default function HoldingModal({ onClose }) {
           </p>
           <div className="btn-row">
             <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn primary grow" disabled={busy}>Add</button>
+            <button type="submit" className="btn primary grow" disabled={busy}>{editing ? 'Save' : 'Add'}</button>
           </div>
         </form>
       </motion.div>

@@ -6,9 +6,9 @@
 // never counts as spending, but it does leave your spendable balance.
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { PiggyBank, Plus, Trash2, Pencil, Check, X } from 'lucide-react';
+import { PiggyBank, Plus, Trash2, Pencil } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
-import { rupees, toPaise } from '@/lib/client/constants';
+import { rupees } from '@/lib/client/constants';
 import { DAY_MS, startOfDay } from '@/lib/client/period';
 import { useUI } from '../App';
 import HoldingIcon from '../HoldingIcon';
@@ -30,8 +30,7 @@ export default function SavingsPanel() {
 
   const [adding, setAdding] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(null);
-  const [editing, setEditing] = useState(null);
-  const [editVal, setEditVal] = useState('');
+  const [editing, setEditing] = useState(null); // the holding being edited
 
   // How much has moved in/out of each holding through the ledger, so a row
   // can show contributions separately from its starting value.
@@ -68,16 +67,6 @@ export default function SavingsPanel() {
     try {
       await store.saveHoldings(store.holdings.filter((x) => x.name !== h.name));
       store.toast(`Removed ${h.name}`);
-    } catch {}
-  }
-
-  async function saveOpening(h) {
-    const paise = toPaise(editVal);
-    try {
-      await store.saveHoldings(store.holdings.map((x) =>
-        x.name === h.name ? { ...x, opening_balance: Number.isFinite(paise) ? paise : 0 } : x));
-      setEditing(null);
-      store.toast('Starting value updated');
     } catch {}
   }
 
@@ -120,25 +109,12 @@ export default function SavingsPanel() {
                       {f.in ? `+${rupees(f.in)} in` : 'no contributions yet'}{f.out ? ` · ${rupees(f.out)} out` : ''}
                     </span>
                   </div>
-                  {editing === h.name ? (
-                    <form className="acct-bal-edit" onSubmit={(e) => { e.preventDefault(); saveOpening(h); }}>
-                      <span>₹</span>
-                      <input autoFocus inputMode="decimal" placeholder="0"
-                        value={editVal} onChange={(e) => setEditVal(e.target.value)} />
-                      <button className="icon-btn" type="submit" title="Save"><Check size={13} /></button>
-                      <button className="icon-btn" type="button" onClick={() => setEditing(null)} title="Cancel"><X size={13} /></button>
-                    </form>
-                  ) : (
-                    <>
-                      <b className="holding-bal" style={{ color: bal < 0 ? 'var(--red)' : bal > 0 ? 'var(--green)' : 'var(--muted)' }}>
-                        {bal < 0 ? '−' : ''}{rupees(Math.abs(bal))}
-                      </b>
-                      <button className="icon-btn" title="Set starting value"
-                        onClick={() => { setEditing(h.name); setEditVal(h.opening_balance ? String(h.opening_balance / 100) : ''); }}>
-                        <Pencil size={13} />
-                      </button>
-                    </>
-                  )}
+                  <b className="holding-bal" style={{ color: bal < 0 ? 'var(--red)' : bal > 0 ? 'var(--green)' : 'var(--muted)' }}>
+                    {bal < 0 ? '−' : ''}{rupees(Math.abs(bal))}
+                  </b>
+                  <button className="icon-btn" title="Edit holding" onClick={() => setEditing(h)}>
+                    <Pencil size={13} />
+                  </button>
                   <button className="icon-btn" onClick={() => setConfirmRemove(h)} title="Remove">
                     <Trash2 size={14} />
                   </button>
@@ -180,6 +156,7 @@ export default function SavingsPanel() {
       )}
 
       {adding && <HoldingModal onClose={() => setAdding(false)} />}
+      {editing && <HoldingModal existing={editing} onClose={() => setEditing(null)} />}
 
       {confirmRemove && (
         <ConfirmModal

@@ -305,12 +305,6 @@ export default function Ledger() {
       {/* ── running position up to the end of the viewed period ── */}
       <div className="cum-head">
         <span className="cum-head-label">Running totals</span>
-        {store.accounts.length > 1 && (
-          <select className="hero-acct-select" value={account} onChange={(e) => changeAccount(e.target.value)}>
-            <option value="">All accounts</option>
-            {store.accounts.map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
-          </select>
-        )}
       </div>
       {/* Same compact .stat-row treatment as the period card above — these were
           full cards with their own headings and body copy, which made two
@@ -333,7 +327,7 @@ export default function Ledger() {
         </p>
       </div>
 
-      <AccountsSummary onManage={() => setView('settings')} />
+      <AccountsSummary onManage={() => setView('money')} onPick={changeAccount} active={account} />
 
       {/* ── search + filters ── */}
       <div className="card filters">
