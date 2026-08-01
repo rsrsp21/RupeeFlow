@@ -14,6 +14,7 @@ import TrendBars from '../charts/TrendBars';
 import AccountsSummary from '../AccountsSummary';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
+import InsightsLink from '../InsightsLink';
 import { useUI } from '../App';
 
 const SORTS = {
@@ -235,7 +236,7 @@ export default function Ledger() {
           </div>
           <button className="btn ghost" onClick={openExport} title="Export"><Download size={15} /></button>
         </div>
-        <div className="view-head-utils"><SyncBadge /><SettingsLink /></div>
+        <div className="view-head-utils"><SyncBadge /><InsightsLink /><SettingsLink /></div>
       </header>
 
       {/* ── period summary ── */}

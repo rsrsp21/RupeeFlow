@@ -12,6 +12,7 @@ import { rupees, toPaise, HOLDING_TYPES } from '@/lib/client/constants';
 import { useUI } from '../App';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
+import InsightsLink from '../InsightsLink';
 import HoldingIcon from '../HoldingIcon';
 import ConfirmModal from '../modals/ConfirmModal';
 
@@ -90,7 +91,7 @@ export default function Savings() {
             <Plus size={14} /> Move money in
           </button>
         </div>
-        <div className="view-head-utils"><SyncBadge /><SettingsLink /></div>
+        <div className="view-head-utils"><SyncBadge /><InsightsLink /><SettingsLink /></div>
       </header>
 
       <div className="hero-card">
@@ -126,16 +127,16 @@ export default function Savings() {
               const bal = balances[h.name] || 0;
               const f = flows[h.name] || { in: 0, out: 0, n: 0 };
               return (
-                <motion.div className="acct-row" key={h.name}
+                <motion.div className="holding-row" key={h.name}
                   initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
                   <HoldingIcon kind={h.kind} tile size={15} />
-                  <span className="acct-name">
-                    {h.name}
-                    <span className="tx-tag">{h.kind}</span>
-                  </span>
-                  <span className="acct-count">
-                    {f.in ? `+${rupees(f.in)} in` : 'no contributions yet'}{f.out ? ` · ${rupees(f.out)} out` : ''}
-                  </span>
+                  <div className="holding-main">
+                    <span className="holding-name">{h.name}</span>
+                    <span className="holding-meta">
+                      <span className="tx-tag">{h.kind}</span>
+                      {f.in ? `+${rupees(f.in)} in` : 'no contributions yet'}{f.out ? ` · ${rupees(f.out)} out` : ''}
+                    </span>
+                  </div>
                   {editing === h.name ? (
                     <form className="acct-bal-edit" onSubmit={(e) => { e.preventDefault(); saveOpening(h); }}>
                       <span>₹</span>
@@ -146,7 +147,7 @@ export default function Savings() {
                     </form>
                   ) : (
                     <>
-                      <b className="acct-bal" style={{ color: bal < 0 ? 'var(--red)' : bal > 0 ? 'var(--green)' : 'var(--muted)' }}>
+                      <b className="holding-bal" style={{ color: bal < 0 ? 'var(--red)' : bal > 0 ? 'var(--green)' : 'var(--muted)' }}>
                         {bal < 0 ? '−' : ''}{rupees(Math.abs(bal))}
                       </b>
                       <button className="icon-btn" title="Set starting value"

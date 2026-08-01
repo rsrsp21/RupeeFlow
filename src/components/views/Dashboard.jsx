@@ -11,6 +11,7 @@ import {
 import ThemeToggle from '../ThemeToggle';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
+import InsightsLink from '../InsightsLink';
 import { useStore } from '@/lib/client/store';
 import { rupees, monthKey, CATEGORIES } from '@/lib/client/constants';
 import { DAY_MS, startOfDay, startOfWeek, startOfMonth } from '@/lib/client/period';
@@ -175,9 +176,15 @@ export default function Dashboard() {
     for (const t of monthList) if (t.type === 'expense') map[t.category] = (map[t.category] || 0) + t.amount;
     return map;
   }, [monthList]);
-  const overall = store.effectiveBudget('', monthKey());
-  const pct = overall ? Math.min(100, (mt.exp / overall) * 100) : 0;
+  // "No monthly budget yet" only ever checked for an *overall* cap, so
+  // someone who'd carefully set per-category budgets was still told they had
+  // none. Fall back to the sum of their category budgets as the monthly cap.
+  const explicitOverall = store.effectiveBudget('', monthKey());
   const monthBudgets = store.budgets.filter((b) => b.month === monthKey() && b.category);
+  const derivedOverall = monthBudgets.reduce((s2, b) => s2 + (store.effectiveBudget(b.category, monthKey()) || 0), 0);
+  const overall = explicitOverall || derivedOverall;
+  const overallIsDerived = !explicitOverall && derivedOverall > 0;
+  const pct = overall ? Math.min(100, (mt.exp / overall) * 100) : 0;
 
   // ── recurring / top notes ──
   const topNotes = useMemo(() => {
@@ -215,7 +222,7 @@ export default function Dashboard() {
           <span>RupeeFlow</span>
         </div>
         <ThemeToggle />
-        <div className="view-head-utils"><SyncBadge /><SettingsLink /></div>
+        <div className="view-head-utils"><SyncBadge /><InsightsLink /><SettingsLink /></div>
       </header>
 
       {/* Greeting + date moved down into the scrollable body (leads with a
@@ -258,11 +265,14 @@ export default function Dashboard() {
                 ? <><TrendingUp size={12} strokeWidth={2.6} /> Over budget by {rupees(mt.exp - overall)}</>
                 : <><Check size={12} strokeWidth={2.6} /> {rupees(overall - mt.exp)} left of {rupees(overall)} · projected {rupees(stats.projected)}</>}
             </div>
+            {overallIsDerived && (
+              <p className="budget-line">Cap added up from your category budgets — set an overall one for a single monthly limit.</p>
+            )}
           </>
         )}
         {!overall && (
           <p className="budget-line">
-            No monthly budget yet, <a href="#" className="link" onClick={(e) => { e.preventDefault(); setView('budgets'); }}>set one</a> to track pace.
+            No budget yet, <a href="#" className="link" onClick={(e) => { e.preventDefault(); setView('budgets'); }}>set one</a> to track pace.
           </p>
         )}
       </div>

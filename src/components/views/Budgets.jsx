@@ -11,6 +11,7 @@ import { useUI } from '../App';
 import CategoryIcon from '../CategoryIcon';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
+import InsightsLink from '../InsightsLink';
 
 export default function Budgets() {
   const store = useStore();
@@ -89,7 +90,7 @@ export default function Budgets() {
           </button>
           <button className="btn ghost" onClick={() => openBudget('')}><Plus size={14} /> New</button>
         </div>
-        <div className="view-head-utils"><SyncBadge /><SettingsLink /></div>
+        <div className="view-head-utils"><SyncBadge /><InsightsLink /><SettingsLink /></div>
       </header>
 
       {/* ── overall ── */}

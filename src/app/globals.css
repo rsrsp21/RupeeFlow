@@ -931,6 +931,26 @@ select {
 .acct-add { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
 .acct-add select { flex: 0 0 auto; width: auto; }
 .acct-add input { flex: 1; min-width: 140px; }
+/* Holdings carry more per row than accounts do (name + kind + contribution
+   flow + value + two buttons), which wrapped into an unreadable stack on a
+   phone. Name and meta stack in their own column so only the meta line ever
+   wraps, and the name itself truncates rather than breaking mid-word. */
+.holding-row {
+  display: flex; align-items: center; gap: 10px; padding: 10px 0;
+  border-bottom: 1px solid var(--line); font-size: .85rem;
+}
+.holding-row:last-child { border-bottom: none; }
+.holding-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.holding-name {
+  font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.holding-meta {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: .7rem; color: var(--muted);
+}
+.holding-bal {
+  font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; flex-shrink: 0;
+}
 .cum-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .cum-head-label {
   font-size: .68rem; font-weight: 600; letter-spacing: .09em;
@@ -1025,7 +1045,7 @@ select {
   .nav-fab-slot { display: block; flex: 1; }      /* gap the centered FAB sits over */
   /* Settings isn't a tab at all on mobile — it's reached via SettingsLink
      beside each screen's heading (.view-head-utils below) instead. */
-  .settings-item { display: none; }
+  .settings-item, .insights-item { display: none; }
   .main { padding: 0 16px 170px; }   /* top padding moved onto the sticky .view-head itself */
   .grid-2 { grid-template-columns: 1fr; }
   .filter-row { grid-template-columns: 1fr 1fr 1fr; }

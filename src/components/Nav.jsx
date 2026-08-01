@@ -9,10 +9,12 @@ const LEFT_ITEMS = [
   ['dashboard', 'Home', LayoutGrid],
   ['transactions', 'Ledger', List],
 ];
+// Insights and Settings are desktop-sidebar only. The mobile bar has room for
+// four tabs around the centred FAB before labels start colliding with it, so
+// both are reached from the header instead (InsightsLink / SettingsLink).
 const RIGHT_ITEMS = [
   ['savings', 'Savings', PiggyBank],
   ['budgets', 'Budgets', PieChart],
-  ['insights', 'Insights', Sparkles],
 ];
 
 export function Nav({ view, setView, collapsed, setCollapsed }) {
@@ -44,6 +46,12 @@ export function Nav({ view, setView, collapsed, setCollapsed }) {
       {/* mobile-only gap the FAB floats over; collapses on desktop */}
       <div className="nav-fab-slot" aria-hidden="true" />
       {RIGHT_ITEMS.map(item)}
+
+      <button key="insights" className={`nav-item insights-item ${view === 'insights' ? 'active' : ''}`}
+        onClick={() => setView('insights')} title="Insights" aria-label="Insights">
+        <Sparkles size={17} strokeWidth={1.9} />
+        <span className="nav-text">Insights</span>
+      </button>
 
       {/* Desktop-only: on mobile Settings isn't a tab at all — it's reached via
           SettingsLink beside each screen's heading instead (see globals.css). */}
