@@ -78,7 +78,11 @@ export async function applyParsedTransactions(store, out, source) {
       // filed under a "Cash" account that doesn't exist for them. It stayed
       // invisible in the Accounts list while still counting toward the
       // overall net balance, which is money you can't see or manage.
-      account: store.accounts[0]?.name || 'Cash', to_account: holding,
+      
+      const parsedAccount = e.account ? store.accounts.find(a => a.name.toLowerCase() === e.account.toLowerCase())?.name : null;
+      const accountName = parsedAccount || store.accounts[0]?.name || 'Cash';
+      
+      account: accountName, to_account: holding,
       occurred_at: occurred,
       created_at: Date.now(), updated_at: Date.now(), rev: 1, deleted: 0, source,
     });

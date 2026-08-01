@@ -60,13 +60,15 @@ function categoryChoices(extra = []) {
 If one of these genuinely fits, use it exactly as written. Only if truly none of them fit, invent a new short category name (Title Case, 1-3 words, e.g. "Pet Care") instead of forcing a bad match — do not use a new name if an existing one is close enough.`;
 }
 
-const entrySchema = (extra = [], holdings = []) => {
+const entrySchema = (extra = [], holdings = [], accounts = []) => {
   const today = new Date().toISOString().slice(0, 10);
   const holdingList = (holdings || []).filter(Boolean);
+  const accountList = (accounts || []).filter(Boolean);
   return `Today's date is ${today}.
-Return ONLY a JSON object: {"transactions":[{"type":"expense|income|invest","amount_rupees":number,"category":"a category name","note":"short description","date":"YYYY-MM-DD or null","destination":"holding name or null"}],"transcript":"what was said"}.
+Return ONLY a JSON object: {"transactions":[{"type":"expense|income|invest","amount_rupees":number,"category":"a category name","note":"short description","date":"YYYY-MM-DD or null","destination":"holding name or null","account":"account name or null"}],"transcript":"what was said"}.
 Rules: amounts are in Indian Rupees. "date" is when the expense happened: resolve ANY spoken date reference to an absolute YYYY-MM-DD — "yesterday", "last Friday", "on 26th July", "two days back", "26 tariq ko" all resolve relative to today (${today}); if the year isn't stated use the most recent past occurrence; if no date is mentioned use null (means today). ${categoryChoices(extra)} Multiple expenses in one sentence become multiple transactions.
-Use type "invest" ONLY when money is being put into savings or an investment rather than spent — SIPs, mutual funds, stocks, fixed deposits, gold, recurring deposits, PPF, or money explicitly set aside/saved (e.g. "put 5000 into my SIP", "invested 10k in stocks", "moved 2000 to savings"). Investing is not an expense. For type "invest", set "destination" to the holding it went into.${holdingList.length ? ` The user's existing holdings are: ${holdingList.join(', ')} — reuse one of these names exactly when it fits, and only name a new one if none do.` : ' The user has no holdings set up yet, so name the destination sensibly (e.g. "Mutual Funds", "Stocks", "FD").'} For every other type set "destination" to null.`;
+Use type "invest" ONLY when money is being put into savings or an investment rather than spent — SIPs, mutual funds, stocks, fixed deposits, gold, recurring deposits, PPF, or money explicitly set aside/saved (e.g. "put 5000 into my SIP", "invested 10k in stocks", "moved 2000 to savings"). Investing is not an expense. For type "invest", set "destination" to the holding it went into.${holdingList.length ? ` The user's existing holdings are: ${holdingList.join(', ')} — reuse one of these names exactly when it fits, and only name a new one if none do.` : ' The user has no holdings set up yet, so name the destination sensibly (e.g. "Mutual Funds", "Stocks", "FD").'} For every other type set "destination" to null.
+The user's existing accounts are: ${accountList.length ? accountList.join(', ') : 'None'}. If the user mentions an account for an expense or income (e.g., "paid with HDFC", "from SBI"), set "account" to the closest matching account name. If none is mentioned, set it to null.`;
 };
 
 // Few-shot hint from the user's own note history, so a rephrased repeat of
@@ -79,17 +81,17 @@ function historyHint(history) {
   return `This user's own past entries and the category used for each — reuse the same category for the same kind of item even if the quantity, unit, or wording differs slightly, e.g. "chicken 300g" and "chicken 300 grams" are the same item: ${list}\n`;
 }
 
-export function parseText(text, history = [], customCategories = [], holdings = []) {
+export function parseText(text, history = [], customCategories = [], holdings = [], accounts = []) {
   return gemini([{
     text: `You convert casual Indian-English/Hinglish speech about money into ledger entries.
-${historyHint(history)}${entrySchema(customCategories, holdings)}\n\nSpeech: "${text}"`,
+${historyHint(history)}${entrySchema(customCategories, holdings, accounts)}\n\nSpeech: "${text}"`,
   }]);
 }
 
-export function parseVoice(audioB64, mimeType, history = [], customCategories = [], holdings = []) {
+export function parseVoice(audioB64, mimeType, history = [], customCategories = [], holdings = [], accounts = []) {
   return gemini([
     { text: `Transcribe this audio (Indian English / Hinglish about money), then convert it into ledger entries.
-${historyHint(history)}${entrySchema(customCategories, holdings)}` },
+${historyHint(history)}${entrySchema(customCategories, holdings, accounts)}` },
     { inlineData: { mimeType: mimeType || 'audio/webm', data: audioB64 } },
   ]);
 }
@@ -105,12 +107,14 @@ Return ONLY JSON: {"category":"the category name"}`,
   }], { temperature: 0.1 });
 }
 
-export function parseReceipt(imageB64, mimeType, history = [], customCategories = []) {
+export function parseReceipt(imageB64, mimeType, history = [], customCategories = [], accounts = []) {
+  const accountList = (accounts || []).filter(Boolean);
   return gemini([
     { text: `Read this Indian receipt/bill photo. Return ONLY JSON:
-{"merchant":"store name","total_rupees":number,"date":"YYYY-MM-DD or null","category":"a category name","items":[{"name":"item","price_rupees":number}],"confidence":"high|medium|low"}.
+{"merchant":"store name","total_rupees":number,"date":"YYYY-MM-DD or null","category":"a category name","items":[{"name":"item","price_rupees":number}],"confidence":"high|medium|low","account":"account name or null"}.
 The total is the final payable amount (after GST/discounts). If unreadable, set total_rupees to 0 and confidence "low".
 ${categoryChoices(customCategories)}
+If the receipt shows a payment method (e.g., card ending in 1234, UPI, bank name) and it matches one of the user's accounts (${accountList.length ? accountList.join(', ') : 'None'}), set "account" to it. Otherwise set to null.
 ${historyHint(history)}`.trim() },
     { inlineData: { mimeType: mimeType || 'image/jpeg', data: imageB64 } },
   ]);

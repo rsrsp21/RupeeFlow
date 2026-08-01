@@ -20,7 +20,7 @@ export default function PromptModal({ onClose, initialText }) {
     setBusy(true);
     try {
       const out = await store.api('/ai/parse', {
-        method: 'POST', body: JSON.stringify({ text: v, history: store.noteHistory().slice(0, 60), customCategories: store.customCategories.map((c) => c.name), holdings: store.holdings.map((h) => h.name) }),
+        method: 'POST', body: JSON.stringify({ text: v, history: store.noteHistory().slice(0, 60), customCategories: store.customCategories.map((c) => c.name), holdings: store.holdings.map((h) => h.name), accounts: store.accounts.map((a) => a.name) }),
       });
       const { added, sum } = await applyParsedTransactions(store, out, 'text');
       store.toast(added ? `Added ${added} ${added > 1 ? 'entries' : 'entry'} · ${rupees(sum)} ✓` : 'No amounts found in that');

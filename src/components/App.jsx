@@ -192,17 +192,22 @@ export default function App({ children }) {
         method: 'POST', body: JSON.stringify({
           image: b64, mimeType: 'image/jpeg', history: store.noteHistory().slice(0, 60),
           customCategories: store.customCategories.map((c) => c.name),
+          accounts: store.accounts.map((a) => a.name)
         }),
       });
       const amount = Math.round((Number(out.total_rupees) || 0) * 100);
       if (amount <= 0) { store.toast('Could not read a total from that photo'); return; }
       const occurred = out.date ? new Date(out.date + 'T12:00:00').getTime() : Date.now();
       const category = await resolveCategory(store, out.category);
+      
+      const accountName = out.account ? store.accounts.find(a => a.name.toLowerCase() === out.account.toLowerCase())?.name : null;
+      
       openTx({
         prefill: {
           type: 'expense', amount,
           note: out.merchant || 'Receipt',
           category,
+          account: accountName || undefined,
           occurred_at: Number.isFinite(occurred) ? occurred : Date.now(),
           source: 'receipt',
         },
