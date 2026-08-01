@@ -1173,6 +1173,20 @@ select {
 .install-body b { font-size: .84rem; }
 .install-body span { font-size: .73rem; color: var(--muted); }
 
+/* NotifyNudge shares .install-prompt's look but not its slot — both are
+   independent, dismissible, "maybe show once" banners with no shared state
+   to coordinate whether the other is up, so they get different corners
+   rather than risk landing on top of each other. Desktop: bottom-right vs.
+   the install prompt's bottom-center. Mobile: original bottom-center slot,
+   free now that the install prompt moved to the top there. */
+.notify-nudge {
+  position: fixed; bottom: 22px; right: 22px; z-index: 74;
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface); border: 1px solid var(--line-strong);
+  padding: 11px 12px 11px 16px; border-radius: 14px; box-shadow: var(--shadow-lg);
+  max-width: calc(100vw - 28px); width: max-content;
+}
+
 /* ── mobile ── */
 @media (max-width: 760px) {
   .app { flex-direction: column; }
@@ -1220,6 +1234,12 @@ select {
   .install-prompt {
     top: calc(env(safe-area-inset-top) + 10px); bottom: auto;
     left: 12px; right: 12px; transform: none;
+    width: auto; max-width: none;
+  }
+  /* Above the tab bar + FAB rather than the desktop bottom-right corner,
+     which is exactly where those live on mobile. */
+  .notify-nudge {
+    bottom: calc(78px + env(safe-area-inset-bottom)); right: 12px; left: 12px;
     width: auto; max-width: none;
   }
   input, select { font-size: 16px; }   /* prevent iOS Safari auto-zoom on focus */

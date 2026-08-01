@@ -5,14 +5,16 @@
 import { StoreProvider } from '@/lib/client/store';
 import App from '@/components/App';
 import InstallPrompt from '@/components/InstallPrompt';
+import NotifyNudge from '@/components/NotifyNudge';
 
 export default function AppLayout({ children }) {
   return (
     <StoreProvider>
       <App>{children}</App>
-      {/* Outside App so it survives the signed-out/signed-in swap and the
+      {/* Outside App so they survive the signed-out/signed-in swap and the
           route changes — a single instance for the whole session. */}
       <InstallPrompt />
+      <NotifyNudge />
     </StoreProvider>
   );
 }
