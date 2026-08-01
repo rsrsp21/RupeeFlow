@@ -320,8 +320,6 @@ export default function Dashboard() {
         })()}
       </div>
 
-      <AccountsSummary onManage={() => setView('money')} />
-
       {/* ── trend ── */}
       <div className="card">
         <div className="card-head">
@@ -439,6 +437,8 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      <AccountsSummary onManage={() => setView('money')} />
 
       {/* ── recent ── */}
       <div className="card">
