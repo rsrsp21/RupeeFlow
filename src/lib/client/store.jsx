@@ -750,6 +750,18 @@ export function StoreProvider({ children }) {
     const monthTx = all.filter((t) => inMonth(t));
     const mt = totals(monthTx);
 
+    // Salaries commonly land on the last working day, so on the 1st or 2nd a
+    // calendar-month income of zero is normal, not a month without pay. A
+    // trailing 30-day window catches the credit whichever side of the month
+    // boundary it falls on, and the last income entry is surfaced outright so
+    // nothing has to infer it.
+    const since30 = Date.now() - 30 * 86400000;
+    const income30 = all
+      .filter((t) => t.type === 'income' && t.occurred_at >= since30)
+      .reduce((a, t) => a + t.amount, 0);
+    const lastIncomeTx = all.filter((t) => t.type === 'income')
+      .sort((a, b) => b.occurred_at - a.occurred_at)[0];
+
     const worth = netWorth();
     const acctBal = accountBalances();
     const hBal = holdingBalances();
@@ -833,7 +845,16 @@ export function StoreProvider({ children }) {
       }),
       month_invested_rupees: rup(investedPaise),
       month_transfers_out_rupees: rup(movedOutPaise),
-      savings_rate_pct: mt.inc > 0 ? Math.round((investedPaise / mt.inc) * 1000) / 10 : null,
+      income_last_30d_rupees: rup(income30),
+      last_income: lastIncomeTx ? {
+        rupees: rup(lastIncomeTx.amount),
+        category: lastIncomeTx.category,
+        note: lastIncomeTx.note || lastIncomeTx.category,
+        days_ago: Math.round((Date.now() - Number(lastIncomeTx.occurred_at)) / 86400000),
+      } : null,
+      // Measured against the trailing window, so a month-end payday doesn't
+      // make this read as null (or absurd) for the first days of a month.
+      savings_rate_pct: income30 > 0 ? Math.round((investedPaise / income30) * 1000) / 10 : null,
       recurring_commitments,
     };
   };

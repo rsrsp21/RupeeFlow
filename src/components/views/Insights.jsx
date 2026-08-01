@@ -55,6 +55,7 @@ export default function Insights() {
       spendable: Math.round(w.spendable), invested: Math.round(w.invested), dues: Math.round(w.dues),
       saved: Math.round((s2.month_invested_rupees || 0) * 100),
       rate: s2.savings_rate_pct, stale,
+      lastIncome: s2.last_income,
     };
   })();
 
@@ -148,7 +149,12 @@ export default function Insights() {
                     this well over 100%, which reads as a bug rather than a
                     good month. */}
                 {health.rate !== null && health.rate > 0 && health.rate <= 100 && (
-                  <span className="stat-sub">{health.rate.toFixed(0)}% of income</span>
+                  <span className="stat-sub">{health.rate.toFixed(0)}% of 30d income</span>
+                )}
+                {health.saved === 0 && health.lastIncome && (
+                  <span className="stat-sub">
+                    Last pay {health.lastIncome.days_ago === 0 ? 'today' : `${health.lastIncome.days_ago}d ago`}
+                  </span>
                 )}
               </div>
             </div>
