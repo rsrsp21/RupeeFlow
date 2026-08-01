@@ -12,11 +12,10 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Share, Download } from 'lucide-react';
 
-// Showing it once and then staying quiet for a few days reads as helpful;
-// showing it on every single reload reads as nagging. A hard "X" dismiss
-// opts out forever; just seeing it starts this softer cooldown too.
-const SNOOZE_MS = 3 * 24 * 60 * 60 * 1000;
-
+// Shown on every load until the app is actually installed — the standalone
+// check below is the only thing that retires it, so it can't outlive its own
+// purpose. Dismissing hides it for the current page only, deliberately: a
+// persisted opt-out is what made it invisible for good after one stray tap.
 export default function InstallPrompt() {
   const [deferred, setDeferred] = useState(null); // the browser's install event
   const [showIOS, setShowIOS] = useState(false);
@@ -31,17 +30,13 @@ export default function InstallPrompt() {
       return;
     }
 
-    const optedOut = localStorage.getItem('rf_install_dismissed') === '1'
-      || Date.now() < Number(localStorage.getItem('rf_install_snooze_until') || 0);
-
     // The event itself is caught by an inline script in the document head —
     // it fires before React hydrates, so a listener attached here would
     // always be too late. All this does is pick up whatever that already
     // stashed, and listen for it arriving later.
     const take = () => {
-      if (optedOut || !window.__rfInstall) return;
+      if (!window.__rfInstall) return;
       setDeferred(window.__rfInstall);
-      localStorage.setItem('rf_install_snooze_until', String(Date.now() + SNOOZE_MS));
     };
     take();
     window.addEventListener('rf-installable', take);
@@ -49,14 +44,9 @@ export default function InstallPrompt() {
     const onInstalled = () => { setDeferred(null); setShowIOS(false); };
     window.addEventListener('rf-installed', onInstalled);
 
-    if (!optedOut) {
-      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-      const isSafari = /safari/i.test(navigator.userAgent) && !/crios|fxios|chrome/i.test(navigator.userAgent);
-      if (isIOS && isSafari) {
-        setShowIOS(true);
-        localStorage.setItem('rf_install_snooze_until', String(Date.now() + SNOOZE_MS));
-      }
-    }
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isSafari = /safari/i.test(navigator.userAgent) && !/crios|fxios|chrome/i.test(navigator.userAgent);
+    if (isIOS && isSafari) setShowIOS(true);
 
     return () => {
       window.removeEventListener('rf-installable', take);
@@ -74,10 +64,9 @@ export default function InstallPrompt() {
     setDeferred(null);
   }
 
-  function close() {
-    setDismissed(true);
-    localStorage.setItem('rf_install_dismissed', '1');
-  }
+  // Session-only: it returns on the next load, and stops for good once the
+  // app is installed.
+  function close() { setDismissed(true); }
 
   const open = !dismissed && (deferred || showIOS);
 
