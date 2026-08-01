@@ -2,7 +2,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 // aliased — this module's own default export is already named Settings
-import { Download, Upload, LogOut, RefreshCw, Trash2, Pencil, Check, X, Bell, Settings as SettingsIcon, AlertTriangle } from 'lucide-react';
+import { Download, Upload, LogOut, RefreshCw, Trash2, Pencil, Check, X, Bell, Smartphone, Settings as SettingsIcon, AlertTriangle } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { TAGLINE } from '@/lib/client/constants';
 import { pushSupported, currentSubscription, enablePush, disablePush } from '@/lib/client/pushClient';
@@ -42,6 +42,8 @@ export default function Settings() {
           <input type="checkbox" className="switch" checked={dark} onChange={(e) => toggleTheme(e.target.checked)} />
         </label>
       </div>
+
+      <InstallCard />
 
       <NotificationsCard />
 
@@ -116,6 +118,53 @@ export default function Settings() {
         <span>{TAGLINE}</span>
       </footer>
     </section>
+  );
+}
+
+// The banner can be dismissed or snoozed, after which there was no way back
+// to it — so installing also lives here permanently.
+function InstallCard() {
+  const [ready, setReady] = useState(false);
+  const [installed, setInstalled] = useState(false);
+
+  useEffect(() => {
+    const standalone = window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true;
+    if (standalone) { setInstalled(true); return; }
+    const sync = () => setReady(Boolean(window.__rfInstall));
+    sync();
+    window.addEventListener('rf-installable', sync);
+    window.addEventListener('rf-installed', () => setInstalled(true));
+    return () => window.removeEventListener('rf-installable', sync);
+  }, []);
+
+  if (installed) return null;
+
+  const isIOS = typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+  async function install() {
+    const e = window.__rfInstall;
+    if (!e) return;
+    e.prompt();
+    await e.userChoice.catch(() => {});
+    window.__rfInstall = null;
+    setReady(false);
+  }
+
+  return (
+    <div className="card">
+      <div className="card-head"><h3><Smartphone size={13} style={{ verticalAlign: '-2px' }} /> Install</h3></div>
+      <p className="muted small" style={{ marginBottom: 12 }}>
+        {ready
+          ? 'Adds RupeeFlow to your device. Opens instantly and works offline.'
+          : isIOS
+            ? 'In Safari, tap Share then "Add to Home Screen".'
+            : 'Your browser hasn\'t offered an install yet — look for the install icon in the address bar, or reopen this page in Chrome or Edge.'}
+      </p>
+      {ready && (
+        <button className="btn ghost" onClick={install}><Download size={14} /> Install app</button>
+      )}
+    </div>
   );
 }
 

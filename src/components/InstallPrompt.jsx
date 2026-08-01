@@ -34,20 +34,20 @@ export default function InstallPrompt() {
     const optedOut = localStorage.getItem('rf_install_dismissed') === '1'
       || Date.now() < Number(localStorage.getItem('rf_install_snooze_until') || 0);
 
-    // Fires only when the browser already considers the app installable
-    // (manifest + service worker + https, and not installed yet), so none of
-    // that has to be checked here. It's registered unconditionally because it
-    // can fire before this effect runs otherwise.
-    const onPrompt = (e) => {
-      e.preventDefault();
-      if (optedOut) return;
-      setDeferred(e);
+    // The event itself is caught by an inline script in the document head —
+    // it fires before React hydrates, so a listener attached here would
+    // always be too late. All this does is pick up whatever that already
+    // stashed, and listen for it arriving later.
+    const take = () => {
+      if (optedOut || !window.__rfInstall) return;
+      setDeferred(window.__rfInstall);
       localStorage.setItem('rf_install_snooze_until', String(Date.now() + SNOOZE_MS));
     };
-    window.addEventListener('beforeinstallprompt', onPrompt);
+    take();
+    window.addEventListener('rf-installable', take);
 
     const onInstalled = () => { setDeferred(null); setShowIOS(false); };
-    window.addEventListener('appinstalled', onInstalled);
+    window.addEventListener('rf-installed', onInstalled);
 
     if (!optedOut) {
       const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -59,8 +59,8 @@ export default function InstallPrompt() {
     }
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', onPrompt);
-      window.removeEventListener('appinstalled', onInstalled);
+      window.removeEventListener('rf-installable', take);
+      window.removeEventListener('rf-installed', onInstalled);
     };
   }, []);
 
@@ -70,6 +70,7 @@ export default function InstallPrompt() {
     // The event is single-use either way, so the banner goes regardless of
     // what they chose — re-showing it would need a fresh event anyway.
     await deferred.userChoice.catch(() => {});
+    window.__rfInstall = null; // single-use
     setDeferred(null);
   }
 

@@ -56,6 +56,26 @@ export default function RootLayout({ children }) {
         <script dangerouslySetInnerHTML={{
           __html: `try{var t=localStorage.getItem('rf_theme');if(t)document.documentElement.dataset.theme=t}catch(e){}`,
         }} />
+        {/* beforeinstallprompt fires while the page is still loading — well
+            before React hydrates and any component effect could attach a
+            listener — so the event was simply being missed and no install
+            banner ever appeared. Catch it here, at the earliest point there
+            is, park it on window, and let InstallPrompt pick it up whenever
+            it mounts. */}
+        <script dangerouslySetInnerHTML={{
+          __html: `(function(){
+            window.__rfInstall=null;
+            window.addEventListener('beforeinstallprompt',function(e){
+              e.preventDefault();
+              window.__rfInstall=e;
+              window.dispatchEvent(new Event('rf-installable'));
+            });
+            window.addEventListener('appinstalled',function(){
+              window.__rfInstall=null;
+              window.dispatchEvent(new Event('rf-installed'));
+            });
+          })();`,
+        }} />
       </head>
       <body className={`${manrope.variable} ${sora.variable}`}>{children}</body>
     </html>
