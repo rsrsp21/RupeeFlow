@@ -130,6 +130,11 @@ export async function toPDF(rows, opts, meta) {
 
   const inc = rows.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const exp = rows.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  // Transfers are neither income nor spending, but they DO leave the period's
+  // accounts when the destination is a holding — so a bare income-minus-
+  // expenses "Net" overstates what was actually kept. Surfaced separately
+  // and the label says what it measures.
+  const moved = rows.filter((t) => t.type === 'transfer').reduce((s, t) => s + t.amount, 0);
 
   doc.setFontSize(18); doc.text('RupeeFlow', 14, 18);
   doc.setFontSize(10); doc.setTextColor(120);
@@ -144,9 +149,47 @@ export async function toPDF(rows, opts, meta) {
   doc.setTextColor(20); doc.setFontSize(11);
   doc.text(`Income  Rs ${inr(inc)}`, 14, 36);
   doc.text(`Expenses  Rs ${inr(exp)}`, 74, 36);
-  doc.text(`Net  Rs ${inr(inc - exp)}`, 144, 36);
+  doc.text(`In - Out  Rs ${inr(inc - exp)}`, 144, 36);
 
   let y = 44;
+  if (moved > 0) {
+    doc.setFontSize(9); doc.setTextColor(120);
+    doc.text(`Transferred / invested in this period: Rs ${inr(moved)} (not counted as spending)`, 14, y);
+    doc.setTextColor(20);
+    y += 8;
+  }
+
+  // Balance sheet — the ledger alone can't show what the user is actually
+  // worth, and an export without it isn't a record of their position.
+  if (meta.worth) {
+    doc.setFontSize(12); doc.text('Position today', 14, y); y += 6;
+    doc.setFontSize(10);
+    const cells = [
+      ['Spendable', meta.worth.spendable],
+      ['Saved & invested', meta.worth.invested],
+      ...(meta.worth.dues > 0 ? [['Card dues', -meta.worth.dues]] : []),
+      ['Net worth', meta.worth.total],
+    ];
+    cells.forEach(([label, v], i) => {
+      doc.text(`${label}  Rs ${inr(v)}`, 14 + (i % 3) * 62, y + Math.floor(i / 3) * 6);
+    });
+    y += Math.ceil(cells.length / 3) * 6 + 6;
+
+    if (meta.holdings?.length) {
+      doc.autoTable({
+        startY: y,
+        head: [['Holding', 'Kind', 'Value (INR)', 'Contributed (INR)', 'Gain (INR)']],
+        body: meta.holdings.map((h) => [
+          h.name, h.kind, inr(h.value), inr(h.contributed), inr(h.gain),
+        ]),
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [24, 24, 27] },
+        columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
+        margin: { left: 14, right: 14 },
+      });
+      y = doc.lastAutoTable.finalY + 8;
+    }
+  }
   if (opts.includeSummary) {
     const groups = summarize(rows, opts.groupBy || 'category');
     doc.autoTable({

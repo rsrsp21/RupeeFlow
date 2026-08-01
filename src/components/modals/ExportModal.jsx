@@ -52,7 +52,21 @@ export default function ExportModal({ onClose }) {
           : toCSV(rows, cols);
         download(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }), `rupeeflow-${tag}.csv`);
       } else if (format === 'json') {
-        download(new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' }), `rupeeflow-${tag}.json`);
+        // A bare array of transactions can't rebuild balances — opening
+        // balances, credit limits and holdings all live outside the ledger.
+        // JSON is the "everything" format, so it carries the lot.
+        const backup = {
+          app: 'RupeeFlow',
+          exported_at: new Date().toISOString(),
+          range: formatRangeLabel(opts),
+          accounts: store.accounts,
+          holdings: store.holdings,
+          budgets: store.budgets,
+          categories: store.customCategories,
+          net_worth_paise: store.netWorth(),
+          transactions: rows,
+        };
+        download(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }), `rupeeflow-${tag}.json`);
       } else {
         let aiSummary = '';
         if (withAI) {
@@ -64,7 +78,17 @@ export default function ExportModal({ onClose }) {
             aiSummary = insight;
           } catch { /* export still proceeds without it */ }
         }
-        await toPDF(rows, { ...opts, aiSummary }, { name: store.name });
+        const hBal = store.holdingBalances(), hPut = store.holdingContributed();
+        await toPDF(rows, { ...opts, aiSummary }, {
+          name: store.name,
+          worth: store.netWorth(),
+          holdings: store.holdings.map((h) => ({
+            name: h.name, kind: h.kind,
+            value: hBal[h.name] || 0,
+            contributed: hPut[h.name] || 0,
+            gain: h.valued_at ? (hBal[h.name] || 0) - (hPut[h.name] || 0) : 0,
+          })),
+        });
       }
       store.toast(`Exported ${rows.length} entries`);
       onClose();
