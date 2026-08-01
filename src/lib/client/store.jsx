@@ -411,14 +411,27 @@ export function StoreProvider({ children }) {
     return saved;
   }, [api]);
 
+  // Deleting a category can't just drop it — any transaction still tagged
+  // with it would point at a category with no definition/icon, and any
+  // budget for it would silently stop tracking anything. Reassign those
+  // transactions to "Other" and drop budgets for it first, same as picking
+  // "Other" manually would have done.
   const removeCustomCategory = useCallback(async (name) => {
+    const affected = Object.values(txsRef.current).filter((t) => !t.deleted && t.category === name);
+    for (const t of affected) {
+      await saveTx({ ...t, category: 'Other', updated_at: Date.now(), rev: (t.rev || 0) + 1 });
+    }
+    for (const b of budgets.filter((x) => x.category === name)) {
+      deleteBudget(b.month, b.category);
+    }
     setCustomCategories((prev) => {
       const next = prev.filter((c) => c.name !== name);
       idbPut('meta', { k: 'categories', v: next });
       return next;
     });
     api('/categories', { method: 'DELETE', body: JSON.stringify({ name }) }).catch(() => {});
-  }, [api]);
+    return affected.length;
+  }, [api, saveTx, budgets, deleteBudget]);
 
   // Balance per account, derived from the ledger: income in, expense out,
   // transfers move between the two named accounts.

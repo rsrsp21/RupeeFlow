@@ -41,9 +41,19 @@ export default function Ledger() {
   const [account, setAccount] = useState('');
   const [minAmt, setMinAmt] = useState('');
   const [maxAmt, setMaxAmt] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [sort, setSort] = useState('recent');
   const [showFilters, setShowFilters] = useState(false);
   const [allTime, setAllTime] = useState(false);
+
+  // A search or a custom date range both mean "ignore the Day/Week/Month/
+  // Year tab up top and look across whatever timeline actually matches" —
+  // search in particular makes no sense scoped to "today" only, that's not
+  // how anyone expects a search box to behave.
+  const searching = q.trim().length > 0;
+  const hasCustomRange = Boolean(dateFrom || dateTo);
+  const overridingTimeline = searching || hasCustomRange;
 
   const end = periodEnd(kind, start);
 
@@ -62,18 +72,24 @@ export default function Ledger() {
     setAllTime(false);
   }
 
-  const extraFilters = [type, cat, account, minAmt, maxAmt].filter(Boolean).length;
+  const extraFilters = [type, cat, account, minAmt, maxAmt].filter(Boolean).length + (hasCustomRange ? 1 : 0);
   const activeFilters = extraFilters + (q ? 1 : 0);
 
   function clearFilters() {
-    setQ(''); setType(''); setCat(''); setAccount(''); setMinAmt(''); setMaxAmt('');
+    setQ(''); setType(''); setCat(''); setAccount(''); setMinAmt(''); setMaxAmt(''); setDateFrom(''); setDateTo('');
   }
 
-  // period slice (or all time)
+  // period slice (or all time, or a custom range, or unscoped while searching)
   const periodTx = useMemo(() => {
     const all = store.live();
-    return allTime ? all : all.filter((t) => t.occurred_at >= start && t.occurred_at < end);
-  }, [store, store.txs, start, end, allTime]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (hasCustomRange) {
+      const fromTs = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : -Infinity;
+      const toTs = dateTo ? new Date(`${dateTo}T23:59:59.999`).getTime() : Infinity;
+      return all.filter((t) => t.occurred_at >= fromTs && t.occurred_at <= toTs);
+    }
+    if (allTime || searching) return all;
+    return all.filter((t) => t.occurred_at >= start && t.occurred_at < end);
+  }, [store, store.txs, start, end, allTime, searching, hasCustomRange, dateFrom, dateTo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // filters
   const list = useMemo(() => {
@@ -117,7 +133,7 @@ export default function Ledger() {
   // time-of-day is often just whenever the entry was logged, not the real time,
   // so an hour-by-hour breakdown there would be misleading.
   const buckets = useMemo(() => {
-    if (allTime || kind === 'day') return [];
+    if (allTime || overridingTimeline || kind === 'day') return [];
     return bucketsFor(kind, start).map((b) => ({
       ...b,
       value: periodTx.filter((t) => t.type === 'expense' && t.occurred_at >= b.start && t.occurred_at < b.end)
@@ -164,18 +180,22 @@ export default function Ledger() {
       {/* ── period summary ── */}
       <div className="card period-card">
         <div className="period-nav">
-          <button className="day-arrow" disabled={allTime} onClick={() => setStart((s) => shiftPeriod(kind, s, -1))} title="Previous">
+          <button className="day-arrow" disabled={allTime || overridingTimeline} onClick={() => setStart((s) => shiftPeriod(kind, s, -1))} title="Previous">
             <ChevronLeft size={17} strokeWidth={2} />
           </button>
-          <motion.div className="period-title" key={allTime ? 'all' : `${kind}-${start}`}
+          <motion.div className="period-title" key={hasCustomRange ? 'range' : searching ? 'search' : allTime ? 'all' : `${kind}-${start}`}
             initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.14 }}>
-            <div className="day-label">{allTime ? 'All time' : periodLabel(kind, start)}</div>
-            {!allTime && !atNow && (
+            <div className="day-label">
+              {hasCustomRange ? `${dateFrom || 'Start'} → ${dateTo || 'now'}`
+                : searching ? 'All time (search)'
+                : allTime ? 'All time' : periodLabel(kind, start)}
+            </div>
+            {!overridingTimeline && !allTime && !atNow && (
               <button className="today-jump" onClick={() => setStart(periodStart(kind))}>Jump to current</button>
             )}
           </motion.div>
-          <button className="day-arrow" disabled={allTime || atNow} onClick={() => setStart((s) => shiftPeriod(kind, s, 1))} title="Next">
+          <button className="day-arrow" disabled={allTime || overridingTimeline || atNow} onClick={() => setStart((s) => shiftPeriod(kind, s, 1))} title="Next">
             <ChevronRight size={17} strokeWidth={2} />
           </button>
         </div>
@@ -201,7 +221,7 @@ export default function Ledger() {
               <b className="stat-v" style={{ color: 'var(--green)' }}>{rupees(totals.saved)}</b>
             </div>
           )}
-          {!allTime && (
+          {!allTime && !overridingTimeline && (
             <div className="stat">
               <span className="stat-k">Avg / day{(kind === 'day' || kind === 'week') ? ' (7d)' : ''}</span>
               <b className="stat-v">{rupees(avgPerDay)}</b>
@@ -209,7 +229,7 @@ export default function Ledger() {
           )}
         </div>
 
-        {!allTime && kind !== 'day' && buckets.some((b) => b.value > 0) && (
+        {!allTime && !overridingTimeline && kind !== 'day' && buckets.some((b) => b.value > 0) && (
           <div className="period-trend"><TrendBars buckets={buckets} height={52} /></div>
         )}
 
@@ -268,7 +288,18 @@ export default function Ledger() {
                     {Object.entries(SORTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
                 </label>
+                <label><span>From date</span>
+                  <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                </label>
+                <label><span>To date</span>
+                  <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                </label>
               </div>
+              {hasCustomRange && (
+                <p className="muted small" style={{ marginTop: 4 }}>
+                  A custom date range overrides the Day/Week/Month/Year tabs above.
+                </p>
+              )}
               {activeFilters > 0 && (
                 <button className="btn ghost clear-filters" onClick={clearFilters}>
                   <X size={14} strokeWidth={2} /> Clear all filters

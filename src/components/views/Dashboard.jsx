@@ -89,6 +89,36 @@ export default function Dashboard() {
   const monthList = all.filter((t) => t.occurred_at >= mStart);
   const mt = store.totals(monthList);
 
+  // Early in a month (day 1-2 especially) "this month" is nearly empty, so
+  // last month's numbers matter more for actually understanding spending —
+  // surfaced as its own comparison/breakdown further down, not just folded
+  // into the momDelta percentage.
+  const lastMonthStart = new Date(new Date(mStart).getFullYear(), new Date(mStart).getMonth() - 1, 1).getTime();
+  const lastMonthList = all.filter((t) => t.occurred_at >= lastMonthStart && t.occurred_at < mStart);
+  const lmt = store.totals(lastMonthList);
+  const lastMonthCatSpend = useMemo(() => {
+    const map = {};
+    for (const t of lastMonthList) if (t.type === 'expense') map[t.category] = (map[t.category] || 0) + t.amount;
+    return map;
+  }, [lastMonthList]);
+
+  // 6-month expense trend — a longer view than the 7-day chart below, so a
+  // fresh month always has *something* substantial to show even on day one.
+  const monthlyTrend = useMemo(() => {
+    const out = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(new Date(mStart).getFullYear(), new Date(mStart).getMonth() - i, 1);
+      const s = d.getTime();
+      const e = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime();
+      out.push({
+        start: s, label: d.toLocaleDateString('en-IN', { month: 'short' }),
+        value: all.filter((t) => t.type === 'expense' && t.occurred_at >= s && t.occurred_at < e)
+          .reduce((sum, t) => sum + t.amount, 0),
+      });
+    }
+    return out;
+  }, [all, mStart]);
+
   // ── comparisons ──
   const stats = useMemo(() => {
     const todayS = startOfDay(now), weekS = startOfWeek(now);
@@ -288,13 +318,64 @@ export default function Dashboard() {
       <div className="grid-2">
         <div className="card">
           <h3>Where it went · this month</h3>
-          <CategoryBars spend={catSpend} limit={6} />
+          {Object.keys(catSpend).length
+            ? <CategoryBars spend={catSpend} limit={6} />
+            : <p className="muted small">Nothing logged this month yet.</p>}
         </div>
         <div className="card">
           <h3>Share of spending</h3>
-          <Donut spend={catSpend} />
+          {Object.keys(catSpend).length
+            ? <Donut spend={catSpend} />
+            : <p className="muted small">Nothing logged this month yet.</p>}
         </div>
       </div>
+
+      {/* ── monthly trend ── */}
+      <div className="card">
+        <div className="card-head">
+          <h3>Monthly spending · last 6 months</h3>
+          <span className="muted small">Peak {rupees(Math.max(...monthlyTrend.map((t) => t.value), 0))}</span>
+        </div>
+        <TrendBars buckets={monthlyTrend} height={120} showValues />
+      </div>
+
+      {/* ── last month ── */}
+      {lmt.exp > 0 && (
+        <>
+          <div className="card">
+            <div className="card-head"><h3>This month vs last month</h3></div>
+            <div className="stat-row">
+              <div className="stat">
+                <span className="stat-k">Spent this month</span>
+                <b className="stat-v out">{rupees(mt.exp)}</b>
+              </div>
+              <div className="stat">
+                <span className="stat-k">Spent last month</span>
+                <b className="stat-v">{rupees(lmt.exp)}</b>
+              </div>
+              <div className="stat">
+                <span className="stat-k">Received this month</span>
+                <b className="stat-v in">{rupees(mt.inc)}</b>
+              </div>
+              <div className="stat">
+                <span className="stat-k">Received last month</span>
+                <b className="stat-v">{rupees(lmt.inc)}</b>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid-2">
+            <div className="card">
+              <h3>Where it went · last month</h3>
+              <CategoryBars spend={lastMonthCatSpend} limit={6} />
+            </div>
+            <div className="card">
+              <h3>Share of spending · last month</h3>
+              <Donut spend={lastMonthCatSpend} />
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ── budget progress ── */}
       {monthBudgets.length > 0 && (
