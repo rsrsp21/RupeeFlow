@@ -15,7 +15,6 @@ import PromptModal from './modals/PromptModal';
 import BudgetModal from './modals/BudgetModal';
 import ExportModal from './modals/ExportModal';
 import AddAccountModal from './modals/AddAccountModal';
-import InstallPrompt from './InstallPrompt';
 import ErrorBoundary from './ErrorBoundary';
 import { Nav } from './Nav';
 
@@ -174,10 +173,11 @@ export default function App({ children }) {
   }, [store.booted, store.token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!store.booted) return null;
-  // InstallPrompt sits further down the signed-in tree, so returning Landing
-  // here meant it never mounted for a logged-out visitor — i.e. it never
-  // appeared on the one page where installing is the obvious next step.
-  if (!store.token) return <><Landing /><InstallPrompt /></>;
+  // InstallPrompt is mounted once by the route layout, outside this
+  // component — mounting it on both sides of this auth gate meant crossing
+  // it swapped one instance for a fresh one, so the banner came back and had
+  // to be dismissed a second time.
+  if (!store.token) return <Landing />;
 
   // A bare openTx() (new manual entry, no explicit prefill — e.g. the FAB)
   // defaults to the day Ledger is currently browsing, if it's browsing one.
@@ -300,7 +300,6 @@ export default function App({ children }) {
           )}
         </AnimatePresence>
 
-        <InstallPrompt />
         <div className={`toast ${store.toastMsg ? 'show' : ''}`}>{store.toastMsg}</div>
       </div>
     </UICtx.Provider>

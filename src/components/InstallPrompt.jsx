@@ -25,10 +25,13 @@ import { X, Share, Download } from 'lucide-react';
 // hence the flag below: launching standalone proves installation happened,
 // and that fact is worth remembering.
 const INSTALLED_KEY = 'rf_installed';
+// Session-scoped, so dismissing survives a remount but the banner still
+// returns on the next reload, which is the whole point of showing it again.
+const DISMISS_KEY = 'rf_install_hidden';
 export default function InstallPrompt() {
   const [deferred, setDeferred] = useState(null); // the browser's install event
   const [showIOS, setShowIOS] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(true); // until the session flag is read
 
   useEffect(() => {
     const standalone = window.matchMedia('(display-mode: standalone)').matches
@@ -41,6 +44,7 @@ export default function InstallPrompt() {
       return;
     }
     const knownInstalled = localStorage.getItem(INSTALLED_KEY) === '1';
+    setDismissed(sessionStorage.getItem(DISMISS_KEY) === '1');
 
     // The event itself is caught by an inline script in the document head —
     // it fires before React hydrates, so a listener attached here would
@@ -83,7 +87,10 @@ export default function InstallPrompt() {
 
   // Session-only: it returns on the next load, and stops for good once the
   // app is installed.
-  function close() { setDismissed(true); }
+  function close() {
+    setDismissed(true);
+    sessionStorage.setItem(DISMISS_KEY, '1');
+  }
 
   const open = !dismissed && (deferred || showIOS);
 
