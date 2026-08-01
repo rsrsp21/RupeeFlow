@@ -53,6 +53,7 @@ export default function Insights() {
     const stale = (s2.holdings || []).filter((h) => h.valued_days_ago === null || h.valued_days_ago > 30).length;
     return {
       spendable: Math.round(w.spendable), invested: Math.round(w.invested), dues: Math.round(w.dues),
+      saved: Math.round((s2.month_invested_rupees || 0) * 100),
       rate: s2.savings_rate_pct, stale,
     };
   })();
@@ -139,9 +140,16 @@ export default function Insights() {
               )}
               <div className="stat">
                 <span className="stat-k">Saved this month</span>
-                <b className="stat-v" style={{ color: health.rate === null ? 'var(--muted)' : health.rate >= 20 ? 'var(--green)' : 'var(--text)' }}>
-                  {health.rate === null ? '—' : `${health.rate.toFixed(0)}%`}
+                <b className="stat-v" style={{ color: health.saved > 0 ? 'var(--green)' : 'var(--muted)' }}>
+                  {rupees(health.saved)}
                 </b>
+                {/* Only shown when it's a share of income that means
+                    something — investing out of last month's balance can put
+                    this well over 100%, which reads as a bug rather than a
+                    good month. */}
+                {health.rate !== null && health.rate > 0 && health.rate <= 100 && (
+                  <span className="stat-sub">{health.rate.toFixed(0)}% of income</span>
+                )}
               </div>
             </div>
             {health.stale > 0 && (

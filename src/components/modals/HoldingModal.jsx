@@ -41,14 +41,21 @@ export default function HoldingModal({ onClose, existing = null }) {
     setBusy(true);
     const ob = toPaise(opening);
     const value = Number.isFinite(ob) ? ob : 0;
-    // Re-stamp the valuation only when the number actually changed, so
-    // editing just the name doesn't silently reset the "as of" date and
-    // discard contributions made since the last valuation.
+    // Two separate numbers, and they must stay separate. opening_balance is
+    // COST BASIS — what the holding was worth when you started tracking it,
+    // and the thing every later contribution adds to. current_value is what
+    // it's worth now. Zeroing the basis when a value is updated made the
+    // whole balance look like pure profit, so an edit never touches it.
     const changed = value !== stated;
-    const valued_at = changed ? Date.now() : (existing?.valued_at || 0);
-    const patch = existing && !changed
-      ? { current_value: existing.current_value, valued_at: existing.valued_at, opening_balance: existing.opening_balance }
-      : { current_value: value, valued_at, opening_balance: 0 };
+    const patch = existing
+      ? {
+          opening_balance: existing.opening_balance,
+          current_value: changed ? value : existing.current_value,
+          // Re-stamp only on a real change, so renaming can't reset the
+          // as-of date and swallow contributions made since.
+          valued_at: changed ? Date.now() : existing.valued_at,
+        }
+      : { opening_balance: value, current_value: value, valued_at: value ? Date.now() : 0 };
     try {
       if (editing) {
         // Rename first — it rewrites the transactions pointing at the old

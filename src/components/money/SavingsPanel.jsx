@@ -59,27 +59,22 @@ export default function SavingsPanel() {
 
   return (
     <>
-      <div className="panel-bar">
-        <span className="panel-bar-note">
-          {store.holdings.length} {store.holdings.length === 1 ? 'holding' : 'holdings'}
-        </span>
-        <div className="head-actions">
-          <button className="btn ghost sm" onClick={() => openTx({ prefill: { type: 'invest' } })}
-            disabled={!store.holdings.length}>
-            <Plus size={14} /> Move money in
-          </button>
+      {store.holdings.length > 0 && (
+        <div className="panel-bar">
+          <span className="panel-bar-note">
+            {store.holdings.length} {store.holdings.length === 1 ? 'holding' : 'holdings'} · moving money in
+            lowers your spendable balance without counting as spending
+          </span>
+          <div className="head-actions">
+            <button className="btn ghost sm" onClick={() => openTx({ prefill: { type: 'invest' } })}>
+              <Plus size={14} /> Move money in
+            </button>
+          </div>
         </div>
-      </div>
-
-      {/* The net-worth hero lives on the Money screen above these tabs — it
-          covers every tab, so repeating it here would just be noise. */}
-      <p className="muted small" style={{ marginBottom: 12 }}>
-        Money here isn&apos;t counted as spending, and it isn&apos;t counted as spendable either — moving it in
-        lowers your account balance without inflating your expenses.
-      </p>
+      )}
 
       <div className="card">
-        <div className="card-head"><h3>Your holdings</h3></div>
+        {store.holdings.length > 0 && <div className="card-head"><h3>Your holdings</h3></div>}
         {store.holdings.length ? (
           <div className="acct-list">
             {store.holdings.map((h, i) => {
@@ -123,20 +118,24 @@ export default function SavingsPanel() {
             })}
           </div>
         ) : (
-          <div className="budget-empty">
-            <PiggyBank size={22} strokeWidth={1.6} />
-            <div>
-              <div className="insight-title">Nothing set up yet</div>
-              <div className="insight-body">
-                Add a mutual fund, FD, stock holding, or even cash kept at home — then move money into it from any account.
-              </div>
-            </div>
+          <div className="empty-state">
+            <PiggyBank size={26} strokeWidth={1.5} />
+            <h4>Track what you&apos;ve set aside</h4>
+            <p>
+              A mutual fund, FD, stock holding, or even cash kept at home. Money moved into one leaves your
+              spendable balance without counting as spending — and its value stays part of your net worth.
+            </p>
+            <button className="btn primary" style={{ width: 'auto' }} onClick={() => setAdding(true)}>
+              <Plus size={14} /> Add your first holding
+            </button>
           </div>
         )}
 
-        <button className="btn ghost" onClick={() => setAdding(true)}>
-          <Plus size={14} /> Add savings or investment
-        </button>
+        {store.holdings.length > 0 && (
+          <button className="btn ghost" onClick={() => setAdding(true)}>
+            <Plus size={14} /> Add savings or investment
+          </button>
+        )}
       </div>
 
       {movements.length > 0 && (
