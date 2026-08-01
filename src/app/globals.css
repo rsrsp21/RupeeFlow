@@ -951,6 +951,16 @@ select {
 .holding-bal {
   font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; flex-shrink: 0;
 }
+/* Highlighted inline warning inside a form — loud enough that a credit limit
+   never gets typed in where an outstanding balance belongs. */
+.callout {
+  display: flex; gap: 10px; align-items: flex-start;
+  background: var(--red-soft); border: 1px solid transparent; border-left: 2px solid var(--red);
+  border-radius: var(--radius-sm); padding: 11px 13px; font-size: .78rem; line-height: 1.5;
+}
+.callout svg { color: var(--red); flex-shrink: 0; margin-top: 2px; }
+.callout b { font-weight: 650; }
+
 .stacked-label { display: flex; flex-direction: column; gap: 5px; }
 .stacked-label > span { font-size: .72rem; color: var(--muted); font-weight: 550; }
 

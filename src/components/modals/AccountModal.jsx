@@ -4,7 +4,7 @@
 // visual noise the other 99% of the time.
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Wallet } from 'lucide-react';
+import { Wallet, AlertTriangle } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { ACCOUNT_TYPES, toPaise } from '@/lib/client/constants';
 import { backdropMotion, panelMotion } from './TxModal';
@@ -70,10 +70,14 @@ export default function AccountModal({ onClose }) {
             </div>
           </label>
           {isCard && (
-            <p className="muted small">
-              Enter what you currently <b>owe</b> on this card, not its credit limit — a limit isn&apos;t your
-              money, and counting it would inflate your balance by the whole limit.
-            </p>
+            <div className="callout">
+              <AlertTriangle size={14} />
+              <span>
+                Enter what you currently <b>owe</b> on this card — not its credit limit.
+                If you haven&apos;t used it and the full limit is still available, enter <b>0</b>.
+                A limit isn&apos;t your money, and counting it would inflate your balance by the whole limit.
+              </span>
+            </div>
           )}
           <div className="btn-row">
             <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
