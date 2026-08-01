@@ -114,11 +114,7 @@ export default function HoldingModal({ onClose, existing = null }) {
                 onChange={(e) => setOpening(e.target.value)} />
             </div>
           </label>
-          <p className="muted small">
-            Its <b>current market value</b>, not what you paid in. Update it whenever you check —
-            anything you move in afterwards is added on top, and the difference from what you&apos;ve
-            contributed shows as your gain or loss.
-          </p>
+          <p className="muted small">Its market value today, not what you paid in.</p>
           <div className="btn-row">
             <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn primary grow" disabled={busy}>{editing ? 'Save' : 'Add'}</button>

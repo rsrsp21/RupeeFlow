@@ -77,7 +77,7 @@ export default function Settings() {
           </button>
         </div>
         <p className="muted small" style={{ marginTop: 10 }}>
-          Use a full resync if this device is showing an entry you already edited or deleted somewhere else.
+          Use a full resync if this device shows something you already changed elsewhere.
         </p>
       </div>
 

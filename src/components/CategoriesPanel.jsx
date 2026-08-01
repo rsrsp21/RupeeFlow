@@ -40,10 +40,7 @@ export default function CategoriesPanel() {
   return (
     <div className="card">
       <div className="card-head"><h3><Tags size={13} style={{ verticalAlign: '-2px' }} /> Custom categories</h3></div>
-      <p className="muted small" style={{ marginBottom: 12 }}>
-        Categories you created via &quot;+ Custom&quot; or an AI entry. Renaming one updates every entry using it;
-        deleting one moves those entries to &quot;Other&quot;.
-      </p>
+      <p className="muted small" style={{ marginBottom: 12 }}>Renaming updates every entry; deleting moves them to &quot;Other&quot;.</p>
       <div className="acct-list">
         {store.customCategories.map((c) => (
           <div className="acct-row" key={c.name}>

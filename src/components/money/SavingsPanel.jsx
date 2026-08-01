@@ -62,8 +62,7 @@ export default function SavingsPanel() {
       {store.holdings.length > 0 && (
         <div className="panel-bar">
           <span className="panel-bar-note">
-            {store.holdings.length} {store.holdings.length === 1 ? 'holding' : 'holdings'} · moving money in
-            lowers your spendable balance without counting as spending
+            {store.holdings.length} {store.holdings.length === 1 ? 'holding' : 'holdings'}
           </span>
           <div className="head-actions">
             <button className="btn ghost sm" onClick={() => openTx({ prefill: { type: 'invest' } })}>
@@ -121,10 +120,7 @@ export default function SavingsPanel() {
           <div className="empty-state">
             <PiggyBank size={26} strokeWidth={1.5} />
             <h4>Track what you&apos;ve set aside</h4>
-            <p>
-              A mutual fund, FD, stock holding, or even cash kept at home. Money moved into one leaves your
-              spendable balance without counting as spending — and its value stays part of your net worth.
-            </p>
+            <p>A mutual fund, FD, stocks, or cash kept at home — held, not spent.</p>
             <button className="btn primary" style={{ width: 'auto' }} onClick={() => setAdding(true)}>
               <Plus size={14} /> Add your first holding
             </button>

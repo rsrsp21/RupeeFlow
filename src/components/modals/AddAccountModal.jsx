@@ -60,11 +60,7 @@ export default function AddAccountModal({ onDone, onSkip }) {
           {type === 'Credit Card' && (
             <div className="callout">
               <AlertTriangle size={14} />
-              <span>
-                Enter what you currently <b>owe</b> on this card — not its credit limit.
-                If you haven&apos;t used it and the full limit is still available, enter <b>0</b>.
-                A limit isn&apos;t your money, and counting it would inflate your balance by the whole limit.
-              </span>
+              <span>Enter what you <b>owe</b>, not your limit. Nothing used? Enter <b>0</b>.</span>
             </div>
           )}
           <div className="btn-row">

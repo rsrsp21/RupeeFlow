@@ -14,6 +14,7 @@ export default function AccountsPanel() {
   const [adding, setAdding] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(null); // the account object, or null
   const [editing, setEditing] = useState(null); // the account being edited, or null
+  const [blocked, setBlocked] = useState(null); // name whose delete was refused
   const balances = store.accountBalances();
   const usage = {};
   for (const t of store.live()) {
@@ -21,9 +22,19 @@ export default function AccountsPanel() {
     if (t.to_account) usage[t.to_account] = (usage[t.to_account] || 0) + 1;
   }
 
+  // A `disabled` button can't be clicked, so it explains nothing — it just
+  // looks broken. The button stays live and answers on tap, in a bubble
+  // beside the row rather than a toast at the other end of the screen.
   function requestRemove(a) {
-    if (usage[a.name]) return store.toast(`${a.name} is used by ${usage[a.name]} entries and can't be removed`);
-    if (store.accounts.length <= 1) return store.toast('Keep at least one account');
+    const why = usage[a.name]
+      ? `Used by ${usage[a.name]} ${usage[a.name] === 1 ? 'entry' : 'entries'}`
+      : store.accounts.length <= 1 ? 'Keep at least one account' : null;
+    if (why) {
+      setBlocked({ name: a.name, why });
+      clearTimeout(requestRemove.t);
+      requestRemove.t = setTimeout(() => setBlocked(null), 2400);
+      return;
+    }
     setConfirmRemove(a);
   }
 
@@ -37,11 +48,7 @@ export default function AccountsPanel() {
   return (
     <div className="card">
       <div className="card-head"><h3><Wallet size={13} style={{ verticalAlign: '-2px' }} /> Accounts</h3></div>
-      <p className="muted small" style={{ marginBottom: 12 }}>
-        Balances start from an optional starting balance, then follow your ledger: income adds, expenses
-        subtract, transfers move between accounts. Tap any account to rename it, change its type, or set a
-        credit limit.
-      </p>
+      <p className="muted small" style={{ marginBottom: 12 }}>Tap an account to rename it, change its type, or set a credit limit.</p>
 
       <div className="acct-list">
         {store.accounts.map((a) => {
@@ -68,9 +75,13 @@ export default function AccountsPanel() {
               <button className="icon-btn" onClick={() => setEditing(a)} title="Edit account">
                 <Pencil size={13} />
               </button>
-              <button className="icon-btn" onClick={() => requestRemove(a)} title="Remove account" disabled={!!usage[a.name]}>
-                <Trash2 size={14} />
-              </button>
+              <span className="del-wrap">
+                <button className={`icon-btn ${usage[a.name] ? 'muted-btn' : ''}`}
+                  onClick={() => requestRemove(a)} title="Remove account">
+                  <Trash2 size={14} />
+                </button>
+                {blocked?.name === a.name && <span className="hint-bubble">{blocked.why}</span>}
+              </span>
             </div>
           );
         })}

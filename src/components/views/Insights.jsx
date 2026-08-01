@@ -154,9 +154,7 @@ export default function Insights() {
             </div>
             {health.stale > 0 && (
               <p className="muted small" style={{ marginTop: 10 }}>
-                {health.stale === 1
-                  ? "1 holding hasn't been valued in over a month"
-                  : `${health.stale} holdings haven't been valued in over a month`} — net worth may be out of date.
+                {health.stale} {health.stale === 1 ? 'holding' : 'holdings'} not valued in a month — net worth may be stale.
               </p>
             )}
           </div>

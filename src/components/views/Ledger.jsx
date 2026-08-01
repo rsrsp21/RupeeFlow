@@ -322,9 +322,7 @@ export default function Ledger() {
             <b className="stat-v out">{rupees(cum.spent)}</b>
           </div>
         </div>
-        <p className="muted small cum-note">
-          Running totals {account ? `for ${account}` : 'across all accounts'} up to the end of this period.
-        </p>
+        <p className="muted small cum-note">{account || 'All accounts'} · up to the end of this period.</p>
       </div>
 
       {/* ── search + filters ── */}

@@ -97,12 +97,7 @@ export default function AccountModal({ onClose, existing = null }) {
           {isCard && (
             <div className="callout">
               <AlertTriangle size={14} />
-              <span>
-                Enter what you currently <b>owe</b> on this card — not its credit limit.
-                If you haven&apos;t used it and the full limit is still available, enter <b>0</b>.
-                A limit isn&apos;t your money — it&apos;s tracked separately above, purely to show how much of
-                the card you&apos;ve used.
-              </span>
+              <span>Enter what you <b>owe</b>, not your limit. Nothing used? Enter <b>0</b>.</span>
             </div>
           )}
           <div className="btn-row">
