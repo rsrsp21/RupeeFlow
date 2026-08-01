@@ -44,7 +44,7 @@ export default function BudgetModal({ category: initial, onClose }) {
           <div className="amount-input">
             <span>₹</span>
             <AmountInput placeholder="Monthly amount" required
-              value={amount} onChange={(e) => setAmount(e.target.value)} />
+              value={amount} onChange={setAmount} />
           </div>
           <label className="row-setting">
             <span>Carry unused forward</span>

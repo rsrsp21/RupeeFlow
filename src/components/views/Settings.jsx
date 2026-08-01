@@ -305,9 +305,7 @@ function NotificationsCard() {
     <div className="card">
       <div className="card-head"><h3><Bell size={13} style={{ verticalAlign: '-2px' }} /> Notifications</h3></div>
       <p className="muted small" style={{ marginBottom: 12 }}>
-        Three a day: a recap of yesterday each morning, a summary (or a nudge if you haven&apos;t logged
-        anything) each evening, plus budget alerts, a Sunday weekly review, and a mid-month check when
-        they&apos;re relevant. One quiet last call at night only if evening&apos;s nudge went unanswered.
+        A daily recap and reminder, plus budget, weekly, and mid-month alerts when they&apos;re relevant.
       </p>
       {supported ? (
         <label className="row-setting">
