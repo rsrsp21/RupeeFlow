@@ -3,12 +3,13 @@
   "version": "2.0.0",
   "private": true,
   "license": "MIT",
-  "description": "RupeeFlow — minimalist AI-powered budget & expenditure tracker (₹)",
+  "description": "RupeeFlow \u2014 minimalist AI-powered budget & expenditure tracker (\u20b9)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "node --test \"test/**/*.test.mjs\""
   },
   "dependencies": {
     "framer-motion": "^11.15.0",

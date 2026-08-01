@@ -78,7 +78,7 @@ export default function AccountModal({ onClose, existing = null }) {
             </label>
           </div>
           <label className="stacked-label">
-            <span>{isCard ? 'Outstanding due right now' : 'Starting balance'} (optional)</span>
+            <span>{isCard ? 'Outstanding due when you started tracking' : 'Balance when you started tracking'} (optional)</span>
             <div className="amount-input">
               <span>₹</span>
               <input inputMode="decimal" placeholder="0" value={balance}
@@ -100,6 +100,12 @@ export default function AccountModal({ onClose, existing = null }) {
               <AlertTriangle size={14} />
               <span>Enter what you <b>owe</b>, not your limit. Nothing used? Enter <b>0</b>.</span>
             </div>
+          )}
+          {editing && (
+            <p className="muted small">
+              This is the opening figure, not today&apos;s balance — changing it shifts every past total.
+              To match your bank today, use Reconcile instead.
+            </p>
           )}
           <div className="btn-row">
             <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>

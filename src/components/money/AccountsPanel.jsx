@@ -2,12 +2,13 @@
 // Accounts panel — lives on the Money screen. Accounts are spendable places
 // money sits; savings/investments are holdings and live on their own tab.
 import { useState } from 'react';
-import { Plus, Wallet, Trash2, Pencil } from 'lucide-react';
+import { Plus, Wallet, Trash2, Pencil, Scale } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees, ACCOUNT_TYPES, toPaise } from '@/lib/client/constants';
 import AccountIcon from '../AccountIcon';
 import ConfirmModal from '../modals/ConfirmModal';
 import AccountModal from '../modals/AccountModal';
+import ReconcileModal from '../modals/ReconcileModal';
 
 export default function AccountsPanel() {
   const store = useStore();
@@ -15,6 +16,7 @@ export default function AccountsPanel() {
   const [confirmRemove, setConfirmRemove] = useState(null); // the account object, or null
   const [editing, setEditing] = useState(null); // the account being edited, or null
   const [blocked, setBlocked] = useState(null); // name whose delete was refused
+  const [reconciling, setReconciling] = useState(null); // account being checked against reality
   const balances = store.accountBalances();
   const usage = {};
   for (const t of store.live()) {
@@ -48,7 +50,7 @@ export default function AccountsPanel() {
   return (
     <div className="card">
       <div className="card-head"><h3><Wallet size={13} style={{ verticalAlign: '-2px' }} /> Accounts</h3></div>
-      <p className="muted small" style={{ marginBottom: 12 }}>Tap an account to rename it, change its type, or set a credit limit.</p>
+      <p className="muted small" style={{ marginBottom: 12 }}>Edit to rename or set a credit limit. Reconcile to match your bank without rewriting past totals.</p>
 
       <div className="acct-list">
         {store.accounts.map((a) => {
@@ -72,6 +74,9 @@ export default function AccountsPanel() {
                   ? `${rupees(Math.abs(bal))}${bal < 0 ? ' due' : ''}`
                   : `${bal < 0 ? '−' : ''}${rupees(Math.abs(bal))}`}
               </b>
+              <button className="icon-btn" onClick={() => setReconciling(a)} title="Reconcile with your bank">
+                <Scale size={13} />
+              </button>
               <button className="icon-btn" onClick={() => setEditing(a)} title="Edit account">
                 <Pencil size={13} />
               </button>
@@ -93,6 +98,7 @@ export default function AccountsPanel() {
 
       {adding && <AccountModal onClose={() => setAdding(false)} />}
       {editing && <AccountModal existing={editing} onClose={() => setEditing(null)} />}
+      {reconciling && <ReconcileModal account={reconciling} onClose={() => setReconciling(null)} />}
 
       {confirmRemove && (
         <ConfirmModal

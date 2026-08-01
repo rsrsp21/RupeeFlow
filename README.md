@@ -71,6 +71,7 @@ A minimalist, offline-first budget and expense tracker built for busy profession
 - Free-text plus type/category/account/amount/date filters, works offline.
 - Search spans your whole history rather than the period tab you happen to be on, because that's what a search box is for.
 - Export CSV (a spreadsheet-ready ledger), a formatted PDF report, or a JSON backup, for any preset range or a custom from/to date. Real dates (not "this month") are printed in the document and filename so it still makes sense whenever you open it later.
+- **Reconcile against your bank.** Enter what the account actually shows and the gap is recorded as a dated adjustment entry, instead of editing the opening balance until the total looks right — which silently rewrites every past day's running total and makes figures agree by construction rather than because each entry is correct.
 - **Restore from a JSON backup** — a merge, not a wipe: entries keep their original ids and timestamps, so the same last-write-wins rules apply and anything edited or deleted since the backup stays that way. Accounts, holdings and categories union by name, so restoring can't overwrite your current setup. Makes moving to a new device, or pulling old data into a live account, a two-tap job.
 - The PDF carries your **position**, not just the ledger — spendable, invested, card dues, net worth and a per-holding value/contributed/gain table — and reports transfers separately, since money moved into savings is neither income nor spending. The JSON backup includes accounts, holdings, budgets and categories, so balances can actually be rebuilt from it.
 
@@ -154,7 +155,17 @@ Tables auto-create on the app's first request, so there's no migration step.
 npm install
 cp .env.example .env    # fill in the CLOUDFLARE_* vars, JWT_SECRET, GEMINI_API_KEY
 npm run dev              # http://localhost:3000
+npm test                 # money math + sync merge (node:test, no deps)
 ```
+
+The balance math and the sync merge rule live in `src/lib/money.mjs` as pure
+functions over plain data, deliberately outside React so they can be asserted
+on directly. Every case in `test/money.test.mjs` is a bug that actually
+shipped — a deleted entry resurrected by its own pre-delete copy, a transfer
+to a non-existent account cancelling its own outflow, an investment counted
+as spending, a sale for more than cost basis losing the profit. Those are the
+failures that lose trust permanently, so they get assertions rather than
+vigilance.
 
 Push notifications and the daily reminder cron are optional. Leave their env vars blank to skip that setup (see `.env.example` for what each one does).
 

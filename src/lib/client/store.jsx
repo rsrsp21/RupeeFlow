@@ -5,6 +5,12 @@ import { createContext, useContext, useCallback, useEffect, useRef, useState } f
 import { idbPut, idbAll, idbClear } from './idb';
 import { monthKey, ACCOUNTS as DEFAULT_ACCOUNTS } from './constants';
 import { buildNoteHistory, normalizeNote } from '../noteMatch';
+// The money math lives outside React so it can be tested directly — see
+// test/money.test.mjs. These wrappers only supply current state.
+import {
+  computeTotals, computeAccountBalances, computeHoldingBalances,
+  computeHoldingContributed, computeNetWorth, isNewerTx,
+} from '../money.mjs';
 
 const Ctx = createContext(null);
 export const useStore = () => useContext(Ctx);
@@ -146,10 +152,7 @@ export function StoreProvider({ children }) {
             // row overwrite a newer local one — which for a just-deleted
             // entry meant pulling the pre-delete version straight back in
             // and resurrecting it, deleted flag and all.
-            const newer = !local
-              || t.updated_at > local.updated_at
-              || (t.updated_at === local.updated_at && (t.rev || 0) >= (local.rev || 0));
-            if (newer) { next[t.id] = t; idbPut('tx', t); }
+            if (isNewerTx(t, local)) { next[t.id] = t; idbPut('tx', t); }
             cursor.current = Math.max(cursor.current, t.updated_at);
           }
           return next;
@@ -444,23 +447,8 @@ export function StoreProvider({ children }) {
   // ── derived helpers (always recomputed from ledger — integrity by design) ──
   const live = useCallback(() => Object.values(txsRef.current).filter((t) => !t.deleted), []);
 
-  // Investments (SIPs, stocks, FDs, etc.) leave an account like an expense
-  // does, but the money isn't spent — it's still yours, just moved. Counting
-  // it as spend would inflate "Spent"/budget-pace numbers and make saving
-  // more look like the wrong outcome, so it's split out into `saved` instead
-  // of folded into `exp`. Per-category tracking (catSpend, an "Investments"
-  // budget) is untouched — this only affects the aggregate totals.
-  const totals = (list) => {
-    let inc = 0, exp = 0, saved = 0;
-    for (const t of list) {
-      if (t.type === 'income') inc += t.amount;
-      else if (t.type === 'expense') {
-        if (t.category === 'Investments') saved += t.amount;
-        else exp += t.amount;
-      }
-    }
-    return { inc, exp, saved };
-  };
+  const totals = (list) => computeTotals(list);
+
   const inMonth = (t, mk = monthKey()) => monthKey(new Date(Number(t.occurred_at))) === mk;
   const catSpend = (mk = monthKey()) => {
     const map = {};
@@ -556,96 +544,25 @@ export function StoreProvider({ children }) {
 
   // Balance per account, derived from the ledger: income in, expense out,
   // transfers move between the two named accounts.
-  // Only ever touches names that are real accounts. It used to create a key
-  // for whatever string a transaction carried, so a transfer to a name that
-  // wasn't an account (the add-entry form used to default the destination to
-  // a literal 'Bank') invented a matching credit out of thin air — the money
-  // left the source account and silently reappeared under a account that
-  // doesn't exist, so any caller summing the map saw the outflow cancel
-  // itself out and the total never moved.
-  const accountBalances = useCallback(() => {
-    const map = {};
-    const isAccount = (n) => Object.prototype.hasOwnProperty.call(map, n);
-    for (const a of accounts) map[a.name] = Number(a.opening_balance) || 0;
-    for (const t of live()) {
-      const amt = Number(t.amount) || 0;
-      if (t.type === 'income') { if (isAccount(t.account)) map[t.account] += amt; }
-      else if (t.type === 'expense') { if (isAccount(t.account)) map[t.account] -= amt; }
-      else if (t.type === 'transfer') {
-        if (isAccount(t.account)) map[t.account] -= amt;
-        if (isAccount(t.to_account)) map[t.to_account] += amt;
-      }
-    }
-    return map;
-  }, [accounts, txs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const accountBalances = useCallback(
+    () => computeAccountBalances(accounts, live()),
+    [accounts, txs]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Same derivation for savings/investments. A holding is funded by a
-  // transfer whose destination is the holding, and drawn down by a transfer
-  // out of it back into a real account — so investing never counts as
-  // spending, but it does leave your spendable balance.
-  // A holding is worth whatever the user last said it was worth, plus any
-  // money moved in or out SINCE that valuation. Contributions alone can't be
-  // the balance: a mutual fund that grew 30% would still read as the amount
-  // paid in, and selling for more than you put in would drive it negative
-  // while the profit vanished from net worth entirely.
-  const holdingBalances = useCallback(() => {
-    const map = {};
-    const since = {};
-    const isHolding = (n) => Object.prototype.hasOwnProperty.call(map, n);
-    for (const h of holdings) {
-      const valued = Number(h.valued_at) || 0;
-      map[h.name] = valued > 0 ? (Number(h.current_value) || 0) : (Number(h.opening_balance) || 0);
-      since[h.name] = valued;
-    }
-    for (const t of live()) {
-      if (t.type !== 'transfer') continue;
-      const amt = Number(t.amount) || 0;
-      const at = Number(t.occurred_at) || 0;
-      if (isHolding(t.to_account) && at > since[t.to_account]) map[t.to_account] += amt;
-      if (isHolding(t.account) && at > since[t.account]) map[t.account] -= amt;
-    }
-    return map;
-  }, [holdings, txs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const holdingBalances = useCallback(
+    () => computeHoldingBalances(holdings, live()),
+    [holdings, txs]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Cost basis — everything ever put in, minus everything taken out. The gap
-  // between this and the balance above is the gain (or loss).
-  const holdingContributed = useCallback(() => {
-    const map = {};
-    const isHolding = (n) => Object.prototype.hasOwnProperty.call(map, n);
-    for (const h of holdings) map[h.name] = Number(h.opening_balance) || 0;
-    for (const t of live()) {
-      if (t.type !== 'transfer') continue;
-      const amt = Number(t.amount) || 0;
-      if (isHolding(t.to_account)) map[t.to_account] += amt;
-      if (isHolding(t.account)) map[t.account] -= amt;
-    }
-    return map;
-  }, [holdings, txs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const holdingContributed = useCallback(
+    () => computeHoldingContributed(holdings, live()),
+    [holdings, txs]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const sumValues = (m) => Object.values(m).reduce((s, v) => s + v, 0);
-  // A credit card is a liability, not a pot of money — its balance runs
-  // negative as you spend and climbs back toward zero as you pay the bill, so
-  // it's reported as "dues" rather than folded into spendable cash. (Its
-  // starting balance is captured as what you currently OWE and stored
-  // negative; entering an available credit limit there would invent money
-  // that was never yours.)
-  const netWorth = () => {
-    const bal = accountBalances();
-    const cards = new Set(accounts.filter((a) => a.type === 'Credit Card').map((a) => a.name));
-    let spendable = 0, dues = 0;
-    for (const [name, v] of Object.entries(bal)) {
-      if (cards.has(name)) dues += -v; // negative balance = owed
-      else spendable += v;
-    }
-    const invested = sumValues(holdingBalances());
-    return { spendable, invested, dues, total: spendable + invested - dues };
-  };
+  const netWorth = () => computeNetWorth(accounts, holdings, live());
 
   // Transactions reference accounts, holdings and categories by NAME, so a
   // rename that only touched the definition would orphan every entry using
   // it — the balance would reset to its opening value and the old name would
-  // linger on each row. These rewrite the affected transactions too, as
-  // ordinary versioned edits so the change syncs like any other.
+  // linger on each row. This rewrites the affected transactions as ordinary
+  // versioned edits, so the change syncs like any other.
   const renameTxField = useCallback(async (field, oldName, newName) => {
     const affected = Object.values(txsRef.current).filter((t) => !t.deleted && t[field] === oldName);
     for (const t of affected) {
