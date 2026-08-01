@@ -1,8 +1,8 @@
 
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 // aliased — this module's own default export is already named Settings
-import { Download, LogOut, RefreshCw, Trash2, Pencil, Check, X, Bell, Settings as SettingsIcon, AlertTriangle } from 'lucide-react';
+import { Download, Upload, LogOut, RefreshCw, Trash2, Pencil, Check, X, Bell, Settings as SettingsIcon, AlertTriangle } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { TAGLINE } from '@/lib/client/constants';
 import { pushSupported, currentSubscription, enablePush, disablePush } from '@/lib/client/pushClient';
@@ -54,7 +54,10 @@ export default function Settings() {
         <p className="muted small" style={{ marginBottom: 12 }}>
           {counts} entries available. Choose format, timeline, filters and columns in the export builder.
         </p>
-        <button className="btn ghost" onClick={openExport}><Download size={14} /> Open export builder</button>
+        <div className="acct-add" style={{ marginTop: 0 }}>
+          <button className="btn ghost" onClick={openExport}><Download size={14} /> Open export builder</button>
+          <RestoreButton />
+        </div>
       </div>
 
       <div className="card">
@@ -113,6 +116,55 @@ export default function Settings() {
         <span>{TAGLINE}</span>
       </footer>
     </section>
+  );
+}
+
+function RestoreButton() {
+  const store = useStore();
+  const fileRef = useRef(null);
+  const [pending, setPending] = useState(null); // parsed backup awaiting confirmation
+  const [busy, setBusy] = useState(false);
+
+  async function pick(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      const n = Array.isArray(data?.transactions) ? data.transactions.length : 0;
+      if (!n) return store.toast('No entries found in that file');
+      setPending({ data, n, when: data.exported_at ? new Date(data.exported_at).toLocaleDateString('en-IN') : null });
+    } catch { store.toast("Couldn't read that file — it needs to be a RupeeFlow JSON export"); }
+  }
+
+  async function apply() {
+    const backup = pending;
+    setPending(null);
+    setBusy(true);
+    store.toast('Restoring…');
+    try {
+      const c = await store.importBackup(backup.data);
+      store.toast(`Restored ${c.entries} ${c.entries === 1 ? 'entry' : 'entries'}${c.skipped ? ` · ${c.skipped} already up to date` : ''}`);
+    } catch (err) { store.toast('Restore failed: ' + err.message); }
+    setBusy(false);
+  }
+
+  return (
+    <>
+      <button className="btn ghost" disabled={busy} onClick={() => fileRef.current?.click()}>
+        <Upload size={14} /> Restore from backup
+      </button>
+      <input type="file" accept="application/json,.json" hidden ref={fileRef} onChange={pick} />
+      {pending && (
+        <ConfirmModal
+          title="Restore this backup?"
+          message={`${pending.n} ${pending.n === 1 ? 'entry' : 'entries'}${pending.when ? ` from ${pending.when}` : ''} will be merged in. Nothing is deleted — anything you've changed since stays as it is, and entries already here keep their newer version.`}
+          confirmLabel="Restore"
+          onConfirm={apply}
+          onCancel={() => setPending(null)}
+        />
+      )}
+    </>
   );
 }
 

@@ -721,6 +721,102 @@ export function StoreProvider({ children }) {
     return renameTxField('category', oldName, clean);
   }, [api, customCategories, renameTxField]);
 
+  // Restore from a JSON export. Deliberately a MERGE, not a wipe-and-replace:
+  // the same file is used to move to a new device (where merging is a
+  // restore) and to pull old data into a live account (where replacing would
+  // destroy what's already there). Transactions keep their original ids and
+  // timestamps so the normal last-write-wins rules decide every conflict —
+  // an entry edited or deleted since the backup stays edited or deleted.
+  // Accounts, holdings and categories are unioned by name with the existing
+  // ones winning, so a restore can't quietly rewrite current setup.
+  const importBackup = useCallback(async (data) => {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      throw new Error('That file is not a RupeeFlow backup');
+    }
+    const incoming = Array.isArray(data.transactions) ? data.transactions : null;
+    if (!incoming) throw new Error('No transactions found in that file');
+
+    const counts = { entries: 0, accounts: 0, holdings: 0, budgets: 0, categories: 0, skipped: 0 };
+
+    const byName = (list) => new Set(list.map((x) => String(x.name || '').toLowerCase()));
+    if (Array.isArray(data.accounts) && data.accounts.length) {
+      const have = byName(accountsRef.current);
+      const add = data.accounts.map(normalizeAccount)
+        .filter((a) => a.name && !have.has(a.name.toLowerCase()));
+      if (add.length) { await saveAccounts([...accountsRef.current, ...add]); counts.accounts = add.length; }
+    }
+    if (Array.isArray(data.holdings) && data.holdings.length) {
+      const have = byName(holdingsRef.current);
+      const add = data.holdings.map(normalizeHolding)
+        .filter((h) => h.name && !have.has(h.name.toLowerCase()));
+      if (add.length) { await saveHoldings([...holdingsRef.current, ...add]); counts.holdings = add.length; }
+    }
+    if (Array.isArray(data.categories)) {
+      const added = [];
+      for (const c of data.categories) {
+        const name = String(c?.name || '').trim();
+        if (!name || customCategories.some((x) => x.name.toLowerCase() === name.toLowerCase())) continue;
+        try {
+          await api('/categories', {
+            method: 'PUT',
+            body: JSON.stringify({ name, icon_svg: c.icon_svg || '', color: c.color || '#9ca3af' }),
+          });
+          added.push({ name, icon_svg: c.icon_svg || '', color: c.color || '#9ca3af' });
+          counts.categories++;
+        } catch {}
+      }
+      if (added.length) {
+        setCustomCategories((prev) => {
+          const next = [...prev, ...added.filter((a) => !prev.some((p2) => p2.name === a.name))];
+          idbPut('meta', { k: 'categories', v: next });
+          return next;
+        });
+      }
+    }
+    if (Array.isArray(data.budgets)) {
+      for (const b of data.budgets) {
+        if (!/^\d{4}-\d{2}$/.test(String(b?.month || ''))) continue;
+        saveBudget({
+          month: b.month, category: b.category || '',
+          amount: Math.max(0, Math.round(Number(b.amount) || 0)),
+          carry_forward: b.carry_forward ? 1 : 0,
+        });
+        counts.budgets++;
+      }
+    }
+
+    for (const t of incoming) {
+      const id = String(t?.id || '');
+      const amount = Math.round(Number(t?.amount));
+      if (!id || !Number.isFinite(amount) || amount < 0 || !['expense', 'income', 'transfer'].includes(t?.type)) {
+        counts.skipped++;
+        continue;
+      }
+      const local = txsRef.current[id];
+      // Anything already here and newer stays — the backup is older by
+      // definition, so it must never undo a later edit or delete.
+      const incomingAt = Number(t.updated_at) || 0;
+      if (local && (Number(local.updated_at) || 0) >= incomingAt) { counts.skipped++; continue; }
+      await saveTx({
+        id, type: t.type, amount,
+        category: String(t.category || 'Other'),
+        note: String(t.note || ''),
+        account: String(t.account || ''),
+        to_account: String(t.to_account || ''),
+        occurred_at: Number(t.occurred_at) || Date.now(),
+        created_at: Number(t.created_at) || Date.now(),
+        updated_at: incomingAt || Date.now(),
+        rev: Math.max(1, Number(t.rev) || 1),
+        deleted: t.deleted ? 1 : 0,
+        source: ['manual', 'voice', 'receipt'].includes(t.source) ? t.source : 'manual',
+      });
+      counts.entries++;
+    }
+    await syncNow();
+    return counts;
+  }, [api, saveAccounts, saveHoldings, saveBudget, saveTx, syncNow, customCategories]);
+
+
 
   // AI summary for insights/Q&A — built from real ledger data
   // Everything the AI features reason over. This used to be spending only —
@@ -859,7 +955,7 @@ export function StoreProvider({ children }) {
 
   const value = {
     token, email, name, booted, txs, budgets, accounts, holdings, customCategories, syncState, lastSync, firstSyncDone, toastMsg,
-    api, toast, syncNow, resync, saveTx, saveBudget, deleteBudget, saveAccounts, authenticate, saveName, logout, deleteAccount,
+    api, toast, syncNow, resync, importBackup, saveTx, saveBudget, deleteBudget, saveAccounts, authenticate, saveName, logout, deleteAccount,
     live, totals, inMonth, catSpend, effectiveBudget, noteHistory, accountBalances, holdingBalances, holdingContributed, netWorth, saveHoldings, accountType, buildSummary,
     renameAccountRefs, renameHoldingRefs, renameCustomCategory,
     addCustomCategory, removeCustomCategory,

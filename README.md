@@ -71,6 +71,7 @@ A minimalist, offline-first budget and expense tracker built for busy profession
 - Free-text plus type/category/account/amount/date filters, works offline.
 - Search spans your whole history rather than the period tab you happen to be on, because that's what a search box is for.
 - Export CSV (a spreadsheet-ready ledger), a formatted PDF report, or a JSON backup, for any preset range or a custom from/to date. Real dates (not "this month") are printed in the document and filename so it still makes sense whenever you open it later.
+- **Restore from a JSON backup** — a merge, not a wipe: entries keep their original ids and timestamps, so the same last-write-wins rules apply and anything edited or deleted since the backup stays that way. Accounts, holdings and categories union by name, so restoring can't overwrite your current setup. Makes moving to a new device, or pulling old data into a live account, a two-tap job.
 - The PDF carries your **position**, not just the ledger — spendable, invested, card dues, net worth and a per-holding value/contributed/gain table — and reports transfers separately, since money moved into savings is neither income nor spending. The JSON backup includes accounts, holdings, budgets and categories, so balances can actually be rebuilt from it.
 
 **Minimalist UI**
