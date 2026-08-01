@@ -10,6 +10,7 @@ import { useUI } from '../App';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
 import ConfirmModal from '../modals/ConfirmModal';
+import CategoriesPanel from '../CategoriesPanel';
 
 export default function Settings() {
   const store = useStore();
@@ -42,6 +43,8 @@ export default function Settings() {
       </div>
 
       <NotificationsCard />
+
+      <CategoriesPanel />
 
       <div className="card">
         <div className="card-head">

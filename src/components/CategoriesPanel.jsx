@@ -1,10 +1,10 @@
 'use client';
-// Custom categories panel — lives on the Money screen.
+// Custom categories panel — lives in Settings.
 import { useState } from 'react';
 import { Trash2, Tags } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
-import CategoryIcon from '../CategoryIcon';
-import ConfirmModal from '../modals/ConfirmModal';
+import CategoryIcon from './CategoryIcon';
+import ConfirmModal from './modals/ConfirmModal';
 
 export default function CategoriesPanel() {
   const store = useStore();

@@ -1,12 +1,11 @@
 'use client';
 // Money — one screen for everything you set up rather than record: where money
-// sits (accounts), where it's parked (savings & investments), what you've
-// capped (budgets), and how you label it (categories). These were scattered
-// across Settings and two separate tabs before, which meant four places to go
-// for four halves of the same question.
+// sits (accounts), where it's parked (savings & investments), and what you've
+// capped (budgets). Categories stay in Settings — they're a labelling
+// preference, not a place money lives.
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, PiggyBank, PieChart, Tags } from 'lucide-react';
+import { Wallet, PiggyBank, PieChart } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees } from '@/lib/client/constants';
 import SyncBadge from '../SyncBadge';
@@ -14,13 +13,11 @@ import SettingsLink from '../SettingsLink';
 import AccountsPanel from '../money/AccountsPanel';
 import SavingsPanel from '../money/SavingsPanel';
 import BudgetsPanel from '../money/BudgetsPanel';
-import CategoriesPanel from '../money/CategoriesPanel';
 
 const TABS = [
   ['accounts', 'Accounts', Wallet],
   ['savings', 'Savings', PiggyBank],
   ['budgets', 'Budgets', PieChart],
-  ['categories', 'Categories', Tags],
 ];
 
 const TAB_KEY = 'rf_money_tab';
@@ -47,7 +44,7 @@ export default function Money() {
       <header className="view-head">
         <div>
           <h2><Wallet size={19} strokeWidth={2} /> Money</h2>
-          <p className="sub">Accounts, savings, budgets and categories</p>
+          <p className="sub">Accounts, savings and budgets</p>
         </div>
         <div className="view-head-utils"><SyncBadge /><SettingsLink /></div>
       </header>
@@ -94,7 +91,6 @@ export default function Money() {
         {tab === 'accounts' && <AccountsPanel />}
         {tab === 'savings' && <SavingsPanel />}
         {tab === 'budgets' && <BudgetsPanel />}
-        {tab === 'categories' && <CategoriesPanel />}
       </motion.div>
     </section>
   );
