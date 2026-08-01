@@ -103,7 +103,7 @@ export default function AccountModal({ onClose, existing = null, onReconcile }) 
           {editing && onReconcile && (
             <div className="callout" style={{ alignItems: 'center', justifyContent: 'space-between', paddingRight: 10 }}>
               <span>To match your bank today, use Reconcile.</span>
-              <button type="button" className="btn secondary" onClick={() => onReconcile(existing)}>
+              <button type="button" className="btn ghost" onClick={() => onReconcile(existing)}>
                 <Scale size={13} style={{ marginRight: 6 }} /> Reconcile
               </button>
             </div>
@@ -111,7 +111,7 @@ export default function AccountModal({ onClose, existing = null, onReconcile }) 
           <div className="btn-row">
             <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
             {editing && existing.name !== store.accounts[0]?.name && (
-              <button type="button" className="btn secondary" onClick={async () => {
+              <button type="button" className="btn ghost" onClick={async () => {
                 const arr = [...store.accounts];
                 const idx = arr.findIndex(a => a.name === existing.name);
                 if (idx > 0) {
