@@ -1235,6 +1235,10 @@ select {
   .period-seg { flex: 1; min-width: 0; width: auto; }
   .period-seg button { flex: 1; padding: 7px 4px; }
   .kpi-strip { grid-template-columns: 1fr 1fr; }
+  /* Two columns leaves an odd last tile alone in its row, so the box reads
+     as having a hole in it. Let that tile span the full width instead. */
+  .kpi-strip > .kpi:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .stat-row > .stat:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .insight-strip { grid-template-columns: 1fr; }
   .stat-row { grid-template-columns: 1fr 1fr; }
   .filter-grid { grid-template-columns: 1fr 1fr; }
