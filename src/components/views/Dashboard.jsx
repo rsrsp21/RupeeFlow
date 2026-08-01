@@ -285,6 +285,8 @@ export default function Dashboard() {
         )}
       </div>
 
+      <AccountsSummary onManage={() => setView('money')} />
+
       {/* ── insight cards ── */}
       <InsightCarousel>
         {mt.saved > 0 && (
@@ -449,8 +451,6 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-
-      <AccountsSummary onManage={() => setView('money')} />
 
       {/* ── recent ── */}
       <div className="card">
