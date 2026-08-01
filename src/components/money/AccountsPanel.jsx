@@ -7,12 +7,11 @@ import { useStore } from '@/lib/client/store';
 import { rupees, ACCOUNT_TYPES, toPaise } from '@/lib/client/constants';
 import AccountIcon from '../AccountIcon';
 import ConfirmModal from '../modals/ConfirmModal';
+import AccountModal from '../modals/AccountModal';
 
 export default function AccountsPanel() {
   const store = useStore();
-  const [addingName, setAddingName] = useState('');
-  const [addingType, setAddingType] = useState('Cash');
-  const [addingBalance, setAddingBalance] = useState('');
+  const [adding, setAdding] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(null); // the account object, or null
   const [editingBal, setEditingBal] = useState(null); // account name currently being edited, or null
   const [editVal, setEditVal] = useState('');
@@ -21,26 +20,6 @@ export default function AccountsPanel() {
   for (const t of store.live()) {
     usage[t.account] = (usage[t.account] || 0) + 1;
     if (t.to_account) usage[t.to_account] = (usage[t.to_account] || 0) + 1;
-  }
-
-  async function add(e) {
-    e.preventDefault();
-    // Name is optional — falling back to the type keeps every account
-    // nameable/identifiable without forcing you to type "Cash" for cash.
-    const name = addingName.trim() || addingType;
-    if (store.accounts.some((a) => a.name.toLowerCase() === name.toLowerCase())) {
-      return store.toast('That account already exists');
-    }
-    const entered = toPaise(addingBalance);
-    // Cards store what you owe, as a negative — see AddAccountModal.
-    const opening_balance = Number.isFinite(entered)
-      ? (addingType === 'Credit Card' ? -Math.abs(entered) : entered)
-      : 0;
-    try {
-      await store.saveAccounts([...store.accounts, { name, type: addingType, opening_balance }]);
-      setAddingName(''); setAddingBalance('');
-      store.toast(`Added ${name}`);
-    } catch {}
   }
 
   function requestRemove(a) {
@@ -122,17 +101,11 @@ export default function AccountsPanel() {
         })}
       </div>
 
-      <form className="acct-add" onSubmit={add}>
-        <select value={addingType} onChange={(e) => setAddingType(e.target.value)} title="Account type (sets the icon)">
-          {ACCOUNT_TYPES.map((t) => <option key={t}>{t}</option>)}
-        </select>
-        <input placeholder="Name (optional, e.g. HDFC, Wife's card)"
-          value={addingName} onChange={(e) => setAddingName(e.target.value)} />
-        <input inputMode="decimal"
-          placeholder={addingType === 'Credit Card' ? 'Outstanding due (optional)' : 'Starting balance (optional)'}
-          value={addingBalance} onChange={(e) => setAddingBalance(e.target.value)} />
-        <button className="btn ghost" type="submit"><Plus size={14} /> Add</button>
-      </form>
+      <button className="btn ghost" onClick={() => setAdding(true)}>
+        <Plus size={14} /> Add account
+      </button>
+
+      {adding && <AccountModal onClose={() => setAdding(false)} />}
 
       {confirmRemove && (
         <ConfirmModal

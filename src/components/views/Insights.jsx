@@ -2,10 +2,10 @@
 // AI hub — health score/coach cards, weekly narrative, and ask-anything chat.
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Sparkles, TrendingDown, AlertTriangle, Trophy, Eye, RefreshCw, Send, Gauge, ScrollText } from 'lucide-react';
+import { Sparkles, TrendingDown, AlertTriangle, Trophy, Eye, RefreshCw, RotateCcw, Send, Gauge, ScrollText } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees } from '@/lib/client/constants';
-import { loadDaily, saveDaily } from '@/lib/client/dailyCache';
+import { loadDaily, saveDaily, clearDaily } from '@/lib/client/dailyCache';
 import Markdown from '../Markdown';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
@@ -63,6 +63,16 @@ export default function Insights() {
       setWeekly(insight);
     } catch (e) { setWeekly('Could not generate: ' + e.message); }
     setLoadingWeekly(false);
+  }
+
+  // The saving effect below skips empty chats (so a fresh load doesn't wipe
+  // a cached conversation), which means resetting state alone would leave the
+  // old thread to reappear on the next visit — the cache has to go too.
+  function restartChat() {
+    setChat([]);
+    setInput('');
+    clearDaily('rf_ai_chat');
+    store.toast('Chat cleared');
   }
 
   async function ask(q) {
@@ -159,7 +169,14 @@ export default function Insights() {
 
           {/* ── chat ── */}
           <div className="card">
-            <h3><Sparkles size={13} style={{ verticalAlign: '-2px' }} /> Ask anything</h3>
+            <div className="card-head">
+              <h3><Sparkles size={13} style={{ verticalAlign: '-2px' }} /> Ask anything</h3>
+              {chat.length > 0 && (
+                <button className="btn ghost sm" onClick={restartChat} disabled={asking} title="Start a new conversation">
+                  <RotateCcw size={13} /> Restart
+                </button>
+              )}
+            </div>
             {chat.length > 0 && (
               <div className="chat">
                 {chat.map((m, i) => (

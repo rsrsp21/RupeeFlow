@@ -6,10 +6,16 @@ import { useUI } from './App';
 import { useStore } from '@/lib/client/store';
 import CategoryIcon from './CategoryIcon';
 import AccountIcon from './AccountIcon';
+import HoldingIcon from './HoldingIcon';
 
 export default function TxItem({ t, index = 0 }) {
   const { openTx } = useUI();
-  const { accountType } = useStore();
+  const { accountType, holdings } = useStore();
+  // A transfer into a holding is an investment, not a move between accounts —
+  // give it the holding's own icon and badge so it reads correctly in a list.
+  const holdingKind = (n) => holdings.find((h) => h.name === n)?.kind;
+  const intoHolding = t.type === 'transfer' ? holdingKind(t.to_account) : undefined;
+  const outOfHolding = t.type === 'transfer' ? holdingKind(t.account) : undefined;
   const sign = t.type === 'income' ? '+' : t.type === 'expense' ? '−' : '';
   const date = new Date(Number(t.occurred_at)).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
   return (
@@ -29,7 +35,7 @@ export default function TxItem({ t, index = 0 }) {
           <span>·</span>
           {t.type === 'transfer' ? (
             <span className="tx-acct">
-              <AccountIcon type={accountType(t.account)} size={11} /> {t.account} → <AccountIcon type={accountType(t.to_account)} size={11} /> {t.to_account}
+              {outOfHolding ? <HoldingIcon kind={outOfHolding} size={11} /> : <AccountIcon type={accountType(t.account)} size={11} />} {t.account} → {intoHolding ? <HoldingIcon kind={intoHolding} size={11} /> : <AccountIcon type={accountType(t.to_account)} size={11} />} {t.to_account}
             </span>
           ) : <span>{t.category}</span>}
           {t.type !== 'transfer' && t.account && (
@@ -41,7 +47,7 @@ export default function TxItem({ t, index = 0 }) {
       </div>
       <div className="tx-right">
         <div className={`tx-amt ${t.type}`}>{sign}{rupees(Number(t.amount))}</div>
-        <span className={`badge ${t.type}`}>{t.type}</span>
+        <span className={`badge ${t.type}`}>{intoHolding ? 'invest' : outOfHolding ? 'withdraw' : t.type}</span>
       </div>
     </motion.li>
   );

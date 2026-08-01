@@ -16,3 +16,7 @@ export function loadDaily(key) {
 export function saveDaily(key, value) {
   try { localStorage.setItem(key, JSON.stringify({ day: todayKey(), value })); } catch {}
 }
+
+export function clearDaily(key) {
+  try { localStorage.removeItem(key); } catch {}
+}

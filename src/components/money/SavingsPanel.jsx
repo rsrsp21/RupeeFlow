@@ -8,20 +8,27 @@ import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { PiggyBank, Plus, Trash2, Pencil, Check, X } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
-import { rupees, toPaise, HOLDING_TYPES } from '@/lib/client/constants';
+import { rupees, toPaise } from '@/lib/client/constants';
+import { DAY_MS, startOfDay } from '@/lib/client/period';
 import { useUI } from '../App';
 import HoldingIcon from '../HoldingIcon';
 import ConfirmModal from '../modals/ConfirmModal';
+import HoldingModal from '../modals/HoldingModal';
+import TxItem from '../TxItem';
+
+function dayHeading(dayStart) {
+  const today = startOfDay();
+  if (dayStart === today) return 'Today';
+  if (dayStart === today - DAY_MS) return 'Yesterday';
+  return new Date(dayStart).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' });
+}
 
 export default function SavingsPanel() {
   const store = useStore();
   const { openTx } = useUI();
   const balances = store.holdingBalances();
 
-  const [name, setName] = useState('');
-  const [kind, setKind] = useState(HOLDING_TYPES[0]);
-  const [opening, setOpening] = useState('');
-  const [customKind, setCustomKind] = useState('');
+  const [adding, setAdding] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(null);
   const [editing, setEditing] = useState(null);
   const [editVal, setEditVal] = useState('');
@@ -40,22 +47,22 @@ export default function SavingsPanel() {
     return map;
   }, [store.holdings, store.txs]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function add(e) {
-    e.preventDefault();
-    const finalKind = kind === '__custom__' ? customKind.trim() : kind;
-    const finalName = name.trim() || finalKind;
-    if (!finalName) return store.toast('Give it a name');
-    if (store.holdings.some((h) => h.name.toLowerCase() === finalName.toLowerCase())) {
-      return store.toast('That already exists');
+  // Every entry that funded or drew down a holding, grouped by day exactly
+  // like the Ledger — a balance on its own doesn't tell you what built it.
+  const movements = useMemo(() => {
+    const names = new Set(store.holdings.map((h) => h.name));
+    const rows = store.live()
+      .filter((t) => t.type === 'transfer' && (names.has(t.to_account) || names.has(t.account)))
+      .sort((a, b) => b.occurred_at - a.occurred_at)
+      .slice(0, 200);
+    const map = new Map();
+    for (const t of rows) {
+      const k = startOfDay(Number(t.occurred_at));
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(t);
     }
-    const ob = toPaise(opening);
-    try {
-      await store.saveHoldings([...store.holdings,
-        { name: finalName, kind: finalKind || 'Other', opening_balance: Number.isFinite(ob) ? ob : 0 }]);
-      setName(''); setOpening(''); setCustomKind('');
-      store.toast(`Added ${finalName}`);
-    } catch {}
-  }
+    return [...map.entries()].sort((a, b) => b[0] - a[0]);
+  }, [store.holdings, store.txs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function doRemove(h) {
     try {
@@ -151,22 +158,28 @@ export default function SavingsPanel() {
           </div>
         )}
 
-        <form className="acct-add" onSubmit={add}>
-          <select value={kind} onChange={(e) => setKind(e.target.value)} title="What kind of holding">
-            {HOLDING_TYPES.map((t) => <option key={t}>{t}</option>)}
-            <option value="__custom__">+ Custom…</option>
-          </select>
-          {kind === '__custom__' && (
-            <input placeholder="Kind (e.g. PPF, Gold)" value={customKind}
-              onChange={(e) => setCustomKind(e.target.value)} />
-          )}
-          <input placeholder="Name (optional, e.g. Nifty 50 SIP)" value={name}
-            onChange={(e) => setName(e.target.value)} />
-          <input placeholder="Starting value (optional)" inputMode="decimal"
-            value={opening} onChange={(e) => setOpening(e.target.value)} />
-          <button className="btn ghost" type="submit"><Plus size={14} /> Add</button>
-        </form>
+        <button className="btn ghost" onClick={() => setAdding(true)}>
+          <Plus size={14} /> Add savings or investment
+        </button>
       </div>
+
+      {movements.length > 0 && (
+        <div className="card list-card">
+          <div className="card-head"><h3>Money moved in &amp; out</h3></div>
+          <ul className="tx-list">
+            {movements.map(([day, items]) => (
+              <li key={day}>
+                <div className="date-head">
+                  <span>{dayHeading(day)}</span>
+                </div>
+                <ul className="tx-list">{items.map((t, i) => <TxItem key={t.id} t={t} index={i} />)}</ul>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {adding && <HoldingModal onClose={() => setAdding(false)} />}
 
       {confirmRemove && (
         <ConfirmModal

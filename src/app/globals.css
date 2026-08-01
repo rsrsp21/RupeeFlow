@@ -951,6 +951,9 @@ select {
 .holding-bal {
   font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; flex-shrink: 0;
 }
+.stacked-label { display: flex; flex-direction: column; gap: 5px; }
+.stacked-label > span { font-size: .72rem; color: var(--muted); font-weight: 550; }
+
 /* Money screen: tab strip under the net-worth hero. */
 .money-tabs {
   display: flex; gap: 2px; margin-bottom: 14px; overflow-x: auto;
@@ -982,11 +985,8 @@ select {
   font-size: .68rem; font-weight: 600; letter-spacing: .09em;
   text-transform: uppercase; color: var(--muted);
 }
-.cum-card b.cum-amt {
-  display: block; margin: 6px 0 8px;
-  font-size: clamp(1.35rem, 4vw, 1.75rem); font-variant-numeric: tabular-nums; letter-spacing: -.02em;
-}
-.cum-card b.cum-amt.out { color: var(--red); }
+.cum-card { padding-bottom: 12px; }
+.cum-note { margin-top: 10px; }
 .acct-bal-edit { display: flex; align-items: center; gap: 4px; }
 .acct-bal-edit input { width: 76px; text-align: right; }
 .name-edit { display: flex; gap: 6px; align-items: center; padding: 4px 0; }

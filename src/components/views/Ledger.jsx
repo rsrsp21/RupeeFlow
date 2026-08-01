@@ -311,24 +311,25 @@ export default function Ledger() {
           </select>
         )}
       </div>
-      <div className="grid-2">
-        <div className="card cum-card">
-          <h3>Net upto {cumLabel}</h3>
-          <b className="cum-amt" style={{ color: cum.net >= 0 ? 'var(--green)' : 'var(--red)' }}>
-            {cum.net < 0 ? '−' : ''}{rupees(Math.abs(cum.net))}
-          </b>
-          <p className="muted small">
-            Starting balance plus everything received, minus everything paid out, up to this point
-            {account ? ` in ${account}` : ' across all accounts'}.
-          </p>
+      {/* Same compact .stat-row treatment as the period card above — these were
+          full cards with their own headings and body copy, which made two
+          derived figures louder than the ledger they describe. */}
+      <div className="card cum-card">
+        <div className="stat-row">
+          <div className="stat">
+            <span className="stat-k">Net upto {cumLabel}</span>
+            <b className="stat-v" style={{ color: cum.net >= 0 ? 'var(--green)' : 'var(--red)' }}>
+              {cum.net < 0 ? '−' : ''}{rupees(Math.abs(cum.net))}
+            </b>
+          </div>
+          <div className="stat">
+            <span className="stat-k">Spent upto {cumLabel}</span>
+            <b className="stat-v out">{rupees(cum.spent)}</b>
+          </div>
         </div>
-        <div className="card cum-card">
-          <h3>Spent upto {cumLabel}</h3>
-          <b className="cum-amt out">{rupees(cum.spent)}</b>
-          <p className="muted small">
-            Every expense logged on or before this point{account ? ` from ${account}` : ', across all accounts'}.
-          </p>
-        </div>
+        <p className="muted small cum-note">
+          Running totals {account ? `for ${account}` : 'across all accounts'} up to the end of this period.
+        </p>
       </div>
 
       <AccountsSummary onManage={() => setView('settings')} />
