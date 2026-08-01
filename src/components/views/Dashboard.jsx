@@ -20,6 +20,7 @@ import TrendBars from '../charts/TrendBars';
 import CategoryBars from '../charts/CategoryBars';
 import TxItem from '../TxItem';
 import CategoryIcon from '../CategoryIcon';
+import AccountsSummary from '../AccountsSummary';
 
 function AnimatedAmount({ paise, className = 'hero-amount' }) {
   const ref = useRef(null);
@@ -44,6 +45,11 @@ export default function Dashboard() {
   const { setView, openBudget } = useUI();
   const all = store.live();
   const { inc, exp } = store.totals(all);
+  // "Net balance" is meant to read as real money on hand, so it has to start
+  // from whatever balance each account already had before RupeeFlow existed
+  // (accountBalances() seeds from opening_balance) — inc - exp alone ignores
+  // that entirely and undercounts by exactly the opening balances.
+  const openingTotal = store.accounts.reduce((s, a) => s + (Number(a.opening_balance) || 0), 0);
 
   const now = Date.now();
   const mStart = startOfMonth(now);
@@ -156,7 +162,7 @@ export default function Dashboard() {
       {/* ── hero + KPI strip ── */}
       <div className="hero-card">
         <p className="hero-label">Net balance</p>
-        <AnimatedAmount paise={inc - exp} />
+        <AnimatedAmount paise={openingTotal + inc - exp} />
         <div className="kpi-strip">
           <Kpi icon={<CalendarDays size={14} />} label="Today" value={rupees(stats.today)} />
           <Kpi icon={<Wallet size={14} />} label="This week" value={rupees(stats.week)}
@@ -219,6 +225,8 @@ export default function Dashboard() {
           );
         })()}
       </div>
+
+      <AccountsSummary onManage={() => setView('settings')} />
 
       {/* ── trend ── */}
       <div className="card">

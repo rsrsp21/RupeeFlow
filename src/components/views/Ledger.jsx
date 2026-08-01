@@ -11,6 +11,7 @@ import {
 } from '@/lib/client/period';
 import TxItem from '../TxItem';
 import TrendBars from '../charts/TrendBars';
+import AccountsSummary from '../AccountsSummary';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
 import { useUI } from '../App';
@@ -31,7 +32,7 @@ function dayHeading(dayStart) {
 
 export default function Ledger() {
   const store = useStore();
-  const { openExport, setEntryDate } = useUI();
+  const { openExport, setEntryDate, setView } = useUI();
   const [kind, setKind] = useState('day');
   const [start, setStart] = useState(() => periodStart('day'));
   const [q, setQ] = useState('');
@@ -218,6 +219,8 @@ export default function Ledger() {
           </p>
         )}
       </div>
+
+      <AccountsSummary onManage={() => setView('settings')} />
 
       {/* ── search + filters ── */}
       <div className="card filters">
