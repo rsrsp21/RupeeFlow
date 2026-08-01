@@ -99,6 +99,18 @@ export default function App({ children }) {
   // A reload already lands back where you were — the URL says so.
   const setView = (v) => router.push(PATHS[v] || '/');
 
+  // Screens used to be a state swap with nothing to fetch; as routes, each
+  // one is its own JS chunk plus an RSC payload, so a cold first tap pays a
+  // round trip that never existed before. Nav is a fixed handful of screens
+  // and the user will visit most of them, so warm them all once — after
+  // that, switching is as instant as the state swap was. Nothing else
+  // prefetches them: router.push() from a button gets none of the treatment
+  // <Link> would give it.
+  useEffect(() => {
+    if (!store.token) return;
+    for (const path of Object.values(PATHS)) router.prefetch(path);
+  }, [store.token, router]);
+
   // Switching views shouldn't carry over the previous page's scroll position —
   // .main isn't its own scroll container, the window is, so it doesn't reset itself.
   useEffect(() => { window.scrollTo(0, 0); }, [view]);

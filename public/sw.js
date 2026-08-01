@@ -2,7 +2,7 @@
 // Runtime caching: pages network-first (cache fallback), static assets
 // stale-while-revalidate, CDN libs cache-first. API calls skip the SW —
 // the app itself queues mutations in IndexedDB while offline.
-const CACHE = 'rupeeflow-next-v5';
+const CACHE = 'rupeeflow-next-v6';
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
@@ -76,6 +76,12 @@ self.addEventListener('fetch', (e) => {
     );
     return;
   }
+
+  // React Server Component payloads (Next fetches these as `?_rsc=…` on every
+  // client navigation). They must not be served from cache: a stale payload
+  // makes the router bail out to a full page reload, which is exactly the
+  // sluggishness caching was meant to avoid. Straight to network.
+  if (url.searchParams.has('_rsc')) return;
 
   // Static assets (_next/static is content-hashed → safe to cache hard)
   e.respondWith(
