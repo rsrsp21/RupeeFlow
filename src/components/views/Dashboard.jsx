@@ -11,7 +11,7 @@ import {
 import ThemeToggle from '../ThemeToggle';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
-import InsightsLink from '../InsightsLink';
+import BudgetsLink from '../BudgetsLink';
 import { useStore } from '@/lib/client/store';
 import { rupees, monthKey, CATEGORIES } from '@/lib/client/constants';
 import { DAY_MS, startOfDay, startOfWeek, startOfMonth } from '@/lib/client/period';
@@ -230,7 +230,7 @@ export default function Dashboard() {
           <span>RupeeFlow</span>
         </div>
         <ThemeToggle />
-        <div className="view-head-utils"><SyncBadge /><InsightsLink /><SettingsLink /></div>
+        <div className="view-head-utils"><SyncBadge /><BudgetsLink /><SettingsLink /></div>
       </header>
 
       {/* Greeting + date moved down into the scrollable body (leads with a

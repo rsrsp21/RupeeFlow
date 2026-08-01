@@ -6,10 +6,11 @@ import { Sparkles, TrendingDown, AlertTriangle, Trophy, Eye, CreditCard, PiggyBa
 import { useStore } from '@/lib/client/store';
 import { rupees } from '@/lib/client/constants';
 import { loadDaily, saveDaily, clearDaily } from '@/lib/client/dailyCache';
+import { useUI } from '../App';
 import Markdown from '../Markdown';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
-import InsightsLink from '../InsightsLink';
+import BudgetsLink from '../BudgetsLink';
 
 const KIND_META = {
   save: { icon: TrendingDown, tone: 'save', label: 'Save' },
@@ -29,6 +30,7 @@ const CHIPS = [
 
 export default function Insights() {
   const store = useStore();
+  const { setView } = useUI();
   // Cached until local midnight — switching views (or reopening the app)
   // shouldn't throw away an analysis that already cost an API call.
   const [coach, setCoach] = useState(() => loadDaily('rf_ai_coach'));
@@ -65,7 +67,13 @@ export default function Insights() {
       const out = await store.api('/ai/coach', {
         method: 'POST', body: JSON.stringify({ summary: store.buildSummary(60) }),
       });
-      setCoach(out);
+      // Gemini occasionally returns a card with nothing in it, which renders
+      // as an empty bordered tile. Drop anything without real content before
+      // it's stored, so the cached copy is clean too.
+      setCoach({
+        ...out,
+        cards: (out?.cards || []).filter((c) => c && (String(c.title || '').trim() || String(c.detail || '').trim())),
+      });
     } catch (e) { store.toast('Analysis failed: ' + e.message); }
     setLoadingCoach(false);
   }
@@ -113,7 +121,7 @@ export default function Insights() {
           <h2><Sparkles size={19} strokeWidth={2} /> AI Insights</h2>
           <p className="sub">Analysis grounded in your actual entries</p>
         </div>
-        <div className="view-head-utils"><SyncBadge /><InsightsLink /><SettingsLink /></div>
+        <div className="view-head-utils"><SyncBadge /><BudgetsLink /><SettingsLink /></div>
       </header>
 
       {!hasData && <div className="card"><p className="empty">Add a few entries first. AI analysis needs data to work from.</p></div>}
@@ -191,8 +199,14 @@ export default function Insights() {
                     </div>
                   </div>
 
+                  <div className="card-head" style={{ marginTop: 4 }}>
+                    <h3>What to do</h3>
+                    <a href="#" className="link" onClick={(e) => { e.preventDefault(); setView('budgets'); }}>
+                      Adjust budgets
+                    </a>
+                  </div>
                   <div className="coach-grid">
-                    {(coach.cards || []).map((c, i) => {
+                    {(coach.cards || []).filter((c) => c && (c.title || c.detail)).map((c, i) => {
                       const meta = KIND_META[c.kind] || KIND_META.watch;
                       const Icon = meta.icon;
                       return (
