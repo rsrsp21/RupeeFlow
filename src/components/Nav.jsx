@@ -9,13 +9,13 @@ const LEFT_ITEMS = [
   ['dashboard', 'Home', Home],
   ['transactions', 'Ledger', List],
 ];
-// Four tabs is what the mobile bar fits around the centred FAB. Insights
-// takes the last slot rather than Budgets: Budgets is already one tap from
-// the dashboard's pace bar and budget card, while Insights had no shortcut
-// at all. Both Budgets and Settings are reached from each screen's header on
-// mobile (BudgetsLink / SettingsLink) and stay sidebar items on desktop.
+// Four tabs is what the mobile bar fits around the centred FAB, so they go to
+// the four screens you actually open: Home and Ledger daily, Budgets and
+// Insights weekly. Money is the odd one out — accounts, savings and holdings
+// are things you set up and revisit occasionally, not check — so it moves to
+// the header (MoneyLink) and stays a sidebar item on desktop, as Settings does.
 const RIGHT_ITEMS = [
-  ['money', 'Money', Wallet],
+  ['budgets', 'Budgets', PieChart],
   ['insights', 'Insights', Sparkles],
 ];
 
@@ -49,10 +49,10 @@ export function Nav({ view, setView, collapsed, setCollapsed }) {
       <div className="nav-fab-slot" aria-hidden="true" />
       {RIGHT_ITEMS.map(item)}
 
-      <button key="budgets" className={`nav-item insights-item ${view === 'budgets' ? 'active' : ''}`}
-        onClick={() => setView('budgets')} title="Budgets" aria-label="Budgets">
-        <PieChart size={17} strokeWidth={1.9} />
-        <span className="nav-text">Budgets</span>
+      <button key="money" className={`nav-item desktop-only-item ${view === 'money' ? 'active' : ''}`}
+        onClick={() => setView('money')} title="Money" aria-label="Money">
+        <Wallet size={17} strokeWidth={1.9} />
+        <span className="nav-text">Money</span>
       </button>
 
       {/* Desktop-only: on mobile Settings isn't a tab at all — it's reached via

@@ -12,7 +12,7 @@ import { useStore } from '@/lib/client/store';
 import { rupees } from '@/lib/client/constants';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
-import BudgetsLink from '../BudgetsLink';
+import MoneyLink from '../MoneyLink';
 import AccountsPanel from '../money/AccountsPanel';
 import SavingsPanel from '../money/SavingsPanel';
 
@@ -47,7 +47,7 @@ export default function Money() {
           <h2><Wallet size={19} strokeWidth={2} /> Money</h2>
           <p className="sub">Accounts, savings and investments</p>
         </div>
-        <div className="view-head-utils"><SyncBadge /><BudgetsLink /><SettingsLink /></div>
+        <div className="view-head-utils"><SyncBadge /><MoneyLink /><SettingsLink /></div>
       </header>
 
       {/* Net worth stays pinned above the tabs — it's the one number every

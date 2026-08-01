@@ -11,7 +11,7 @@ import {
 import ThemeToggle from '../ThemeToggle';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
-import BudgetsLink from '../BudgetsLink';
+import MoneyLink from '../MoneyLink';
 import { useStore } from '@/lib/client/store';
 import { rupees, monthKey, CATEGORIES } from '@/lib/client/constants';
 import { DAY_MS, startOfDay, startOfWeek, startOfMonth } from '@/lib/client/period';
@@ -82,6 +82,9 @@ export default function Dashboard() {
   // single-account view exact (transfers in/out of just that account),
   // rather than re-deriving it from a filtered transaction list.
   const balances = store.accountBalances();
+  // Money moved out of the bottom nav, and net worth was the one thing worth
+  // opening it for day to day — so it's surfaced here instead.
+  const worth = store.netWorth();
   const netBalance = acctFilter === 'all'
     ? Object.values(balances).reduce((s, b) => s + b, 0)
     : (balances[acctFilter] || 0);
@@ -230,7 +233,7 @@ export default function Dashboard() {
           <span>RupeeFlow</span>
         </div>
         <ThemeToggle />
-        <div className="view-head-utils"><SyncBadge /><BudgetsLink /><SettingsLink /></div>
+        <div className="view-head-utils"><SyncBadge /><MoneyLink /><SettingsLink /></div>
       </header>
 
       {/* Greeting + date moved down into the scrollable body (leads with a
@@ -255,6 +258,13 @@ export default function Dashboard() {
           )}
         </div>
         <AnimatedAmount paise={netBalance} />
+        {acctFilter === 'all' && (worth.invested > 0 || worth.dues > 0) && (
+          <p className="budget-line hero-worth">
+            {worth.invested > 0 && <>+ {rupees(worth.invested)} invested</>}
+            {worth.dues > 0 && <> · − {rupees(worth.dues)} card dues</>}
+            {' · net worth '}<b>{rupees(worth.total)}</b>
+          </p>
+        )}
         <div className="kpi-strip">
           <Kpi icon={<CalendarDays size={14} />} label="Today" value={rupees(stats.today)} />
           <Kpi icon={<Wallet size={14} />} label="This week" value={rupees(stats.week)}

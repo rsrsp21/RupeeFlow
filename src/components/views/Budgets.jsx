@@ -5,7 +5,7 @@
 import { PieChart } from 'lucide-react';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
-import BudgetsLink from '../BudgetsLink';
+import MoneyLink from '../MoneyLink';
 import BudgetsPanel from '../BudgetsPanel';
 
 export default function Budgets() {
@@ -16,7 +16,7 @@ export default function Budgets() {
           <h2><PieChart size={19} strokeWidth={2} /> Budgets</h2>
           <p className="sub">Caps, pace and AI suggestions</p>
         </div>
-        <div className="view-head-utils"><SyncBadge /><BudgetsLink /><SettingsLink /></div>
+        <div className="view-head-utils"><SyncBadge /><MoneyLink /><SettingsLink /></div>
       </header>
       <BudgetsPanel />
     </section>

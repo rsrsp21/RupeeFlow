@@ -397,6 +397,7 @@ select {
   text-transform: uppercase; color: var(--muted);
 }
 .hero-amount { font-size: clamp(1.9rem, 5vw, 2.5rem); margin: 8px 0 18px; font-variant-numeric: tabular-nums; }
+.hero-worth { margin: -12px 0 16px; }
 .hero-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
 .pill {
   display: flex; flex-direction: column; gap: 1px;
@@ -1188,7 +1189,7 @@ select {
   .nav-fab-slot { display: block; flex: 1; }      /* gap the centered FAB sits over */
   /* Settings isn't a tab at all on mobile — it's reached via SettingsLink
      beside each screen's heading (.view-head-utils below) instead. */
-  .settings-item, .insights-item { display: none; }
+  .settings-item, .desktop-only-item { display: none; }
   .main { padding: 0 16px 170px; }   /* top padding moved onto the sticky .view-head itself */
   .grid-2 { grid-template-columns: 1fr; }
   .filter-row { grid-template-columns: 1fr 1fr 1fr; }

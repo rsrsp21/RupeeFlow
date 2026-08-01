@@ -2,7 +2,7 @@
 // AI hub — health score/coach cards, weekly narrative, and ask-anything chat.
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Sparkles, TrendingDown, AlertTriangle, Trophy, Eye, CreditCard, PiggyBank, Wallet, RefreshCw, RotateCcw, Send, Gauge, ScrollText } from 'lucide-react';
+import { Sparkles, TrendingDown, AlertTriangle, Trophy, Eye, CreditCard, PiggyBank, Wallet, Timer, RefreshCw, RotateCcw, Send, Gauge, ScrollText } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees } from '@/lib/client/constants';
 import { loadDaily, saveDaily, clearDaily } from '@/lib/client/dailyCache';
@@ -10,7 +10,7 @@ import { useUI } from '../App';
 import Markdown from '../Markdown';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
-import BudgetsLink from '../BudgetsLink';
+import MoneyLink from '../MoneyLink';
 
 const KIND_META = {
   save: { icon: TrendingDown, tone: 'save', label: 'Save' },
@@ -53,7 +53,16 @@ export default function Insights() {
     const w = store.netWorth();
     const s2 = store.buildSummary(35);
     const stale = (s2.holdings || []).filter((h) => h.valued_days_ago === null || h.valued_days_ago > 30).length;
+    // Runway: how long the spendable balance lasts at the recent burn rate.
+    // A balance on its own says nothing — this is the number that makes it
+    // mean something, and it needs no data the app isn't already computing.
+    const since7 = Date.now() - 7 * 86400000;
+    const dailyBurn = Math.round(store.live()
+      .filter((t) => t.type === 'expense' && t.occurred_at >= since7)
+      .reduce((a, t) => a + t.amount, 0) / 7);
     return {
+      dailyBurn,
+      runwayDays: dailyBurn > 0 ? Math.floor(Math.max(0, w.spendable) / dailyBurn) : null,
       spendable: Math.round(w.spendable), invested: Math.round(w.invested), dues: Math.round(w.dues),
       saved: Math.round((s2.month_invested_rupees || 0) * 100),
       rate: s2.savings_rate_pct, stale,
@@ -121,7 +130,7 @@ export default function Insights() {
           <h2><Sparkles size={19} strokeWidth={2} /> AI Insights</h2>
           <p className="sub">Analysis grounded in your actual entries</p>
         </div>
-        <div className="view-head-utils"><SyncBadge /><BudgetsLink /><SettingsLink /></div>
+        <div className="view-head-utils"><SyncBadge /><MoneyLink /><SettingsLink /></div>
       </header>
 
       {!hasData && <div className="card"><p className="empty">Add a few entries first. AI analysis needs data to work from.</p></div>}
@@ -147,6 +156,17 @@ export default function Insights() {
                   <b className="stat-v" style={{ color: 'var(--red)' }}>{rupees(health.dues)}</b>
                 </div>
               )}
+              <div className="stat">
+                <span className="stat-k"><Timer size={12} /> Runway</span>
+                <b className="stat-v" style={{ color: health.runwayDays === null ? 'var(--muted)'
+                  : health.runwayDays < 14 ? 'var(--red)' : health.runwayDays < 30 ? 'var(--text)' : 'var(--green)' }}>
+                  {/* Past a few months the precision is noise, so it caps. */}
+                  {health.runwayDays === null ? '—'
+                    : health.runwayDays > 90 ? '90+ days'
+                    : `${health.runwayDays} ${health.runwayDays === 1 ? 'day' : 'days'}`}
+                </b>
+                {health.dailyBurn > 0 && <span className="stat-sub">at {rupees(health.dailyBurn)}/day</span>}
+              </div>
               <div className="stat">
                 <span className="stat-k">Saved this month</span>
                 <b className="stat-v" style={{ color: health.saved > 0 ? 'var(--green)' : 'var(--muted)' }}>
