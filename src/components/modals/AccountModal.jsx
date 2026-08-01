@@ -4,13 +4,13 @@
 // visual noise the other 99% of the time.
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, AlertTriangle } from 'lucide-react';
+import { Wallet, AlertTriangle, Scale } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import AmountInput from '../AmountInput';
 import { ACCOUNT_TYPES, toPaise } from '@/lib/client/constants';
 import { backdropMotion, panelMotion } from './TxModal';
 
-export default function AccountModal({ onClose, existing = null }) {
+export default function AccountModal({ onClose, existing = null, onReconcile }) {
   const store = useStore();
   const editing = Boolean(existing);
   const [type, setType] = useState(existing?.type || 'Cash');
@@ -100,11 +100,13 @@ export default function AccountModal({ onClose, existing = null }) {
               <span>Enter what you <b>owe</b>, not your limit. Nothing used? Enter <b>0</b>.</span>
             </div>
           )}
-          {editing && (
-            <p className="muted small">
-              This is the opening figure, not today&apos;s balance — changing it shifts every past total.
-              To match your bank today, use Reconcile instead.
-            </p>
+          {editing && onReconcile && (
+            <div className="callout" style={{ alignItems: 'center', justifyContent: 'space-between', paddingRight: 10 }}>
+              <span>To match your bank today, use Reconcile.</span>
+              <button type="button" className="btn secondary" onClick={() => onReconcile(existing)}>
+                <Scale size={13} style={{ marginRight: 6 }} /> Reconcile
+              </button>
+            </div>
           )}
           <div className="btn-row">
             <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>

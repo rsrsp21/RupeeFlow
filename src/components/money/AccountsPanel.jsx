@@ -101,9 +101,6 @@ export default function AccountsPanel() {
                   </button>
                 </div>
               )}
-              <button className="icon-btn" onClick={() => setReconciling(a)} title="Reconcile with your bank">
-                <Scale size={13} />
-              </button>
               <button className="icon-btn" onClick={() => setEditing(a)} title="Edit account">
                 <Pencil size={13} />
               </button>
@@ -131,7 +128,7 @@ export default function AccountsPanel() {
       </div>
 
       {adding && <AccountModal onClose={() => setAdding(false)} />}
-      {editing && <AccountModal existing={editing} onClose={() => setEditing(null)} />}
+      {editing && <AccountModal existing={editing} onClose={() => setEditing(null)} onReconcile={(a) => { setEditing(null); setReconciling(a); }} />}
       {reconciling && <ReconcileModal account={reconciling} onClose={() => setReconciling(null)} />}
 
       {confirmRemove && (
