@@ -1,16 +1,16 @@
 'use client';
-// iOS-only "Add to Home Screen" tip, plus a persistent-storage request so
-// IndexedDB survives and the app opens offline like a native app.
+// "Install RupeeFlow" — a real install button where the browser offers one,
+// and manual instructions on iOS Safari, which has no install API at all.
 //
-// Chrome/Edge/Android already show their own native install prompt (the
-// omnibox icon or mini-infobar) — we deliberately do NOT listen for
-// beforeinstallprompt or call preventDefault() on it, so that native browser
-// UI is what users see there, not a custom in-app popup. iOS Safari has no
-// such native prompt at all, so it's the one platform that still needs a
-// manual nudge here.
+// This used to ignore `beforeinstallprompt` on the assumption that Chrome and
+// Edge show their own install UI. They largely don't any more: Android's
+// mini-infobar was removed years ago, and on desktop it's a small omnibox
+// icon that's easy to miss entirely. Skipping the event meant there was no
+// install affordance anywhere except iOS. Capturing it gives a button that
+// opens the browser's own installer on click.
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Share } from 'lucide-react';
+import { X, Share, Download } from 'lucide-react';
 
 // Showing it once and then staying quiet for a few days reads as helpful;
 // showing it on every single reload reads as nagging. A hard "X" dismiss
@@ -18,8 +18,9 @@ import { X, Share } from 'lucide-react';
 const SNOOZE_MS = 3 * 24 * 60 * 60 * 1000;
 
 export default function InstallPrompt() {
+  const [deferred, setDeferred] = useState(null); // the browser's install event
   const [showIOS, setShowIOS] = useState(false);
-  const [dismissed, setDismissed] = useState(true);
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     const standalone = window.matchMedia('(display-mode: standalone)').matches
@@ -30,33 +31,72 @@ export default function InstallPrompt() {
       return;
     }
 
-    if (localStorage.getItem('rf_install_dismissed') === '1') return;
-    if (Date.now() < Number(localStorage.getItem('rf_install_snooze_until') || 0)) return;
+    const optedOut = localStorage.getItem('rf_install_dismissed') === '1'
+      || Date.now() < Number(localStorage.getItem('rf_install_snooze_until') || 0);
 
-    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    const isSafari = /safari/i.test(navigator.userAgent) && !/crios|fxios|chrome/i.test(navigator.userAgent);
-    if (isIOS && isSafari) {
-      setShowIOS(true);
-      setDismissed(false);
+    // Fires only when the browser already considers the app installable
+    // (manifest + service worker + https, and not installed yet), so none of
+    // that has to be checked here. It's registered unconditionally because it
+    // can fire before this effect runs otherwise.
+    const onPrompt = (e) => {
+      e.preventDefault();
+      if (optedOut) return;
+      setDeferred(e);
       localStorage.setItem('rf_install_snooze_until', String(Date.now() + SNOOZE_MS));
+    };
+    window.addEventListener('beforeinstallprompt', onPrompt);
+
+    const onInstalled = () => { setDeferred(null); setShowIOS(false); };
+    window.addEventListener('appinstalled', onInstalled);
+
+    if (!optedOut) {
+      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      const isSafari = /safari/i.test(navigator.userAgent) && !/crios|fxios|chrome/i.test(navigator.userAgent);
+      if (isIOS && isSafari) {
+        setShowIOS(true);
+        localStorage.setItem('rf_install_snooze_until', String(Date.now() + SNOOZE_MS));
+      }
     }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
   }, []);
+
+  async function install() {
+    if (!deferred) return;
+    deferred.prompt();
+    // The event is single-use either way, so the banner goes regardless of
+    // what they chose — re-showing it would need a fresh event anyway.
+    await deferred.userChoice.catch(() => {});
+    setDeferred(null);
+  }
 
   function close() {
     setDismissed(true);
     localStorage.setItem('rf_install_dismissed', '1');
   }
 
+  const open = !dismissed && (deferred || showIOS);
+
   return (
     <AnimatePresence>
-      {showIOS && !dismissed && (
+      {open && (
         <motion.div className="install-prompt"
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
           transition={{ type: 'spring', stiffness: 400, damping: 32 }}>
           <div className="install-body">
             <b>Install RupeeFlow</b>
-            <span>Tap <Share size={12} style={{ verticalAlign: '-2px' }} /> then “Add to Home Screen.” Works offline after that.</span>
+            {deferred
+              ? <span>Add it to your device — opens instantly and works offline.</span>
+              : <span>Tap <Share size={12} style={{ verticalAlign: '-2px' }} /> then “Add to Home Screen.” Works offline after that.</span>}
           </div>
+          {deferred && (
+            <button className="btn primary sm" style={{ width: 'auto' }} onClick={install}>
+              <Download size={13} /> Install
+            </button>
+          )}
           <button className="icon-btn" onClick={close} aria-label="Dismiss"><X size={15} /></button>
         </motion.div>
       )}
