@@ -30,6 +30,11 @@ function dayHeading(dayStart) {
   return new Date(dayStart).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' });
 }
 
+// Which account the ledger is scoped to, remembered across reloads. Kept
+// separate from the Dashboard's own key so the two screens can sit on
+// different accounts without fighting each other.
+const LEDGER_ACCT_KEY = 'rf_ledger_account';
+
 export default function Ledger() {
   const store = useStore();
   const { openExport, setEntryDate, setView } = useUI();
@@ -66,6 +71,23 @@ export default function Ledger() {
     return () => setEntryDate(null);
   }, [kind, start, allTime, setEntryDate]);
 
+  useEffect(() => {
+    const saved = localStorage.getItem(LEDGER_ACCT_KEY);
+    if (saved) setAccount(saved);
+  }, []);
+  // Drop the saved account if it's since been removed, rather than showing
+  // a permanently empty ledger scoped to something that no longer exists.
+  useEffect(() => {
+    if (account && store.accounts.length && !store.accounts.some((a) => a.name === account)) {
+      setAccount('');
+      localStorage.removeItem(LEDGER_ACCT_KEY);
+    }
+  }, [account, store.accounts]);
+  function changeAccount(v) {
+    setAccount(v);
+    if (v) localStorage.setItem(LEDGER_ACCT_KEY, v); else localStorage.removeItem(LEDGER_ACCT_KEY);
+  }
+
   function switchKind(k) {
     setKind(k);
     setStart(periodStart(k));
@@ -76,7 +98,7 @@ export default function Ledger() {
   const activeFilters = extraFilters + (q ? 1 : 0);
 
   function clearFilters() {
-    setQ(''); setType(''); setCat(''); setAccount(''); setMinAmt(''); setMaxAmt(''); setDateFrom(''); setDateTo('');
+    setQ(''); setType(''); setCat(''); changeAccount(''); setMinAmt(''); setMaxAmt(''); setDateFrom(''); setDateTo('');
   }
 
   // period slice (or all time, or a custom range, or unscoped while searching)
@@ -143,12 +165,35 @@ export default function Ledger() {
     : hasCustomRange ? (dateTo || 'now')
     : periodLabel(kind, start);
   const cum = useMemo(() => {
-    const t = store.totals(store.live().filter((x) => x.occurred_at < cumEnd));
-    const opening = store.accounts.reduce((s, a) => s + (Number(a.opening_balance) || 0), 0);
+    const upto = store.live().filter((x) => x.occurred_at < cumEnd);
     // Net = money actually on hand, so investments come out of it too (they
     // left the account) even though they're not counted as "spending".
-    return { spent: t.exp, net: opening + t.inc - t.exp - t.saved };
-  }, [store, store.txs, store.accounts, cumEnd]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!account) {
+      const t = store.totals(upto);
+      const opening = store.accounts.reduce((s, a) => s + (Number(a.opening_balance) || 0), 0);
+      return { spent: t.exp, net: opening + t.inc - t.exp - t.saved };
+    }
+    // Scoped to one account, transfers have to be handled leg by leg (they
+    // cancel out across all accounts, but not within a single one) — same
+    // rules as store.accountBalances().
+    let net = Number(store.accounts.find((a) => a.name === account)?.opening_balance) || 0;
+    let spent = 0;
+    for (const t of upto) {
+      const amt = Number(t.amount) || 0;
+      if (t.type === 'income') {
+        if (t.account === account) net += amt;
+      } else if (t.type === 'expense') {
+        if (t.account === account) {
+          net -= amt;
+          if (t.category !== 'Investments') spent += amt;
+        }
+      } else if (t.type === 'transfer') {
+        if (t.account === account) net -= amt;
+        if (t.to_account === account) net += amt;
+      }
+    }
+    return { spent, net };
+  }, [store, store.txs, store.accounts, cumEnd, account]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // trend buckets over the period (expenses) — skipped for "Day": occurred_at's
   // time-of-day is often just whenever the entry was logged, not the real time,
@@ -262,18 +307,32 @@ export default function Ledger() {
       </div>
 
       {/* ── running position up to the end of the viewed period ── */}
+      <div className="cum-head">
+        <span className="cum-head-label">Running totals</span>
+        {store.accounts.length > 1 && (
+          <select className="hero-acct-select" value={account} onChange={(e) => changeAccount(e.target.value)}>
+            <option value="">All accounts</option>
+            {store.accounts.map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
+          </select>
+        )}
+      </div>
       <div className="grid-2">
         <div className="card cum-card">
           <h3>Net upto {cumLabel}</h3>
           <b className="cum-amt" style={{ color: cum.net >= 0 ? 'var(--green)' : 'var(--red)' }}>
             {cum.net < 0 ? '−' : ''}{rupees(Math.abs(cum.net))}
           </b>
-          <p className="muted small">Starting balances plus everything received, minus everything paid out, up to this point.</p>
+          <p className="muted small">
+            Starting balance plus everything received, minus everything paid out, up to this point
+            {account ? ` in ${account}` : ' across all accounts'}.
+          </p>
         </div>
         <div className="card cum-card">
           <h3>Spent upto {cumLabel}</h3>
           <b className="cum-amt out">{rupees(cum.spent)}</b>
-          <p className="muted small">Every expense logged on or before this point, across all accounts.</p>
+          <p className="muted small">
+            Every expense logged on or before this point{account ? ` from ${account}` : ', across all accounts'}.
+          </p>
         </div>
       </div>
 
@@ -309,7 +368,7 @@ export default function Ledger() {
                   </select>
                 </label>
                 <label><span>Account</span>
-                  <select value={account} onChange={(e) => setAccount(e.target.value)}>
+                  <select value={account} onChange={(e) => changeAccount(e.target.value)}>
                     <option value="">Any</option>
                     {store.accounts.map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
                   </select>

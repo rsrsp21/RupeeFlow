@@ -931,6 +931,11 @@ select {
 .acct-add { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
 .acct-add select { flex: 0 0 auto; width: auto; }
 .acct-add input { flex: 1; min-width: 140px; }
+.cum-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.cum-head-label {
+  font-size: .68rem; font-weight: 600; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--muted);
+}
 .cum-card b.cum-amt {
   display: block; margin: 6px 0 8px;
   font-size: clamp(1.35rem, 4vw, 1.75rem); font-variant-numeric: tabular-nums; letter-spacing: -.02em;
