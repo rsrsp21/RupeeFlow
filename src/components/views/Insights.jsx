@@ -165,7 +165,7 @@ export default function Insights() {
                     : health.runwayDays > 90 ? '90+ days'
                     : `${health.runwayDays} ${health.runwayDays === 1 ? 'day' : 'days'}`}
                 </b>
-                {health.dailyBurn > 0 && <span className="stat-sub">at {rupees(health.dailyBurn)}/day</span>}
+                {health.dailyBurn > 0 && <span className="stat-sub">{rupees(health.dailyBurn)} a day</span>}
               </div>
               <div className="stat">
                 <span className="stat-k">Saved this month</span>
@@ -177,7 +177,7 @@ export default function Insights() {
                     this well over 100%, which reads as a bug rather than a
                     good month. */}
                 {health.rate !== null && health.rate > 0 && health.rate <= 100 && (
-                  <span className="stat-sub">{health.rate.toFixed(0)}% of 30d income</span>
+                  <span className="stat-sub">{health.rate.toFixed(0)}% of 30-day income</span>
                 )}
                 {health.saved === 0 && health.lastIncome && (
                   <span className="stat-sub">

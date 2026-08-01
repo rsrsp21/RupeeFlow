@@ -91,7 +91,7 @@ export default function SavingsPanel() {
                     <span className="holding-name">{h.name}</span>
                     <span className="holding-meta">
                       <span className="tx-tag">{h.kind}</span>
-                      {rupees(put)} in
+                      {rupees(put)} invested
                       {gain !== 0 && (
                         <span style={{ color: gain > 0 ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>
                           {gain > 0 ? '▲' : '▼'} {rupees(Math.abs(gain))}
@@ -99,8 +99,8 @@ export default function SavingsPanel() {
                         </span>
                       )}
                       <span>{h.valued_at
-                        ? `valued ${new Date(h.valued_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
-                        : 'value not set'}</span>
+                        ? `Valued ${new Date(h.valued_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
+                        : 'Value not set'}</span>
                     </span>
                   </div>
                   <b className="holding-bal" style={{ color: bal < 0 ? 'var(--red)' : bal > 0 ? 'var(--green)' : 'var(--muted)' }}>

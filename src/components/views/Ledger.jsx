@@ -414,7 +414,11 @@ export default function Ledger() {
             );
           }) : (
             <li className="empty">
-              {activeFilters ? 'No entries match these filters.' : `No entries in ${allTime ? 'your ledger' : periodLabel(kind, start).toLowerCase()} yet.`}
+              {/* periodLabel was lowercased here, which turned proper nouns into
+                  "no entries in july 2026 yet" — reads as a typo. */}
+              {activeFilters
+                ? 'No entries match these filters.'
+                : allTime ? 'No entries in your ledger yet.' : `No entries for ${periodLabel(kind, start)} yet.`}
             </li>
           )}
         </motion.ul>
