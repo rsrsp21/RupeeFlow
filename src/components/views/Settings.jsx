@@ -66,9 +66,21 @@ export default function Settings() {
             ? `Last synced ${new Date(store.lastSync).toLocaleTimeString('en-IN')} · auto-syncs every few seconds`
             : 'Waiting for first sync…'}
         </p>
-        <button className="btn ghost" onClick={() => { store.toast('Syncing…'); store.syncNow(); }}>
-          <RefreshCw size={14} /> Sync now
-        </button>
+        <div className="acct-add" style={{ marginTop: 0 }}>
+          <button className="btn ghost" onClick={() => { store.toast('Syncing…'); store.syncNow(); }}>
+            <RefreshCw size={14} /> Sync now
+          </button>
+          <button className="btn ghost" onClick={async () => {
+            store.toast('Re-fetching your full ledger…');
+            await store.resync();
+            store.toast('Resynced ✓');
+          }}>
+            <RefreshCw size={14} /> Force full resync
+          </button>
+        </div>
+        <p className="muted small" style={{ marginTop: 10 }}>
+          Use a full resync if this device is showing an entry you already edited or deleted somewhere else.
+        </p>
       </div>
 
       <div className="card">

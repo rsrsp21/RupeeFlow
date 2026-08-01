@@ -30,6 +30,12 @@ function normalizeAccount(raw) {
 // steady drumbeat of calls per concurrent user.
 const POLL_MS = 60000;
 
+// How far back each pull rewinds its cursor, to absorb clock differences
+// between a user's devices (see the comment at the pull call). Generous on
+// purpose: a day's worth of changed rows is a handful of records for a
+// personal ledger, and missing an update is far worse than re-fetching one.
+const PULL_OVERLAP_MS = 24 * 60 * 60 * 1000;
+
 export function StoreProvider({ children }) {
   const [token, setToken] = useState(null);
   const [email, setEmail] = useState('');
@@ -94,7 +100,19 @@ export function StoreProvider({ children }) {
         await api('/tx/push', { method: 'POST', body: JSON.stringify({ transactions: outbox }) });
         await idbClear('outbox');
       }
-      const { transactions, serverTime } = await api(`/tx/pull?since=${cursor.current}`);
+      // Rewind the cursor by a window rather than asking for strictly
+      // newer-than-what-we've-seen. `updated_at` is stamped with the *writing
+      // device's* Date.now(), so two devices with even slightly different
+      // clocks break the "cursor only moves forward" assumption: if this
+      // device pulled a row written at T' and another device then writes at
+      // T < T' (its clock is behind, or it was offline), that write has an
+      // updated_at below our cursor and `updated_at > since` skips it
+      // permanently — no amount of polling ever recovers it. That's how a
+      // deleted entry could stay deleted on the server yet keep counting
+      // toward totals here forever. Re-pulling a window's worth of rows every
+      // sync is cheap and the LWW merge below makes re-applying a no-op.
+      const since = Math.max(0, cursor.current - PULL_OVERLAP_MS);
+      const { transactions, serverTime } = await api(`/tx/pull?since=${since}`);
       if (transactions.length) {
         setTxs((prev) => {
           const next = { ...prev };
@@ -355,6 +373,20 @@ export function StoreProvider({ children }) {
     } catch {}
   }, [api]);
 
+  // Escape hatch for a device that already drifted out of sync before the
+  // overlap window above existed — an edit or delete older than the window
+  // can't be recovered by normal polling, since the cursor has permanently
+  // moved past it. Resetting the cursor to 0 makes the next pull re-fetch
+  // the entire ledger; the LWW merge then overwrites every stale local row
+  // with the server's version. Deliberately does NOT clear local data first,
+  // so a failed pull can't leave the device empty.
+  const resync = useCallback(async () => {
+    cursor.current = 0;
+    await idbPut('meta', { k: 'cursor', v: 0 });
+    await syncNow();
+    await refreshMeta();
+  }, [syncNow, refreshMeta]);
+
   // ── near-real-time: poll while visible, sync on focus/online ──
   useEffect(() => {
     if (!token) return;
@@ -535,7 +567,7 @@ export function StoreProvider({ children }) {
 
   const value = {
     token, email, name, booted, txs, budgets, accounts, customCategories, syncState, lastSync, firstSyncDone, toastMsg,
-    api, toast, syncNow, saveTx, saveBudget, deleteBudget, saveAccounts, authenticate, saveName, logout, deleteAccount,
+    api, toast, syncNow, resync, saveTx, saveBudget, deleteBudget, saveAccounts, authenticate, saveName, logout, deleteAccount,
     live, totals, inMonth, catSpend, effectiveBudget, noteHistory, accountBalances, accountType, buildSummary,
     addCustomCategory, removeCustomCategory,
   };
