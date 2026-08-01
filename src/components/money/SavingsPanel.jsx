@@ -6,21 +6,17 @@
 // never counts as spending, but it does leave your spendable balance.
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { PiggyBank, Plus, Trash2, Pencil, Check, X, TrendingUp } from 'lucide-react';
+import { PiggyBank, Plus, Trash2, Pencil, Check, X } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees, toPaise, HOLDING_TYPES } from '@/lib/client/constants';
 import { useUI } from '../App';
-import SyncBadge from '../SyncBadge';
-import SettingsLink from '../SettingsLink';
-import InsightsLink from '../InsightsLink';
 import HoldingIcon from '../HoldingIcon';
 import ConfirmModal from '../modals/ConfirmModal';
 
-export default function Savings() {
+export default function SavingsPanel() {
   const store = useStore();
   const { openTx } = useUI();
   const balances = store.holdingBalances();
-  const worth = store.netWorth();
 
   const [name, setName] = useState('');
   const [kind, setKind] = useState(HOLDING_TYPES[0]);
@@ -79,45 +75,25 @@ export default function Savings() {
   }
 
   return (
-    <section className="view">
-      <header className="view-head">
-        <div>
-          <h2><PiggyBank size={19} strokeWidth={2} /> Savings &amp; investments</h2>
-          <p className="sub">{store.holdings.length} {store.holdings.length === 1 ? 'holding' : 'holdings'}</p>
-        </div>
+    <>
+      <div className="panel-bar">
+        <span className="panel-bar-note">
+          {store.holdings.length} {store.holdings.length === 1 ? 'holding' : 'holdings'}
+        </span>
         <div className="head-actions">
-          <button className="btn ghost" onClick={() => openTx({ prefill: { type: 'invest' } })}
+          <button className="btn ghost sm" onClick={() => openTx({ prefill: { type: 'invest' } })}
             disabled={!store.holdings.length}>
             <Plus size={14} /> Move money in
           </button>
         </div>
-        <div className="view-head-utils"><SyncBadge /><InsightsLink /><SettingsLink /></div>
-      </header>
-
-      <div className="hero-card">
-        <p className="hero-label">Net worth</p>
-        <h1 className="hero-amount">{rupees(worth.total)}</h1>
-        <div className="kpi-strip">
-          <div className="kpi">
-            <span className="kpi-label">Spendable</span>
-            <b className="kpi-value">{rupees(worth.spendable)}</b>
-          </div>
-          <div className="kpi">
-            <span className="kpi-label"><TrendingUp size={14} /> Saved &amp; invested</span>
-            <b className="kpi-value">{rupees(worth.invested)}</b>
-          </div>
-          {worth.dues > 0 && (
-            <div className="kpi">
-              <span className="kpi-label">Card dues</span>
-              <b className="kpi-value" style={{ color: 'var(--red)' }}>−{rupees(worth.dues)}</b>
-            </div>
-          )}
-        </div>
-        <p className="budget-line">
-          Money here isn&apos;t counted as spending, and it isn&apos;t counted as spendable either — moving it in
-          lowers your account balance without inflating your expenses.
-        </p>
       </div>
+
+      {/* The net-worth hero lives on the Money screen above these tabs — it
+          covers every tab, so repeating it here would just be noise. */}
+      <p className="muted small" style={{ marginBottom: 12 }}>
+        Money here isn&apos;t counted as spending, and it isn&apos;t counted as spendable either — moving it in
+        lowers your account balance without inflating your expenses.
+      </p>
 
       <div className="card">
         <div className="card-head"><h3>Your holdings</h3></div>
@@ -200,6 +176,6 @@ export default function Savings() {
           onCancel={() => setConfirmRemove(null)}
         />
       )}
-    </section>
+    </>
   );
 }

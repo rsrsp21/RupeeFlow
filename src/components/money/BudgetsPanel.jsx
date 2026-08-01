@@ -3,17 +3,14 @@
 // and one-tap AI budget suggestions from real spending history.
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Sparkles, Check, RefreshCw, Target, TrendingUp, X, Pencil, PieChart } from 'lucide-react';
+import { Plus, Sparkles, Check, RefreshCw, Target, TrendingUp, X, Pencil } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees, monthKey, CATEGORIES } from '@/lib/client/constants';
 import { DAY_MS, startOfMonth } from '@/lib/client/period';
 import { useUI } from '../App';
 import CategoryIcon from '../CategoryIcon';
-import SyncBadge from '../SyncBadge';
-import SettingsLink from '../SettingsLink';
-import InsightsLink from '../InsightsLink';
 
-export default function Budgets() {
+export default function BudgetsPanel() {
   const store = useStore();
   const { openBudget } = useUI();
   const mk = monthKey();
@@ -78,20 +75,18 @@ export default function Budgets() {
   }
 
   return (
-    <section className="view">
-      <header className="view-head">
-        <div>
-          <h2><PieChart size={19} strokeWidth={2} /> Budgets</h2>
-          <p className="sub">{new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} · Day {dayOfMonth} of {daysIn}</p>
-        </div>
+    <>
+      <div className="panel-bar">
+        <span className="panel-bar-note">
+          {new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} · Day {dayOfMonth} of {daysIn}
+        </span>
         <div className="head-actions">
-          <button className="btn ghost" onClick={suggest} disabled={loadingSuggest}>
+          <button className="btn ghost sm" onClick={suggest} disabled={loadingSuggest}>
             <Sparkles size={14} className={loadingSuggest ? 'spin' : ''} /> AI suggest
           </button>
-          <button className="btn ghost" onClick={() => openBudget('')}><Plus size={14} /> New</button>
+          <button className="btn ghost sm" onClick={() => openBudget('')}><Plus size={14} /> New</button>
         </div>
-        <div className="view-head-utils"><SyncBadge /><InsightsLink /><SettingsLink /></div>
-      </header>
+      </div>
 
       {/* ── overall ── */}
       <div className="card budget-hero">
@@ -246,7 +241,7 @@ export default function Budgets() {
           </div>
         </div>
       )}
-    </section>
+    </>
   );
 }
 

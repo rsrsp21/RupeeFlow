@@ -2,16 +2,13 @@
 'use client';
 import { useEffect, useState } from 'react';
 // aliased — this module's own default export is already named Settings
-import { Download, LogOut, RefreshCw, Plus, Wallet, Trash2, Pencil, Check, X, Bell, Settings as SettingsIcon, AlertTriangle, Tags } from 'lucide-react';
+import { Download, LogOut, RefreshCw, Trash2, Pencil, Check, X, Bell, Settings as SettingsIcon, AlertTriangle } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
-import { rupees, TAGLINE, ACCOUNT_TYPES, toPaise } from '@/lib/client/constants';
+import { TAGLINE } from '@/lib/client/constants';
 import { pushSupported, currentSubscription, enablePush, disablePush } from '@/lib/client/pushClient';
 import { useUI } from '../App';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
-import InsightsLink from '../InsightsLink';
-import AccountIcon from '../AccountIcon';
-import CategoryIcon from '../CategoryIcon';
 import ConfirmModal from '../modals/ConfirmModal';
 
 export default function Settings() {
@@ -33,7 +30,7 @@ export default function Settings() {
     <section className="view">
       <header className="view-head">
         <div><h2><SettingsIcon size={19} strokeWidth={2} /> Settings</h2><p className="sub">{store.name ? `${store.name} · ${store.email}` : store.email}</p></div>
-        <div className="view-head-utils"><SyncBadge /><InsightsLink /><SettingsLink /></div>
+        <div className="view-head-utils"><SyncBadge /><SettingsLink /></div>
       </header>
 
       <div className="card">
@@ -45,10 +42,6 @@ export default function Settings() {
       </div>
 
       <NotificationsCard />
-
-      <AccountsCard />
-
-      <CategoriesCard />
 
       <div className="card">
         <div className="card-head">
@@ -210,188 +203,6 @@ function NotificationsCard() {
         <p className="muted small">
           This browser doesn’t support push notifications. On iPhone, install RupeeFlow to your home screen first.
         </p>
-      )}
-    </div>
-  );
-}
-
-function AccountsCard() {
-  const store = useStore();
-  const [addingName, setAddingName] = useState('');
-  const [addingType, setAddingType] = useState('Cash');
-  const [addingBalance, setAddingBalance] = useState('');
-  const [confirmRemove, setConfirmRemove] = useState(null); // the account object, or null
-  const [editingBal, setEditingBal] = useState(null); // account name currently being edited, or null
-  const [editVal, setEditVal] = useState('');
-  const balances = store.accountBalances();
-  const usage = {};
-  for (const t of store.live()) {
-    usage[t.account] = (usage[t.account] || 0) + 1;
-    if (t.to_account) usage[t.to_account] = (usage[t.to_account] || 0) + 1;
-  }
-
-  async function add(e) {
-    e.preventDefault();
-    // Name is optional — falling back to the type keeps every account
-    // nameable/identifiable without forcing you to type "Cash" for cash.
-    const name = addingName.trim() || addingType;
-    if (store.accounts.some((a) => a.name.toLowerCase() === name.toLowerCase())) {
-      return store.toast('That account already exists');
-    }
-    const entered = toPaise(addingBalance);
-    // Cards store what you owe, as a negative — see AddAccountModal.
-    const opening_balance = Number.isFinite(entered)
-      ? (addingType === 'Credit Card' ? -Math.abs(entered) : entered)
-      : 0;
-    try {
-      await store.saveAccounts([...store.accounts, { name, type: addingType, opening_balance }]);
-      setAddingName(''); setAddingBalance('');
-      store.toast(`Added ${name}`);
-    } catch {}
-  }
-
-  function requestRemove(a) {
-    if (usage[a.name]) return store.toast(`${a.name} is used by ${usage[a.name]} entries and can't be removed`);
-    if (store.accounts.length <= 1) return store.toast('Keep at least one account');
-    setConfirmRemove(a);
-  }
-
-  async function doRemove(a) {
-    try {
-      await store.saveAccounts(store.accounts.filter((x) => x.name !== a.name));
-      store.toast(`Removed ${a.name}`);
-    } catch {}
-  }
-
-  function startEditBalance(a) {
-    setEditingBal(a.name);
-    // Cards are held negative but edited as a plain "amount owed".
-    const v = a.opening_balance ? Math.abs(a.opening_balance) / 100 : '';
-    setEditVal(v === '' ? '' : String(v));
-  }
-
-  async function saveBalance(a) {
-    const entered = toPaise(editVal);
-    const paise = Number.isFinite(entered)
-      ? (a.type === 'Credit Card' ? -Math.abs(entered) : entered)
-      : 0;
-    try {
-      await store.saveAccounts(store.accounts.map((x) =>
-        x.name === a.name ? { ...x, opening_balance: paise } : x));
-      setEditingBal(null);
-      store.toast('Starting balance updated');
-    } catch {}
-  }
-
-  return (
-    <div className="card">
-      <div className="card-head"><h3><Wallet size={13} style={{ verticalAlign: '-2px' }} /> Accounts</h3></div>
-      <p className="muted small" style={{ marginBottom: 12 }}>
-        Balances start from an optional starting balance, then follow your ledger: income adds, expenses subtract, transfers move between accounts.
-        For a credit card, enter what you <b>owe</b> rather than its limit — a limit isn&apos;t money you have.
-        Savings and investments aren&apos;t accounts; they live on the Savings screen.
-      </p>
-
-      <div className="acct-list">
-        {store.accounts.map((a) => {
-          const bal = balances[a.name] || 0;
-          const editing = editingBal === a.name;
-          return (
-            <div className="acct-row" key={a.name}>
-              <AccountIcon type={a.type} tile size={15} />
-              <span className="acct-name">{a.name}</span>
-              <span className="acct-count">{usage[a.name] || 0} entries</span>
-              {editing ? (
-                <form className="acct-bal-edit" onSubmit={(e) => { e.preventDefault(); saveBalance(a); }}>
-                  <span>₹</span>
-                  <input autoFocus inputMode="decimal" placeholder="0" value={editVal} onChange={(e) => setEditVal(e.target.value)} />
-                  <button className="icon-btn" type="submit" title="Save"><Check size={13} /></button>
-                  <button className="icon-btn" type="button" onClick={() => setEditingBal(null)} title="Cancel"><X size={13} /></button>
-                </form>
-              ) : (
-                <>
-                  <b className="acct-bal" style={{ color: bal < 0 ? 'var(--red)' : bal > 0 ? 'var(--green)' : 'var(--muted)' }}>
-                    {a.type === 'Credit Card'
-                      ? `${rupees(Math.abs(bal))}${bal < 0 ? ' due' : ''}`
-                      : `${bal < 0 ? '−' : ''}${rupees(Math.abs(bal))}`}
-                  </b>
-                  <button className="icon-btn" onClick={() => startEditBalance(a)}
-                    title={a.type === 'Credit Card' ? 'Set amount owed' : 'Set starting balance'}>
-                    <Pencil size={13} />
-                  </button>
-                </>
-              )}
-              <button className="icon-btn" onClick={() => requestRemove(a)} title="Remove account" disabled={!!usage[a.name]}>
-                <Trash2 size={14} />
-              </button>
-            </div>
-          );
-        })}
-      </div>
-
-      <form className="acct-add" onSubmit={add}>
-        <select value={addingType} onChange={(e) => setAddingType(e.target.value)} title="Account type (sets the icon)">
-          {ACCOUNT_TYPES.map((t) => <option key={t}>{t}</option>)}
-        </select>
-        <input placeholder="Name (optional, e.g. HDFC, Wife's card)"
-          value={addingName} onChange={(e) => setAddingName(e.target.value)} />
-        <input inputMode="decimal"
-          placeholder={addingType === 'Credit Card' ? 'Outstanding due (optional)' : 'Starting balance (optional)'}
-          value={addingBalance} onChange={(e) => setAddingBalance(e.target.value)} />
-        <button className="btn ghost" type="submit"><Plus size={14} /> Add</button>
-      </form>
-
-      {confirmRemove && (
-        <ConfirmModal
-          title="Remove this account?"
-          message={`"${confirmRemove.name}" will be removed from your account list. This can't be undone.`}
-          onConfirm={() => { doRemove(confirmRemove); setConfirmRemove(null); }}
-          onCancel={() => setConfirmRemove(null)}
-        />
-      )}
-    </div>
-  );
-}
-
-function CategoriesCard() {
-  const store = useStore();
-  const [confirmRemove, setConfirmRemove] = useState(null); // the category object, or null
-  if (!store.customCategories.length) return null;
-
-  const usage = {};
-  for (const t of store.live()) usage[t.category] = (usage[t.category] || 0) + 1;
-
-  async function doRemove(c) {
-    const moved = await store.removeCustomCategory(c.name);
-    store.toast(moved ? `Deleted "${c.name}" · ${moved} ${moved === 1 ? 'entry' : 'entries'} moved to Other` : `Deleted "${c.name}"`);
-  }
-
-  return (
-    <div className="card">
-      <div className="card-head"><h3><Tags size={13} style={{ verticalAlign: '-2px' }} /> Custom categories</h3></div>
-      <p className="muted small" style={{ marginBottom: 12 }}>
-        Categories you created via "+ Custom" or an AI entry. Deleting one moves any entries using it to "Other".
-      </p>
-      <div className="acct-list">
-        {store.customCategories.map((c) => (
-          <div className="acct-row" key={c.name}>
-            <CategoryIcon category={c.name} size={15} />
-            <span className="acct-name">{c.name}</span>
-            <span className="acct-count">{usage[c.name] || 0} entries</span>
-            <button className="icon-btn" onClick={() => setConfirmRemove(c)} title="Delete category">
-              <Trash2 size={14} />
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {confirmRemove && (
-        <ConfirmModal
-          title="Delete this category?"
-          message={`"${confirmRemove.name}" will be deleted.${usage[confirmRemove.name] ? ` ${usage[confirmRemove.name]} ${usage[confirmRemove.name] === 1 ? 'entry' : 'entries'} using it will move to "Other".` : ''} This can't be undone.`}
-          onConfirm={() => { const c = confirmRemove; setConfirmRemove(null); doRemove(c); }}
-          onCancel={() => setConfirmRemove(null)}
-        />
       )}
     </div>
   );

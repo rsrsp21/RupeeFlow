@@ -6,12 +6,11 @@ import { motion } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, Wallet, CalendarDays,
   Flame, PiggyBank, Target, ArrowRight, Check,
-  Sunrise, Sun, Moon,
+  Sunrise, Sun, Sunset, Moon,
 } from 'lucide-react';
 import ThemeToggle from '../ThemeToggle';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
-import InsightsLink from '../InsightsLink';
 import { useStore } from '@/lib/client/store';
 import { rupees, monthKey, CATEGORIES } from '@/lib/client/constants';
 import { DAY_MS, startOfDay, startOfWeek, startOfMonth } from '@/lib/client/period';
@@ -200,6 +199,13 @@ export default function Dashboard() {
 
   const recent = [...all].sort((a, b) => b.occurred_at - a.occurred_at).slice(0, 5);
   const h = new Date().getHours();
+  // Four buckets, not three — "Good evening" at 5pm was showing a moon, which
+  // reads as the middle of the night. Sunset covers the actual evening and the
+  // moon is held back for genuinely late hours.
+  const greet = h < 12 ? { icon: <Sunrise size={19} strokeWidth={2} />, text: 'Good morning' }
+    : h < 17 ? { icon: <Sun size={19} strokeWidth={2} />, text: 'Good afternoon' }
+    : h < 21 ? { icon: <Sunset size={19} strokeWidth={2} />, text: 'Good evening' }
+    : { icon: <Moon size={19} strokeWidth={2} />, text: 'Good night' };
   // A long full name would push the greeting onto several lines on mobile.
   // Two words is enough to feel personal, but two *long* words still overflow
   // (and one long unbroken word has nowhere to wrap), so cap the characters too.
@@ -222,15 +228,15 @@ export default function Dashboard() {
           <span>RupeeFlow</span>
         </div>
         <ThemeToggle />
-        <div className="view-head-utils"><SyncBadge /><InsightsLink /><SettingsLink /></div>
+        <div className="view-head-utils"><SyncBadge /><SettingsLink /></div>
       </header>
 
       {/* Greeting + date moved down into the scrollable body (leads with a
           time-of-day icon — sunrise / sun / moon — matching the wording). */}
       <div className="dashboard-greeting">
         <h2>
-          {h < 12 ? <Sunrise size={19} strokeWidth={2} /> : h < 17 ? <Sun size={19} strokeWidth={2} /> : <Moon size={19} strokeWidth={2} />}
-          {h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'}{shortName ? `, ${shortName}` : ''}
+          {greet.icon}
+          {greet.text}{shortName ? `, ${shortName}` : ''}
         </h2>
         <p className="sub">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
       </div>
@@ -272,7 +278,7 @@ export default function Dashboard() {
         )}
         {!overall && (
           <p className="budget-line">
-            No budget yet, <a href="#" className="link" onClick={(e) => { e.preventDefault(); setView('budgets'); }}>set one</a> to track pace.
+            No budget yet, <a href="#" className="link" onClick={(e) => { e.preventDefault(); setView('money'); }}>set one</a> to track pace.
           </p>
         )}
       </div>
@@ -391,7 +397,7 @@ export default function Dashboard() {
       {monthBudgets.length > 0 && (
         <div className="card">
           <div className="card-head"><h3>Budget progress</h3>
-            <a href="#" className="link" onClick={(e) => { e.preventDefault(); setView('budgets'); }}>Manage</a>
+            <a href="#" className="link" onClick={(e) => { e.preventDefault(); setView('money'); }}>Manage</a>
           </div>
           <div className="mini-budgets">
             {monthBudgets.slice(0, 5).map((b) => {

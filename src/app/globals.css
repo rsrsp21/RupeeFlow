@@ -951,6 +951,32 @@ select {
 .holding-bal {
   font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; flex-shrink: 0;
 }
+/* Money screen: tab strip under the net-worth hero. */
+.money-tabs {
+  display: flex; gap: 2px; margin-bottom: 14px; overflow-x: auto;
+  border-bottom: 1px solid var(--line); scrollbar-width: none;
+}
+.money-tabs::-webkit-scrollbar { display: none; }
+.money-tab {
+  position: relative; display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 14px; font: inherit; font-size: .82rem; font-weight: 550;
+  background: none; border: 0; color: var(--muted); cursor: pointer;
+  white-space: nowrap; transition: color .15s ease;
+}
+.money-tab:hover { color: var(--text); }
+.money-tab.on { color: var(--text); }
+.money-tab-underline {
+  position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px;
+  background: var(--accent); border-radius: 2px;
+}
+.money-hero { margin-bottom: 14px; }
+/* Per-panel action row, replacing the view headers those panels used to have. */
+.panel-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap; margin-bottom: 12px;
+}
+.panel-bar-note { font-size: .78rem; color: var(--muted); }
+
 .cum-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .cum-head-label {
   font-size: .68rem; font-weight: 600; letter-spacing: .09em;
@@ -1045,7 +1071,7 @@ select {
   .nav-fab-slot { display: block; flex: 1; }      /* gap the centered FAB sits over */
   /* Settings isn't a tab at all on mobile — it's reached via SettingsLink
      beside each screen's heading (.view-head-utils below) instead. */
-  .settings-item, .insights-item { display: none; }
+  .settings-item { display: none; }
   .main { padding: 0 16px 170px; }   /* top padding moved onto the sticky .view-head itself */
   .grid-2 { grid-template-columns: 1fr; }
   .filter-row { grid-template-columns: 1fr 1fr 1fr; }

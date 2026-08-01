@@ -9,7 +9,6 @@ import { loadDaily, saveDaily } from '@/lib/client/dailyCache';
 import Markdown from '../Markdown';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
-import InsightsLink from '../InsightsLink';
 
 const KIND_META = {
   save: { icon: TrendingDown, tone: 'save', label: 'Save' },
@@ -88,7 +87,7 @@ export default function Insights() {
           <h2><Sparkles size={19} strokeWidth={2} /> AI Insights</h2>
           <p className="sub">Analysis grounded in your actual entries</p>
         </div>
-        <div className="view-head-utils"><SyncBadge /><InsightsLink /><SettingsLink /></div>
+        <div className="view-head-utils"><SyncBadge /><SettingsLink /></div>
       </header>
 
       {!hasData && <div className="card"><p className="empty">Add a few entries first. AI analysis needs data to work from.</p></div>}
