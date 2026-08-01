@@ -226,9 +226,11 @@ function AccountsCard() {
       return store.toast('That account already exists');
     }
     const opening_balance = toPaise(addingBalance);
-    await store.saveAccounts([...store.accounts, { name, type: addingType, opening_balance: Number.isFinite(opening_balance) ? opening_balance : 0 }]);
-    setAddingName(''); setAddingBalance('');
-    store.toast(`Added ${name}`);
+    try {
+      await store.saveAccounts([...store.accounts, { name, type: addingType, opening_balance: Number.isFinite(opening_balance) ? opening_balance : 0 }]);
+      setAddingName(''); setAddingBalance('');
+      store.toast(`Added ${name}`);
+    } catch {}
   }
 
   function requestRemove(a) {
@@ -238,8 +240,10 @@ function AccountsCard() {
   }
 
   async function doRemove(a) {
-    await store.saveAccounts(store.accounts.filter((x) => x.name !== a.name));
-    store.toast(`Removed ${a.name}`);
+    try {
+      await store.saveAccounts(store.accounts.filter((x) => x.name !== a.name));
+      store.toast(`Removed ${a.name}`);
+    } catch {}
   }
 
   function startEditBalance(a) {
@@ -249,10 +253,12 @@ function AccountsCard() {
 
   async function saveBalance(a) {
     const paise = toPaise(editVal);
-    await store.saveAccounts(store.accounts.map((x) =>
-      x.name === a.name ? { ...x, opening_balance: Number.isFinite(paise) ? paise : 0 } : x));
-    setEditingBal(null);
-    store.toast('Starting balance updated');
+    try {
+      await store.saveAccounts(store.accounts.map((x) =>
+        x.name === a.name ? { ...x, opening_balance: Number.isFinite(paise) ? paise : 0 } : x));
+      setEditingBal(null);
+      store.toast('Starting balance updated');
+    } catch {}
   }
 
   return (

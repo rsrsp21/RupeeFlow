@@ -22,9 +22,13 @@ export default function AddAccountModal({ onDone, onSkip }) {
     setBusy(true);
     const finalName = name.trim() || type;
     const opening_balance = toPaise(balance);
-    await store.saveAccounts([...store.accounts, { name: finalName, type, opening_balance: Number.isFinite(opening_balance) ? opening_balance : 0 }]);
-    store.toast(`Added ${finalName}`);
-    onDone();
+    try {
+      await store.saveAccounts([...store.accounts, { name: finalName, type, opening_balance: Number.isFinite(opening_balance) ? opening_balance : 0 }]);
+      store.toast(`Added ${finalName}`);
+      onDone();
+    } catch {
+      setBusy(false);
+    }
   }
 
   return (

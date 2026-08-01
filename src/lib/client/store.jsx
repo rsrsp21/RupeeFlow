@@ -304,24 +304,41 @@ export function StoreProvider({ children }) {
     idbPut('meta', { k: 'accounts', v: derived });
   }, [txs, booted, accounts.length]);
 
+  // Budgets/categories/accounts previously were only ever fetched once, right
+  // after login — so a change made on another device (like adding an
+  // account) never showed up here until you signed out and back in. Pulled
+  // this into its own function so it can run on the same cadence as
+  // transaction sync (poll/focus/online), not just at login.
+  const refreshMeta = useCallback(async () => {
+    try {
+      const { budgets: remote } = await api('/budgets');
+      if (remote?.length) { setBudgets(remote); idbPut('meta', { k: 'budgets', v: remote }); }
+    } catch {}
+    try {
+      const { categories: remote } = await api('/categories');
+      setCustomCategories(remote || []);
+      idbPut('meta', { k: 'categories', v: remote || [] });
+    } catch {}
+    try {
+      const { accounts: remote } = await api('/accounts');
+      // Empty here just means this device derived its list from transaction
+      // history and never explicitly pushed one — don't erase that guess.
+      if (remote?.length) {
+        const normalized = remote.map(normalizeAccount);
+        setAccounts(normalized);
+        idbPut('meta', { k: 'accounts', v: normalized });
+      }
+    } catch {}
+  }, [api]);
+
   // ── near-real-time: poll while visible, sync on focus/online ──
   useEffect(() => {
     if (!token) return;
     syncNow();
-    (async () => {
-      try {
-        const { budgets: remote } = await api('/budgets');
-        if (remote?.length) { setBudgets(remote); idbPut('meta', { k: 'budgets', v: remote }); }
-      } catch {}
-      try {
-        const { categories: remote } = await api('/categories');
-        setCustomCategories(remote || []);
-        idbPut('meta', { k: 'categories', v: remote || [] });
-      } catch {}
-    })();
-    const iv = setInterval(() => { if (document.visibilityState === 'visible') syncNow(); }, POLL_MS);
-    const onFocus = () => syncNow();
-    const onOnline = () => syncNow();
+    refreshMeta();
+    const iv = setInterval(() => { if (document.visibilityState === 'visible') { syncNow(); refreshMeta(); } }, POLL_MS);
+    const onFocus = () => { syncNow(); refreshMeta(); };
+    const onOnline = () => { syncNow(); refreshMeta(); };
     const onOffline = () => setSyncState('offline');
     window.addEventListener('focus', onFocus);
     window.addEventListener('online', onOnline);
@@ -332,7 +349,7 @@ export function StoreProvider({ children }) {
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
     };
-  }, [token, syncNow, api]);
+  }, [token, syncNow, api, refreshMeta]);
 
   // ── derived helpers (always recomputed from ledger — integrity by design) ──
   const live = useCallback(() => Object.values(txsRef.current).filter((t) => !t.deleted), []);
@@ -380,6 +397,11 @@ export function StoreProvider({ children }) {
   const noteHistory = () => buildNoteHistory(live());
 
   // ── accounts ──
+  // Used to only save locally (IndexedDB) with no server call at all, so an
+  // account added on one device never reached any other until the next
+  // login re-derived it from synced transaction history. Now pushed to
+  // /api/accounts like budgets/categories already were, with an optimistic
+  // apply + rollback on failure (same pattern as saveName).
   const saveAccounts = useCallback(async (list) => {
     const seen = new Set();
     const clean = [];
@@ -389,9 +411,18 @@ export function StoreProvider({ children }) {
       seen.add(a.name.toLowerCase());
       clean.push(a);
     }
+    const prev = accounts;
     setAccounts(clean);
     await idbPut('meta', { k: 'accounts', v: clean });
-  }, []);
+    try {
+      await api('/accounts', { method: 'PUT', body: JSON.stringify({ accounts: clean }) });
+    } catch (e) {
+      setAccounts(prev);
+      idbPut('meta', { k: 'accounts', v: prev });
+      toast("Couldn't save that — check your connection and try again");
+      throw e;
+    }
+  }, [api, accounts, toast]);
 
   // What icon an account (by name, as stored on a transaction) should use —
   // 'Other' for anything renamed/removed since the transaction was recorded.

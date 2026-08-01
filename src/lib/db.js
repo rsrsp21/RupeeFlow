@@ -53,6 +53,15 @@ CREATE TABLE IF NOT EXISTS categories (
   color TEXT NOT NULL DEFAULT '#9ca3af',
   created_at INTEGER NOT NULL,
   PRIMARY KEY (user_id, name)
+);
+CREATE TABLE IF NOT EXISTS accounts (
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'Other',
+  opening_balance INTEGER NOT NULL DEFAULT 0,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, name)
 );`;
 
 function endpoint() {

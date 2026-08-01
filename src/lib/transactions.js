@@ -129,6 +129,30 @@ export async function deleteCategory(userId, name) {
   await q('DELETE FROM categories WHERE user_id = ? AND name = ?', [userId, String(name || '').slice(0, 60)]);
 }
 
+export async function getAccounts(userId) {
+  const { rows } = await q(
+    'SELECT name, type, opening_balance FROM accounts WHERE user_id = ? ORDER BY sort_order ASC', [userId]);
+  return rows;
+}
+
+// The client always sends its whole account list (add/rename/remove all go
+// through the same saveAccounts() call), so the simplest correct sync is a
+// full replace rather than reconciling a diff — same "one device's write
+// wins outright" tradeoff the rest of this app already makes.
+export async function putAccounts(userId, items) {
+  await q('DELETE FROM accounts WHERE user_id = ?', [userId]);
+  const now = Date.now();
+  let i = 0;
+  for (const a of items) {
+    const name = String(a?.name || '').trim().slice(0, 60);
+    if (!name) continue;
+    await q(
+      `INSERT INTO accounts (user_id, name, type, opening_balance, sort_order, updated_at)
+       VALUES (?,?,?,?,?,?)`,
+      [userId, name, String(a.type || 'Other').slice(0, 30), Math.round(Number(a.opening_balance) || 0), i++, now]);
+  }
+}
+
 const csvEscape = (v) => {
   const s = String(v ?? '');
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
