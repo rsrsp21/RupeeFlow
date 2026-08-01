@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, Wallet, CalendarDays,
   Flame, PiggyBank, Target, ArrowRight, Check,
-  Sunrise, Sun, Sunset, Moon,
+  Sunrise, Sun, Sunset, Moon, Sparkles,
 } from 'lucide-react';
 import ThemeToggle from '../ThemeToggle';
 import SyncBadge from '../SyncBadge';
@@ -22,6 +22,7 @@ import CategoryBars from '../charts/CategoryBars';
 import TxItem from '../TxItem';
 import CategoryIcon from '../CategoryIcon';
 import AccountsSummary from '../AccountsSummary';
+import InsightCarousel from '../InsightCarousel';
 
 function AnimatedAmount({ paise, className = 'hero-amount' }) {
   const ref = useRef(null);
@@ -285,7 +286,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── insight cards ── */}
-      <div className="insight-strip">
+      <InsightCarousel>
         {mt.saved > 0 && (
           <InsightCard icon={<PiggyBank size={15} />} tone="good"
             title={`${rupees(mt.saved)} saved & invested this month`}
@@ -318,7 +319,18 @@ export default function Dashboard() {
               body={`${rupees(topVal)} this month, your largest category.`} />
           );
         })()}
-      </div>
+      </InsightCarousel>
+
+      {/* ── ask AI ── */}
+      <button className="ai-cta" onClick={() => setView('insights')}>
+        <span className="ai-cta-glow" aria-hidden="true" />
+        <Sparkles size={16} strokeWidth={2} />
+        <span className="ai-cta-text">
+          <b>Ask AI about your money</b>
+          <em>Coaching, a health score, and answers from your own ledger</em>
+        </span>
+        <ArrowRight size={15} />
+      </button>
 
       {/* ── trend ── */}
       <div className="card">

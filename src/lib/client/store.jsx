@@ -34,6 +34,10 @@ function normalizeHolding(raw) {
     name: String(raw?.name || '').trim(),
     kind: raw?.kind || 'Other',
     opening_balance: Number(raw?.opening_balance) || 0,
+    // What it's worth, and as of when. valued_at = 0 means the user has never
+    // stated a value, so the balance falls back to what they put in.
+    current_value: Number(raw?.current_value) || 0,
+    valued_at: Number(raw?.valued_at) || 0,
   };
 }
 
@@ -579,7 +583,33 @@ export function StoreProvider({ children }) {
   // transfer whose destination is the holding, and drawn down by a transfer
   // out of it back into a real account — so investing never counts as
   // spending, but it does leave your spendable balance.
+  // A holding is worth whatever the user last said it was worth, plus any
+  // money moved in or out SINCE that valuation. Contributions alone can't be
+  // the balance: a mutual fund that grew 30% would still read as the amount
+  // paid in, and selling for more than you put in would drive it negative
+  // while the profit vanished from net worth entirely.
   const holdingBalances = useCallback(() => {
+    const map = {};
+    const since = {};
+    const isHolding = (n) => Object.prototype.hasOwnProperty.call(map, n);
+    for (const h of holdings) {
+      const valued = Number(h.valued_at) || 0;
+      map[h.name] = valued > 0 ? (Number(h.current_value) || 0) : (Number(h.opening_balance) || 0);
+      since[h.name] = valued;
+    }
+    for (const t of live()) {
+      if (t.type !== 'transfer') continue;
+      const amt = Number(t.amount) || 0;
+      const at = Number(t.occurred_at) || 0;
+      if (isHolding(t.to_account) && at > since[t.to_account]) map[t.to_account] += amt;
+      if (isHolding(t.account) && at > since[t.account]) map[t.account] -= amt;
+    }
+    return map;
+  }, [holdings, txs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cost basis — everything ever put in, minus everything taken out. The gap
+  // between this and the balance above is the gain (or loss).
+  const holdingContributed = useCallback(() => {
     const map = {};
     const isHolding = (n) => Object.prototype.hasOwnProperty.call(map, n);
     for (const h of holdings) map[h.name] = Number(h.opening_balance) || 0;
@@ -725,7 +755,7 @@ export function StoreProvider({ children }) {
   const value = {
     token, email, name, booted, txs, budgets, accounts, holdings, customCategories, syncState, lastSync, firstSyncDone, toastMsg,
     api, toast, syncNow, resync, saveTx, saveBudget, deleteBudget, saveAccounts, authenticate, saveName, logout, deleteAccount,
-    live, totals, inMonth, catSpend, effectiveBudget, noteHistory, accountBalances, holdingBalances, netWorth, saveHoldings, accountType, buildSummary,
+    live, totals, inMonth, catSpend, effectiveBudget, noteHistory, accountBalances, holdingBalances, holdingContributed, netWorth, saveHoldings, accountType, buildSummary,
     renameAccount, renameHolding, renameCustomCategory,
     addCustomCategory, removeCustomCategory,
   };

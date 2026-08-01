@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS holdings (
   name TEXT NOT NULL,
   kind TEXT NOT NULL DEFAULT 'Other',
   opening_balance INTEGER NOT NULL DEFAULT 0,
+  current_value INTEGER NOT NULL DEFAULT 0,
+  valued_at INTEGER NOT NULL DEFAULT 0,
   sort_order INTEGER NOT NULL DEFAULT 0,
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (user_id, name)
@@ -109,6 +111,10 @@ const MIGRATIONS = [
   `ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''`,
   // 'limit' is reserved in SQL, hence limit_amount. Credit cards only.
   `ALTER TABLE accounts ADD COLUMN limit_amount INTEGER NOT NULL DEFAULT 0`,
+  // A holding's market value, and when it was last stated. valued_at = 0
+  // means "never valued" — the balance then falls back to contributions.
+  `ALTER TABLE holdings ADD COLUMN current_value INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE holdings ADD COLUMN valued_at INTEGER NOT NULL DEFAULT 0`,
 ];
 
 let schemaRun;

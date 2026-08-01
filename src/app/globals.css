@@ -1016,6 +1016,48 @@ select {
 .acct-chip-name { font-weight: 550; color: var(--text); }
 .acct-chip b { font-variant-numeric: tabular-nums; font-weight: 650; }
 
+/* Auto-advancing insight carousel (mobile only — see InsightCarousel.jsx). */
+.insight-carousel { overflow: hidden; margin-bottom: 14px; }
+.insight-track { display: flex; transition: transform .45s cubic-bezier(.22, 1, .36, 1); }
+.insight-slide { flex: 0 0 100%; min-width: 0; }
+.insight-dots { display: flex; justify-content: center; gap: 5px; margin-top: 9px; }
+.insight-dots button {
+  width: 6px; height: 6px; padding: 0; border: 0; border-radius: 50%;
+  background: var(--line-strong); cursor: pointer; transition: all .25s ease;
+}
+.insight-dots button.on { background: var(--accent); width: 16px; border-radius: 3px; }
+
+/* Ask-AI call to action. The sheen sweeps across on a loop so it reads as the
+   one "live" thing on an otherwise static dashboard. */
+.ai-cta {
+  position: relative; overflow: hidden; width: 100%; margin-bottom: 16px;
+  display: flex; align-items: center; gap: 11px; text-align: left;
+  padding: 13px 15px; border-radius: var(--radius); cursor: pointer;
+  font: inherit; color: var(--text);
+  background: linear-gradient(135deg, var(--accent-soft), var(--surface) 65%);
+  border: 1px solid var(--accent-soft);
+}
+.ai-cta:hover { border-color: var(--accent); }
+.ai-cta > svg:first-of-type { color: var(--accent-text); flex-shrink: 0; }
+.ai-cta > svg:last-child { color: var(--muted); flex-shrink: 0; margin-left: auto; }
+.ai-cta-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ai-cta-text b { font-size: .86rem; font-weight: 600; }
+.ai-cta-text em { font-style: normal; font-size: .72rem; color: var(--muted); }
+.ai-cta-glow {
+  position: absolute; top: 0; bottom: 0; left: -60%; width: 45%;
+  background: linear-gradient(100deg, transparent, rgb(255 255 255 / .16), transparent);
+  animation: ai-sheen 3.6s ease-in-out infinite;
+}
+@keyframes ai-sheen {
+  0%   { left: -60%; }
+  60%  { left: 120%; }
+  100% { left: 120%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-cta-glow { animation: none; }
+  .insight-track { transition: none; }
+}
+
 .cum-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .cum-head-label {
   font-size: .68rem; font-weight: 600; letter-spacing: .09em;
@@ -1152,14 +1194,7 @@ select {
   .period-seg { flex: 1; min-width: 0; width: auto; }
   .period-seg button { flex: 1; padding: 7px 4px; }
   .kpi-strip { grid-template-columns: 1fr 1fr; }
-  /* One swipeable row rather than a 1-col stack — three stacked tiles were
-     the main thing sitting between the hero and the 7-day chart. */
-  .insight-strip {
-    display: flex; grid-template-columns: none; overflow-x: auto;
-    scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: 2px;
-  }
-  .insight-strip::-webkit-scrollbar { display: none; }
-  .insight-strip > * { flex: 0 0 84%; scroll-snap-align: start; }
+  .insight-strip { grid-template-columns: 1fr; }
   .stat-row { grid-template-columns: 1fr 1fr; }
   .filter-grid { grid-template-columns: 1fr 1fr; }
   .view-head .head-actions { width: 100%; }

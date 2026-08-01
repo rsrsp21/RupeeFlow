@@ -17,7 +17,16 @@ export default function HoldingModal({ onClose, existing = null }) {
   const [kind, setKind] = useState(existing ? (known ? existing.kind : '__custom__') : HOLDING_TYPES[0]);
   const [customKind, setCustomKind] = useState(existing && !known ? existing.kind : '');
   const [name, setName] = useState(existing?.name || '');
-  const [opening, setOpening] = useState(existing?.opening_balance ? String(existing.opening_balance / 100) : '');
+  // One "what's it worth" field for both create and edit. On save it stamps
+  // valued_at, so later contributions stack on top of the stated value rather
+  // than being swallowed by it.
+  const stated = existing
+    ? (existing.valued_at > 0 ? existing.current_value : existing.opening_balance)
+    : 0;
+  const [opening, setOpening] = useState(stated ? String(stated / 100) : '');
+  const valuedOn = existing?.valued_at
+    ? new Date(existing.valued_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+    : null;
   const [busy, setBusy] = useState(false);
   const isCustom = kind === '__custom__';
 
@@ -31,7 +40,15 @@ export default function HoldingModal({ onClose, existing = null }) {
     if (clash) return store.toast('That already exists');
     setBusy(true);
     const ob = toPaise(opening);
-    const opening_balance = Number.isFinite(ob) ? ob : 0;
+    const value = Number.isFinite(ob) ? ob : 0;
+    // Re-stamp the valuation only when the number actually changed, so
+    // editing just the name doesn't silently reset the "as of" date and
+    // discard contributions made since the last valuation.
+    const changed = value !== stated;
+    const valued_at = changed ? Date.now() : (existing?.valued_at || 0);
+    const patch = existing && !changed
+      ? { current_value: existing.current_value, valued_at: existing.valued_at, opening_balance: existing.opening_balance }
+      : { current_value: value, valued_at, opening_balance: 0 };
     try {
       if (editing) {
         // Rename first — it rewrites the transactions pointing at the old
@@ -39,11 +56,11 @@ export default function HoldingModal({ onClose, existing = null }) {
         if (finalName !== existing.name) await store.renameHolding(existing.name, finalName);
         await store.saveHoldings(store.holdings.map((h) =>
           h.name === (finalName !== existing.name ? finalName : existing.name)
-            ? { ...h, name: finalName, kind: finalKind || 'Other', opening_balance } : h));
+            ? { ...h, name: finalName, kind: finalKind || 'Other', ...patch } : h));
         store.toast('Updated');
       } else {
         await store.saveHoldings([...store.holdings,
-          { name: finalName, kind: finalKind || 'Other', opening_balance }]);
+          { name: finalName, kind: finalKind || 'Other', ...patch }]);
         store.toast(`Added ${finalName}`);
       }
       onClose();
@@ -83,7 +100,7 @@ export default function HoldingModal({ onClose, existing = null }) {
             </label>
           )}
           <label className="stacked-label">
-            <span>Value it already holds (optional)</span>
+            <span>What it&apos;s worth today{valuedOn ? ` (last set ${valuedOn})` : ' (optional)'}</span>
             <div className="amount-input">
               <span>₹</span>
               <input inputMode="decimal" placeholder="0" value={opening}
@@ -91,8 +108,9 @@ export default function HoldingModal({ onClose, existing = null }) {
             </div>
           </label>
           <p className="muted small">
-            Only what it&apos;s worth <b>today</b>, before anything you log here. Money you move in later gets
-            added on top, so putting past contributions in this figure would count them twice.
+            Its <b>current market value</b>, not what you paid in. Update it whenever you check —
+            anything you move in afterwards is added on top, and the difference from what you&apos;ve
+            contributed shows as your gain or loss.
           </p>
           <div className="btn-row">
             <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>

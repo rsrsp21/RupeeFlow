@@ -27,24 +27,11 @@ export default function SavingsPanel() {
   const store = useStore();
   const { openTx } = useUI();
   const balances = store.holdingBalances();
+  const contributed = store.holdingContributed();
 
   const [adding, setAdding] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(null);
   const [editing, setEditing] = useState(null); // the holding being edited
-
-  // How much has moved in/out of each holding through the ledger, so a row
-  // can show contributions separately from its starting value.
-  const flows = useMemo(() => {
-    const map = {};
-    for (const h of store.holdings) map[h.name] = { in: 0, out: 0, n: 0 };
-    for (const t of store.live()) {
-      if (t.type !== 'transfer') continue;
-      const amt = Number(t.amount) || 0;
-      if (map[t.to_account]) { map[t.to_account].in += amt; map[t.to_account].n++; }
-      if (map[t.account]) { map[t.account].out += amt; map[t.account].n++; }
-    }
-    return map;
-  }, [store.holdings, store.txs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Every entry that funded or drew down a holding, grouped by day exactly
   // like the Ledger — a balance on its own doesn't tell you what built it.
@@ -97,7 +84,11 @@ export default function SavingsPanel() {
           <div className="acct-list">
             {store.holdings.map((h, i) => {
               const bal = balances[h.name] || 0;
-              const f = flows[h.name] || { in: 0, out: 0, n: 0 };
+              const put = contributed[h.name] || 0;
+              // Gain only means something once a real value has been stated —
+              // before that the balance IS the contributions, so it'd read 0.
+              const gain = h.valued_at ? bal - put : 0;
+              const pct = h.valued_at && put > 0 ? (gain / put) * 100 : null;
               return (
                 <motion.div className="holding-row" key={h.name}
                   initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>

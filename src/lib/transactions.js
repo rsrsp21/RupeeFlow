@@ -156,7 +156,7 @@ export async function putAccounts(userId, items) {
 
 export async function getHoldings(userId) {
   const { rows } = await q(
-    'SELECT name, kind, opening_balance FROM holdings WHERE user_id = ? ORDER BY sort_order ASC', [userId]);
+    'SELECT name, kind, opening_balance, current_value, valued_at FROM holdings WHERE user_id = ? ORDER BY sort_order ASC', [userId]);
   return rows;
 }
 
@@ -170,9 +170,10 @@ export async function putHoldings(userId, items) {
     const name = String(h?.name || '').trim().slice(0, 60);
     if (!name) continue;
     await q(
-      `INSERT INTO holdings (user_id, name, kind, opening_balance, sort_order, updated_at)
-       VALUES (?,?,?,?,?,?)`,
-      [userId, name, String(h.kind || 'Other').slice(0, 30), Math.round(Number(h.opening_balance) || 0), i++, now]);
+      `INSERT INTO holdings (user_id, name, kind, opening_balance, current_value, valued_at, sort_order, updated_at)
+       VALUES (?,?,?,?,?,?,?,?)`,
+      [userId, name, String(h.kind || 'Other').slice(0, 30), Math.round(Number(h.opening_balance) || 0),
+       Math.round(Number(h.current_value) || 0), Math.round(Number(h.valued_at) || 0), i++, now]);
   }
 }
 
