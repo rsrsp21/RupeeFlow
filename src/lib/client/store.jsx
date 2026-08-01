@@ -62,6 +62,12 @@ const POLL_MS = 60000;
 // personal ledger, and missing an update is far worse than re-fetching one.
 const PULL_OVERLAP_MS = 24 * 60 * 60 * 1000;
 
+// Set once this device has seen or written a real server-side account list.
+// Without it, "the server has no accounts" can't be told apart from "this
+// device predates account syncing", and the one-time backfill for the latter
+// would keep resurrecting accounts deleted on another device.
+const ACCOUNTS_PUSHED_KEY = 'rf_accounts_pushed';
+
 export function StoreProvider({ children }) {
   const [token, setToken] = useState(null);
   const [email, setEmail] = useState('');
@@ -190,6 +196,23 @@ export function StoreProvider({ children }) {
   // ── budgets ──
   // Optimistic: apply locally and resolve immediately so the UI never waits
   // on the D1 round-trip; the PUT is fired in the background.
+  // Budgets have no outbox of their own, so a write made offline used to be
+  // lost the moment its PUT failed. That was survivable while an empty server
+  // response was ignored; now that an empty list is honoured (so deletions
+  // propagate), an unsent local budget would be wiped on reconnect instead.
+  // Failed writes queue here and are flushed before the next read.
+  const pendingBudgets = useRef([]);
+  const flushBudgets = useCallback(async () => {
+    if (!pendingBudgets.current.length) return;
+    const queue = pendingBudgets.current;
+    pendingBudgets.current = [];
+    for (const job of queue) {
+      try {
+        await api('/budgets', { method: job.method, body: JSON.stringify(job.body) });
+      } catch { pendingBudgets.current.push(job); }
+    }
+  }, [api]);
+
   const saveBudget = useCallback((b) => {
     setBudgets((prev) => {
       const i = prev.findIndex((x) => x.month === b.month && x.category === b.category);
@@ -197,7 +220,8 @@ export function StoreProvider({ children }) {
       idbPut('meta', { k: 'budgets', v: next });
       return next;
     });
-    api('/budgets', { method: 'PUT', body: JSON.stringify({ budgets: [b] }) }).catch(() => {});
+    api('/budgets', { method: 'PUT', body: JSON.stringify({ budgets: [b] }) })
+      .catch(() => pendingBudgets.current.push({ method: 'PUT', body: { budgets: [b] } }));
   }, [api]);
 
   const deleteBudget = useCallback((month, category) => {
@@ -206,7 +230,8 @@ export function StoreProvider({ children }) {
       idbPut('meta', { k: 'budgets', v: next });
       return next;
     });
-    api('/budgets', { method: 'DELETE', body: JSON.stringify({ month, category }) }).catch(() => {});
+    api('/budgets', { method: 'DELETE', body: JSON.stringify({ month, category }) })
+      .catch(() => pendingBudgets.current.push({ method: 'DELETE', body: { month, category } }));
   }, [api]);
 
   // Loads whatever's already cached in IndexedDB for this device — txs,
@@ -371,9 +396,17 @@ export function StoreProvider({ children }) {
   // this into its own function so it can run on the same cadence as
   // transaction sync (poll/focus/online), not just at login.
   const refreshMeta = useCallback(async () => {
+    // Anything that failed to send goes out before we read, so a queued write
+    // is never overwritten by the state it hasn't reached yet.
+    await flushBudgets();
     try {
+      // No length guard: an empty list is a valid answer meaning "every
+      // budget was deleted". Skipping it left the deletion of a last budget
+      // permanently invisible on every other device, since each poll hit the
+      // same guard and kept the stale copy.
       const { budgets: remote } = await api('/budgets');
-      if (remote?.length) { setBudgets(remote); idbPut('meta', { k: 'budgets', v: remote }); }
+      setBudgets(remote || []);
+      idbPut('meta', { k: 'budgets', v: remote || [] });
     } catch {}
     try {
       const { categories: remote } = await api('/categories');
@@ -383,19 +416,25 @@ export function StoreProvider({ children }) {
     try {
       const { accounts: remote } = await api('/accounts');
       if (remote?.length) {
-        // Empty here just means this device derived its list from
-        // transaction history and never explicitly pushed one — don't
-        // erase that guess.
         const normalized = remote.map(normalizeAccount);
         setAccounts(normalized);
         idbPut('meta', { k: 'accounts', v: normalized });
-      } else if (accountsRef.current.length) {
-        // Backfill: this device has a real local account list from before
-        // accounts synced to the server at all (or before this device ever
-        // got a chance to push it) — push it once so other devices can see
-        // it too. Once this succeeds, the next refresh finds a non-empty
-        // remote list and this branch stops firing.
-        api('/accounts', { method: 'PUT', body: JSON.stringify({ accounts: accountsRef.current }) }).catch(() => {});
+        localStorage.setItem(ACCOUNTS_PUSHED_KEY, '1');
+      } else if (accountsRef.current.length && localStorage.getItem(ACCOUNTS_PUSHED_KEY) !== '1') {
+        // An empty remote list is ambiguous on its own: it means either "this
+        // device has a local list from before accounts synced at all" or "the
+        // user deleted every account". Backfilling on the first reading is
+        // right; doing it on the second would resurrect what they deleted.
+        // The marker tells them apart — it is only set once this device has
+        // seen or written a real server list, so the backfill can fire at
+        // most once and never again afterwards.
+        api('/accounts', { method: 'PUT', body: JSON.stringify({ accounts: accountsRef.current }) })
+          .then(() => localStorage.setItem(ACCOUNTS_PUSHED_KEY, '1'))
+          .catch(() => {});
+      } else {
+        // Genuinely emptied on another device — mirror it.
+        setAccounts([]);
+        idbPut('meta', { k: 'accounts', v: [] });
       }
     } catch {}
     try {
@@ -408,7 +447,7 @@ export function StoreProvider({ children }) {
         api('/holdings', { method: 'PUT', body: JSON.stringify({ holdings: holdingsRef.current }) }).catch(() => {});
       }
     } catch {}
-  }, [api]);
+  }, [api, flushBudgets]);
 
   // Escape hatch for a device that already drifted out of sync before the
   // overlap window above existed — an edit or delete older than the window
@@ -494,6 +533,7 @@ export function StoreProvider({ children }) {
     await idbPut('meta', { k: 'accounts', v: clean });
     try {
       await api('/accounts', { method: 'PUT', body: JSON.stringify({ accounts: clean }) });
+      localStorage.setItem(ACCOUNTS_PUSHED_KEY, '1');
     } catch (e) {
       setAccounts(prev);
       idbPut('meta', { k: 'accounts', v: prev });
