@@ -77,10 +77,12 @@ export default function AccountsPanel() {
             <div className="holding-row" key={a.name}>
               <AccountIcon type={a.type} tile size={15} />
               <div className="holding-main">
-                <span className="holding-name">{a.name}</span>
+                <span className="holding-name" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  {a.name}
+                  {i === 0 && <span className="tx-tag" style={{ background: 'var(--accent-soft)', color: 'var(--accent-text)', borderColor: 'var(--accent)' }}>Primary</span>}
+                </span>
                 <span className="holding-meta">
                   <span className="tx-tag">{a.type}</span>
-                  {i === 0 && <span className="tx-tag" style={{ background: 'var(--accent-soft)', color: 'var(--accent-text)', borderColor: 'var(--accent)' }}>Primary</span>}
                   {usage[a.name] || 0} entries
                   {card && a.limit_amount > 0 &&
                     ` · ${rupees(used)} of ${rupees(a.limit_amount)} used`}
