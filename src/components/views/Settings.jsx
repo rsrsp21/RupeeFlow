@@ -287,11 +287,21 @@ function NotificationsCard() {
 
   useEffect(() => {
     if (on) {
-      setPrefsLoading(true);
-      store.api('/settings/notifications').then((data) => {
-        setPrefs(data);
-        setPrefsLoading(false);
-      }).catch(() => setPrefsLoading(false));
+      const cached = localStorage.getItem('rf_notify_prefs');
+      if (cached) {
+        try {
+          setPrefs(JSON.parse(cached));
+        } catch (e) {
+          // ignore parse error
+        }
+      } else {
+        setPrefsLoading(true);
+        store.api('/settings/notifications').then((data) => {
+          setPrefs(data);
+          localStorage.setItem('rf_notify_prefs', JSON.stringify(data));
+          setPrefsLoading(false);
+        }).catch(() => setPrefsLoading(false));
+      }
     }
   }, [on, store]);
 
@@ -317,6 +327,7 @@ function NotificationsCard() {
   async function togglePref(key, val) {
     const next = { ...prefs, [key]: val ? 1 : 0 };
     setPrefs(next);
+    localStorage.setItem('rf_notify_prefs', JSON.stringify(next));
     try {
       await store.api('/settings/notifications', {
         method: 'POST',
