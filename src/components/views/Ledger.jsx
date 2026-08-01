@@ -164,32 +164,27 @@ export default function Ledger() {
   const cumLabel = allTime || searching ? 'now'
     : hasCustomRange ? (dateTo || 'now')
     : periodLabel(kind, start);
+  // Net here is spendable money on hand, so it has to be derived the same way
+  // store.accountBalances() does — per account, transfer leg by leg. Summing
+  // income minus expenses can't work: it ignores transfers entirely, so money
+  // moved into a savings holding (or to another account) would never leave
+  // the total. Only names that are real accounts count, so a transfer to a
+  // holding correctly reduces it.
   const cum = useMemo(() => {
     const upto = store.live().filter((x) => x.occurred_at < cumEnd);
-    // Net = money actually on hand, so investments come out of it too (they
-    // left the account) even though they're not counted as "spending".
-    if (!account) {
-      const t = store.totals(upto);
-      const opening = store.accounts.reduce((s, a) => s + (Number(a.opening_balance) || 0), 0);
-      return { spent: t.exp, net: opening + t.inc - t.exp - t.saved };
-    }
-    // Scoped to one account, transfers have to be handled leg by leg (they
-    // cancel out across all accounts, but not within a single one) — same
-    // rules as store.accountBalances().
-    let net = Number(store.accounts.find((a) => a.name === account)?.opening_balance) || 0;
+    const scope = account ? store.accounts.filter((a) => a.name === account) : store.accounts;
+    const inScope = new Set(scope.map((a) => a.name));
+    let net = scope.reduce((s, a) => s + (Number(a.opening_balance) || 0), 0);
     let spent = 0;
     for (const t of upto) {
       const amt = Number(t.amount) || 0;
       if (t.type === 'income') {
-        if (t.account === account) net += amt;
+        if (inScope.has(t.account)) net += amt;
       } else if (t.type === 'expense') {
-        if (t.account === account) {
-          net -= amt;
-          if (t.category !== 'Investments') spent += amt;
-        }
+        if (inScope.has(t.account)) { net -= amt; spent += amt; }
       } else if (t.type === 'transfer') {
-        if (t.account === account) net -= amt;
-        if (t.to_account === account) net += amt;
+        if (inScope.has(t.account)) net -= amt;
+        if (inScope.has(t.to_account)) net += amt;
       }
     }
     return { spent, net };

@@ -11,6 +11,7 @@ import Landing from './Landing';
 import Dashboard from './views/Dashboard';
 import Ledger from './views/Ledger';
 import Budgets from './views/Budgets';
+import Savings from './views/Savings';
 import Insights from './views/Insights';
 import Settings from './views/Settings';
 import TxModal from './modals/TxModal';
@@ -49,7 +50,7 @@ const FAB_ROTATE = { type: 'spring', stiffness: 500, damping: 26, mass: 0.5 };
 const FAB_TAP = { scale: 0.9 };
 const FAB_HOVER = { y: -1 };
 
-const VIEWS = { dashboard: Dashboard, transactions: Ledger, budgets: Budgets, insights: Insights, settings: Settings };
+const VIEWS = { dashboard: Dashboard, transactions: Ledger, savings: Savings, budgets: Budgets, insights: Insights, settings: Settings };
 
 export default function App() {
   const store = useStore();

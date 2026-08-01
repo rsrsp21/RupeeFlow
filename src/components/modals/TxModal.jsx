@@ -27,12 +27,29 @@ export default function TxModal({ state, onClose }) {
   const existing = state.id ? store.txs[state.id] : null;
   const pre = state.prefill || {};
 
-  const [type, setType] = useState(existing?.type || pre.type || 'expense');
+  // "invest" isn't its own stored type — the transactions table constrains
+  // type to expense/income/transfer, and an investment IS a transfer, just
+  // one whose destination is a holding rather than a spendable account. It's
+  // a separate tab purely so the form can offer the right destination list.
+  const isHoldingName = (n) => store.holdings.some((h) => h.name === n);
+  const openedAs = existing
+    ? (existing.type === 'transfer' && isHoldingName(existing.to_account) ? 'invest' : existing.type)
+    : (pre.type || 'expense');
+
+  const [type, setType] = useState(openedAs);
   const [amount, setAmount] = useState(existing ? existing.amount / 100 : pre.amount ? pre.amount / 100 : '');
   const [note, setNote] = useState(existing?.note ?? pre.note ?? '');
   const [category, setCategory] = useState(existing?.category || pre.category || 'Food & Dining');
-  const [account, setAccount] = useState(existing?.account || store.accounts[0]?.name || 'Cash');
-  const [toAccount, setToAccount] = useState(existing?.to_account || store.accounts[1]?.name || 'Bank');
+  const [account, setAccount] = useState(existing?.account || store.accounts[0]?.name || '');
+  // Defaulting to a literal 'Bank' used to invent a destination that wasn't
+  // in the user's account list at all, which silently made transfers vanish
+  // from every total. Empty is honest — save() refuses to write without one.
+  const [toAccount, setToAccount] = useState(existing?.to_account || '');
+  const [holding, setHolding] = useState(
+    openedAs === 'invest' ? (existing?.to_account || '') : (store.holdings[0]?.name || ''));
+  // Both tabs move money between places rather than spending or earning it,
+  // so neither wants a category picker.
+  const isMove = type === 'transfer' || type === 'invest';
   const [date, setDate] = useState(() => {
     const d = new Date(Number(existing?.occurred_at ?? pre.occurred_at ?? Date.now()));
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -109,16 +126,22 @@ export default function TxModal({ state, onClose }) {
     e.preventDefault();
     const paise = toPaise(amount);
     if (!Number.isFinite(paise) || paise <= 0) return store.toast('Enter a valid amount');
+    if (!account) return store.toast('Pick an account');
+    if (type === 'transfer' && !toAccount) return store.toast('Pick a destination account');
     if (type === 'transfer' && account === toAccount) return store.toast('Pick two different accounts');
+    if (type === 'invest' && !holding) return store.toast('Pick where this is going');
+    const destination = type === 'invest' ? holding : type === 'transfer' ? toAccount : '';
     const base = existing ? new Date(Number(existing.occurred_at)) : new Date();
     const [y, m, d] = date.split('-').map(Number);
     const occurred = new Date(y, m - 1, d, base.getHours(), base.getMinutes()).getTime();
     const t = {
       id: existing?.id || crypto.randomUUID(),
-      type, amount: paise,
-      category: type === 'transfer' ? 'Other' : category,
+      // invest is stored as a transfer — see the comment where `type` is set up
+      type: type === 'invest' ? 'transfer' : type,
+      amount: paise,
+      category: type === 'transfer' || type === 'invest' ? 'Other' : category,
       note: note.trim(),
-      account, to_account: type === 'transfer' ? toAccount : '',
+      account, to_account: destination,
       occurred_at: occurred,
       created_at: existing?.created_at || Date.now(),
       updated_at: Date.now(),
@@ -164,9 +187,9 @@ export default function TxModal({ state, onClose }) {
         </div>
         <form onSubmit={save}>
           <div className="seg">
-            {['expense', 'income', 'transfer'].map((t) => (
+            {['expense', 'income', 'transfer', 'invest'].map((t) => (
               <button key={t} type="button" className={type === t ? 'on' : ''} onClick={() => setType(t)}>
-                {t[0].toUpperCase() + t.slice(1)}
+                {t === 'invest' ? 'Invest/Save' : t[0].toUpperCase() + t.slice(1)}
               </button>
             ))}
           </div>
@@ -192,12 +215,12 @@ export default function TxModal({ state, onClose }) {
               </ul>
             )}
           </div>
-          {type !== 'transfer' && (
+          {!isMove && (
             <button type="button" className="btn ghost sm ai-cat-btn" onClick={aiCategorize} disabled={aiBusy || !note.trim()}>
               <Sparkles size={13} className={aiBusy ? 'spin' : ''} /> Auto-categorize with AI
             </button>
           )}
-          {type !== 'transfer' && !addingCategory && (
+          {!isMove && !addingCategory && (
             <div className="new-cat-row">
               <select value={category} onChange={(e) => setCategory(e.target.value)}>
                 {[...Object.keys(CATEGORIES), ...store.customCategories.map((c) => c.name)].map((c) => <option key={c}>{c}</option>)}
@@ -205,7 +228,7 @@ export default function TxModal({ state, onClose }) {
               <button type="button" className="btn ghost sm" onClick={() => setAddingCategory(true)}>+ Custom</button>
             </div>
           )}
-          {type !== 'transfer' && addingCategory && (
+          {!isMove && addingCategory && (
             <div className="new-cat-row">
               <input autoFocus placeholder="Name your category (e.g. Pets, Hobbies)" maxLength={60}
                 value={newCatName} onChange={(e) => setNewCatName(e.target.value)}
@@ -221,8 +244,9 @@ export default function TxModal({ state, onClose }) {
           )}
           <div className="form-row labelled">
             <label>
-              <span>{type === 'transfer' ? 'From account' : type === 'income' ? 'Into account' : 'Paid from'}</span>
+              <span>{isMove ? 'From account' : type === 'income' ? 'Into account' : 'Paid from'}</span>
               <select value={account} onChange={(e) => setAccount(e.target.value)}>
+                <option value="" disabled>Select…</option>
                 {store.accounts.map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
               </select>
             </label>
@@ -230,7 +254,17 @@ export default function TxModal({ state, onClose }) {
               <label>
                 <span>To account</span>
                 <select value={toAccount} onChange={(e) => setToAccount(e.target.value)}>
+                  <option value="" disabled>Select…</option>
                   {store.accounts.map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
+                </select>
+              </label>
+            )}
+            {type === 'invest' && (
+              <label>
+                <span>Into</span>
+                <select value={holding} onChange={(e) => setHolding(e.target.value)}>
+                  <option value="" disabled>Select…</option>
+                  {store.holdings.map((h) => <option key={h.name} value={h.name}>{h.name}</option>)}
                 </select>
               </label>
             )}
@@ -239,6 +273,11 @@ export default function TxModal({ state, onClose }) {
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </label>
           </div>
+          {type === 'invest' && !store.holdings.length && (
+            <p className="muted small">
+              No savings or investments set up yet — add one on the Savings screen first, then you can move money into it here.
+            </p>
+          )}
           <div className="btn-row">
             {existing && <button type="button" className="btn danger-ghost" onClick={() => setConfirmDelete(true)}>Delete</button>}
             <button type="submit" className="btn primary grow">Save</button>

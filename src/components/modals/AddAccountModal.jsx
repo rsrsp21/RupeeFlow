@@ -21,9 +21,15 @@ export default function AddAccountModal({ onDone, onSkip }) {
     e.preventDefault();
     setBusy(true);
     const finalName = name.trim() || type;
-    const opening_balance = toPaise(balance);
+    const entered = toPaise(balance);
+    // For a card the figure is what you OWE, so it's stored negative — a
+    // credit limit is not money you have, and treating it as a balance would
+    // silently inflate your net worth by the whole limit.
+    const opening_balance = Number.isFinite(entered)
+      ? (type === 'Credit Card' ? -Math.abs(entered) : entered)
+      : 0;
     try {
-      await store.saveAccounts([...store.accounts, { name: finalName, type, opening_balance: Number.isFinite(opening_balance) ? opening_balance : 0 }]);
+      await store.saveAccounts([...store.accounts, { name: finalName, type, opening_balance }]);
       store.toast(`Added ${finalName}`);
       onDone();
     } catch {
@@ -47,9 +53,16 @@ export default function AddAccountModal({ onDone, onSkip }) {
           <input placeholder="Name (optional)" value={name} onChange={(e) => setName(e.target.value)} />
           <div className="amount-input">
             <span>₹</span>
-            <input inputMode="decimal" placeholder="Starting balance (optional)"
+            <input inputMode="decimal"
+              placeholder={type === 'Credit Card' ? 'Outstanding due right now (optional)' : 'Starting balance (optional)'}
               value={balance} onChange={(e) => setBalance(e.target.value)} />
           </div>
+          {type === 'Credit Card' && (
+            <p className="muted small">
+              Enter what you currently <b>owe</b> on this card, not its credit limit — a limit isn&apos;t your money,
+              and counting it would inflate your balance by the whole limit.
+            </p>
+          )}
           <div className="btn-row">
             <button type="button" className="btn ghost" onClick={onSkip}>Maybe later</button>
             <button type="submit" className="btn primary grow" disabled={busy}>Record first expense/income</button>

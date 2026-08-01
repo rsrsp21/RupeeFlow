@@ -60,11 +60,13 @@ function categoryChoices(extra = []) {
 If one of these genuinely fits, use it exactly as written. Only if truly none of them fit, invent a new short category name (Title Case, 1-3 words, e.g. "Pet Care") instead of forcing a bad match — do not use a new name if an existing one is close enough.`;
 }
 
-const entrySchema = (extra = []) => {
+const entrySchema = (extra = [], holdings = []) => {
   const today = new Date().toISOString().slice(0, 10);
+  const holdingList = (holdings || []).filter(Boolean);
   return `Today's date is ${today}.
-Return ONLY a JSON object: {"transactions":[{"type":"expense|income|transfer","amount_rupees":number,"category":"a category name","note":"short description","date":"YYYY-MM-DD or null"}],"transcript":"what was said"}.
-Rules: amounts are in Indian Rupees. "date" is when the expense happened: resolve ANY spoken date reference to an absolute YYYY-MM-DD — "yesterday", "last Friday", "on 26th July", "two days back", "26 tariq ko" all resolve relative to today (${today}); if the year isn't stated use the most recent past occurrence; if no date is mentioned use null (means today). ${categoryChoices(extra)} Multiple expenses in one sentence become multiple transactions.`;
+Return ONLY a JSON object: {"transactions":[{"type":"expense|income|invest","amount_rupees":number,"category":"a category name","note":"short description","date":"YYYY-MM-DD or null","destination":"holding name or null"}],"transcript":"what was said"}.
+Rules: amounts are in Indian Rupees. "date" is when the expense happened: resolve ANY spoken date reference to an absolute YYYY-MM-DD — "yesterday", "last Friday", "on 26th July", "two days back", "26 tariq ko" all resolve relative to today (${today}); if the year isn't stated use the most recent past occurrence; if no date is mentioned use null (means today). ${categoryChoices(extra)} Multiple expenses in one sentence become multiple transactions.
+Use type "invest" ONLY when money is being put into savings or an investment rather than spent — SIPs, mutual funds, stocks, fixed deposits, gold, recurring deposits, PPF, or money explicitly set aside/saved (e.g. "put 5000 into my SIP", "invested 10k in stocks", "moved 2000 to savings"). Investing is not an expense. For type "invest", set "destination" to the holding it went into.${holdingList.length ? ` The user's existing holdings are: ${holdingList.join(', ')} — reuse one of these names exactly when it fits, and only name a new one if none do.` : ' The user has no holdings set up yet, so name the destination sensibly (e.g. "Mutual Funds", "Stocks", "FD").'} For every other type set "destination" to null.`;
 };
 
 // Few-shot hint from the user's own note history, so a rephrased repeat of
@@ -77,17 +79,17 @@ function historyHint(history) {
   return `This user's own past entries and the category used for each — reuse the same category for the same kind of item even if the quantity, unit, or wording differs slightly, e.g. "chicken 300g" and "chicken 300 grams" are the same item: ${list}\n`;
 }
 
-export function parseText(text, history = [], customCategories = []) {
+export function parseText(text, history = [], customCategories = [], holdings = []) {
   return gemini([{
     text: `You convert casual Indian-English/Hinglish speech about money into ledger entries.
-${historyHint(history)}${entrySchema(customCategories)}\n\nSpeech: "${text}"`,
+${historyHint(history)}${entrySchema(customCategories, holdings)}\n\nSpeech: "${text}"`,
   }]);
 }
 
-export function parseVoice(audioB64, mimeType, history = [], customCategories = []) {
+export function parseVoice(audioB64, mimeType, history = [], customCategories = [], holdings = []) {
   return gemini([
     { text: `Transcribe this audio (Indian English / Hinglish about money), then convert it into ledger entries.
-${historyHint(history)}${entrySchema(customCategories)}` },
+${historyHint(history)}${entrySchema(customCategories, holdings)}` },
     { inlineData: { mimeType: mimeType || 'audio/webm', data: audioB64 } },
   ]);
 }

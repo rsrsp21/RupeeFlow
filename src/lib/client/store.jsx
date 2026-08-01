@@ -13,12 +13,24 @@ export const useStore = () => useContext(Ctx);
 // type/name split (a plain string, or an object missing type) by matching
 // against the known default names, falling back to 'Other'.
 function normalizeAccount(raw) {
+  // 'Savings' used to be an account type. It isn't any more — savings and
+  // investments are holdings now (see HOLDING_TYPES), not spendable accounts —
+  // so anything still carrying it lands on the closest surviving type.
+  const fixType = (t) => (t === 'Savings' ? 'Bank' : t || 'Other');
   if (raw && typeof raw === 'object' && raw.name) {
-    return { name: String(raw.name).trim(), type: raw.type || 'Other', opening_balance: Number(raw.opening_balance) || 0 };
+    return { name: String(raw.name).trim(), type: fixType(raw.type), opening_balance: Number(raw.opening_balance) || 0 };
   }
   const name = String(raw || '').trim();
   const known = DEFAULT_ACCOUNTS.find((d) => d.name.toLowerCase() === name.toLowerCase());
   return { name, type: known ? known.type : 'Other', opening_balance: 0 };
+}
+
+function normalizeHolding(raw) {
+  return {
+    name: String(raw?.name || '').trim(),
+    kind: raw?.kind || 'Other',
+    opening_balance: Number(raw?.opening_balance) || 0,
+  };
 }
 
 // This interval fires a real API call (/api/tx/pull, and /api/tx/push if the
@@ -49,6 +61,7 @@ export function StoreProvider({ children }) {
   // *existing* user's account list gets derived if they never explicitly saved one.
   const [accounts, setAccounts] = useState([]);
   const [customCategories, setCustomCategories] = useState([]); // [{name, icon_svg, color}]
+  const [holdings, setHoldings] = useState([]); // [{name, kind, opening_balance}]
   const [syncState, setSyncState] = useState('offline'); // offline|pending|online|error
   const [lastSync, setLastSync] = useState(0);
   // Flips true once the first sync attempt (success or failure) resolves —
@@ -62,9 +75,11 @@ export function StoreProvider({ children }) {
   const txsRef = useRef({});
   const tokenRef = useRef(null);
   const accountsRef = useRef([]);
+  const holdingsRef = useRef([]);
   txsRef.current = txs;
   tokenRef.current = token;
   accountsRef.current = accounts;
+  holdingsRef.current = holdings;
 
   const toast = useCallback((msg) => {
     setToastMsg(msg);
@@ -201,6 +216,7 @@ export function StoreProvider({ children }) {
     cursor.current = metas.find((m) => m.k === 'cursor')?.v || 0;
     setBudgets(metas.find((m) => m.k === 'budgets')?.v || []);
     setCustomCategories(metas.find((m) => m.k === 'categories')?.v || []);
+    setHoldings((metas.find((m) => m.k === 'holdings')?.v || []).map(normalizeHolding));
     const savedAccounts = metas.find((m) => m.k === 'accounts')?.v;
     if (savedAccounts?.length) {
       setAccounts(savedAccounts.map(normalizeAccount));
@@ -371,6 +387,16 @@ export function StoreProvider({ children }) {
         api('/accounts', { method: 'PUT', body: JSON.stringify({ accounts: accountsRef.current }) }).catch(() => {});
       }
     } catch {}
+    try {
+      const { holdings: remote } = await api('/holdings');
+      if (remote?.length) {
+        const normalized = remote.map(normalizeHolding);
+        setHoldings(normalized);
+        idbPut('meta', { k: 'holdings', v: normalized });
+      } else if (holdingsRef.current.length) {
+        api('/holdings', { method: 'PUT', body: JSON.stringify({ holdings: holdingsRef.current }) }).catch(() => {});
+      }
+    } catch {}
   }, [api]);
 
   // Escape hatch for a device that already drifted out of sync before the
@@ -522,20 +548,86 @@ export function StoreProvider({ children }) {
 
   // Balance per account, derived from the ledger: income in, expense out,
   // transfers move between the two named accounts.
+  // Only ever touches names that are real accounts. It used to create a key
+  // for whatever string a transaction carried, so a transfer to a name that
+  // wasn't an account (the add-entry form used to default the destination to
+  // a literal 'Bank') invented a matching credit out of thin air — the money
+  // left the source account and silently reappeared under a account that
+  // doesn't exist, so any caller summing the map saw the outflow cancel
+  // itself out and the total never moved.
   const accountBalances = useCallback(() => {
     const map = {};
+    const isAccount = (n) => Object.prototype.hasOwnProperty.call(map, n);
     for (const a of accounts) map[a.name] = Number(a.opening_balance) || 0;
     for (const t of live()) {
-      const amt = Number(t.amount);
-      if (t.type === 'income') map[t.account] = (map[t.account] || 0) + amt;
-      else if (t.type === 'expense') map[t.account] = (map[t.account] || 0) - amt;
+      const amt = Number(t.amount) || 0;
+      if (t.type === 'income') { if (isAccount(t.account)) map[t.account] += amt; }
+      else if (t.type === 'expense') { if (isAccount(t.account)) map[t.account] -= amt; }
       else if (t.type === 'transfer') {
-        map[t.account] = (map[t.account] || 0) - amt;
-        map[t.to_account] = (map[t.to_account] || 0) + amt;
+        if (isAccount(t.account)) map[t.account] -= amt;
+        if (isAccount(t.to_account)) map[t.to_account] += amt;
       }
     }
     return map;
   }, [accounts, txs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Same derivation for savings/investments. A holding is funded by a
+  // transfer whose destination is the holding, and drawn down by a transfer
+  // out of it back into a real account — so investing never counts as
+  // spending, but it does leave your spendable balance.
+  const holdingBalances = useCallback(() => {
+    const map = {};
+    const isHolding = (n) => Object.prototype.hasOwnProperty.call(map, n);
+    for (const h of holdings) map[h.name] = Number(h.opening_balance) || 0;
+    for (const t of live()) {
+      if (t.type !== 'transfer') continue;
+      const amt = Number(t.amount) || 0;
+      if (isHolding(t.to_account)) map[t.to_account] += amt;
+      if (isHolding(t.account)) map[t.account] -= amt;
+    }
+    return map;
+  }, [holdings, txs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const sumValues = (m) => Object.values(m).reduce((s, v) => s + v, 0);
+  // A credit card is a liability, not a pot of money — its balance runs
+  // negative as you spend and climbs back toward zero as you pay the bill, so
+  // it's reported as "dues" rather than folded into spendable cash. (Its
+  // starting balance is captured as what you currently OWE and stored
+  // negative; entering an available credit limit there would invent money
+  // that was never yours.)
+  const netWorth = () => {
+    const bal = accountBalances();
+    const cards = new Set(accounts.filter((a) => a.type === 'Credit Card').map((a) => a.name));
+    let spendable = 0, dues = 0;
+    for (const [name, v] of Object.entries(bal)) {
+      if (cards.has(name)) dues += -v; // negative balance = owed
+      else spendable += v;
+    }
+    const invested = sumValues(holdingBalances());
+    return { spendable, invested, dues, total: spendable + invested - dues };
+  };
+
+  const saveHoldings = useCallback(async (list) => {
+    const seen = new Set();
+    const clean = [];
+    for (const raw of list) {
+      const h = normalizeHolding(raw);
+      if (!h.name || seen.has(h.name.toLowerCase())) continue;
+      seen.add(h.name.toLowerCase());
+      clean.push(h);
+    }
+    const prev = holdingsRef.current;
+    setHoldings(clean);
+    await idbPut('meta', { k: 'holdings', v: clean });
+    try {
+      await api('/holdings', { method: 'PUT', body: JSON.stringify({ holdings: clean }) });
+    } catch (e) {
+      setHoldings(prev);
+      idbPut('meta', { k: 'holdings', v: prev });
+      toast("Couldn't save that — check your connection and try again");
+      throw e;
+    }
+  }, [api, toast]);
 
   // AI summary for insights/Q&A — built from real ledger data
   const buildSummary = (daysBack = 35) => {
@@ -566,9 +658,9 @@ export function StoreProvider({ children }) {
   };
 
   const value = {
-    token, email, name, booted, txs, budgets, accounts, customCategories, syncState, lastSync, firstSyncDone, toastMsg,
+    token, email, name, booted, txs, budgets, accounts, holdings, customCategories, syncState, lastSync, firstSyncDone, toastMsg,
     api, toast, syncNow, resync, saveTx, saveBudget, deleteBudget, saveAccounts, authenticate, saveName, logout, deleteAccount,
-    live, totals, inMonth, catSpend, effectiveBudget, noteHistory, accountBalances, accountType, buildSummary,
+    live, totals, inMonth, catSpend, effectiveBudget, noteHistory, accountBalances, holdingBalances, netWorth, saveHoldings, accountType, buildSummary,
     addCustomCategory, removeCustomCategory,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

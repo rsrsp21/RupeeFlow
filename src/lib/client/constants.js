@@ -26,14 +26,21 @@ export const CATEGORIES = {
 // Type drives the icon (AccountIcon); name is what you actually see and pick
 // from. Kept separate so a custom-named account ("HDFC", "Wife's card")
 // still gets a correct icon instead of falling back to a generic wallet.
-export const ACCOUNT_TYPES = ['Cash', 'Bank', 'UPI', 'Credit Card', 'Savings', 'Other'];
+export const ACCOUNT_TYPES = ['Cash', 'Bank', 'UPI', 'Credit Card', 'Other'];
 export const ACCOUNTS = [
   { name: 'Cash', type: 'Cash' },
   { name: 'Bank', type: 'Bank' },
   { name: 'UPI', type: 'UPI' },
   { name: 'Credit Card', type: 'Credit Card' },
-  { name: 'Savings', type: 'Savings' },
 ];
+
+// Savings/investments are deliberately NOT accounts. Money parked in an FD or
+// a mutual fund is still yours, but it isn't spendable day to day — mixing the
+// two into one "balance" is what made the ledger's Net read higher than the
+// money actually available. Holdings live in their own list, and moving money
+// into one is recorded as a transfer out of a real account, so spending totals
+// stay untouched while the spendable balance drops correctly.
+export const HOLDING_TYPES = ['Mutual Funds', 'Stocks', 'FD', 'Home', 'Other'];
 
 export const AUTO_RULES = [
   [/\b(lunch|dinner|breakfast|chai|coffee|tea|swiggy|zomato|restaurant|biryani|pizza|snack|tiffin|dosa|canteen)\b/i, 'Food & Dining'],

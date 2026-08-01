@@ -237,9 +237,13 @@ function AccountsCard() {
     if (store.accounts.some((a) => a.name.toLowerCase() === name.toLowerCase())) {
       return store.toast('That account already exists');
     }
-    const opening_balance = toPaise(addingBalance);
+    const entered = toPaise(addingBalance);
+    // Cards store what you owe, as a negative — see AddAccountModal.
+    const opening_balance = Number.isFinite(entered)
+      ? (addingType === 'Credit Card' ? -Math.abs(entered) : entered)
+      : 0;
     try {
-      await store.saveAccounts([...store.accounts, { name, type: addingType, opening_balance: Number.isFinite(opening_balance) ? opening_balance : 0 }]);
+      await store.saveAccounts([...store.accounts, { name, type: addingType, opening_balance }]);
       setAddingName(''); setAddingBalance('');
       store.toast(`Added ${name}`);
     } catch {}
@@ -260,14 +264,19 @@ function AccountsCard() {
 
   function startEditBalance(a) {
     setEditingBal(a.name);
-    setEditVal(a.opening_balance ? String(a.opening_balance / 100) : '');
+    // Cards are held negative but edited as a plain "amount owed".
+    const v = a.opening_balance ? Math.abs(a.opening_balance) / 100 : '';
+    setEditVal(v === '' ? '' : String(v));
   }
 
   async function saveBalance(a) {
-    const paise = toPaise(editVal);
+    const entered = toPaise(editVal);
+    const paise = Number.isFinite(entered)
+      ? (a.type === 'Credit Card' ? -Math.abs(entered) : entered)
+      : 0;
     try {
       await store.saveAccounts(store.accounts.map((x) =>
-        x.name === a.name ? { ...x, opening_balance: Number.isFinite(paise) ? paise : 0 } : x));
+        x.name === a.name ? { ...x, opening_balance: paise } : x));
       setEditingBal(null);
       store.toast('Starting balance updated');
     } catch {}
@@ -278,6 +287,8 @@ function AccountsCard() {
       <div className="card-head"><h3><Wallet size={13} style={{ verticalAlign: '-2px' }} /> Accounts</h3></div>
       <p className="muted small" style={{ marginBottom: 12 }}>
         Balances start from an optional starting balance, then follow your ledger: income adds, expenses subtract, transfers move between accounts.
+        For a credit card, enter what you <b>owe</b> rather than its limit — a limit isn&apos;t money you have.
+        Savings and investments aren&apos;t accounts; they live on the Savings screen.
       </p>
 
       <div className="acct-list">
@@ -299,9 +310,12 @@ function AccountsCard() {
               ) : (
                 <>
                   <b className="acct-bal" style={{ color: bal < 0 ? 'var(--red)' : bal > 0 ? 'var(--green)' : 'var(--muted)' }}>
-                    {bal < 0 ? '−' : ''}{rupees(Math.abs(bal))}
+                    {a.type === 'Credit Card'
+                      ? `${rupees(Math.abs(bal))}${bal < 0 ? ' due' : ''}`
+                      : `${bal < 0 ? '−' : ''}${rupees(Math.abs(bal))}`}
                   </b>
-                  <button className="icon-btn" onClick={() => startEditBalance(a)} title="Set starting balance">
+                  <button className="icon-btn" onClick={() => startEditBalance(a)}
+                    title={a.type === 'Credit Card' ? 'Set amount owed' : 'Set starting balance'}>
                     <Pencil size={13} />
                   </button>
                 </>
@@ -320,7 +334,8 @@ function AccountsCard() {
         </select>
         <input placeholder="Name (optional, e.g. HDFC, Wife's card)"
           value={addingName} onChange={(e) => setAddingName(e.target.value)} />
-        <input placeholder="Starting balance (optional)" inputMode="decimal"
+        <input inputMode="decimal"
+          placeholder={addingType === 'Credit Card' ? 'Outstanding due (optional)' : 'Starting balance (optional)'}
           value={addingBalance} onChange={(e) => setAddingBalance(e.target.value)} />
         <button className="btn ghost" type="submit"><Plus size={14} /> Add</button>
       </form>

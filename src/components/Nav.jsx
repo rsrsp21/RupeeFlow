@@ -1,5 +1,5 @@
 'use client';
-import { LayoutGrid, List, PieChart, Sparkles, Settings, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { LayoutGrid, List, PieChart, Sparkles, PiggyBank, Settings, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 
 // Split around a middle slot so the FAB has a gap to sit in on the mobile tab
@@ -10,6 +10,7 @@ const LEFT_ITEMS = [
   ['transactions', 'Ledger', List],
 ];
 const RIGHT_ITEMS = [
+  ['savings', 'Savings', PiggyBank],
   ['budgets', 'Budgets', PieChart],
   ['insights', 'Insights', Sparkles],
 ];
