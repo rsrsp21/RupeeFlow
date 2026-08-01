@@ -114,6 +114,19 @@ export default function App({ children }) {
   // .main isn't its own scroll container, the window is, so it doesn't reset itself.
   useEffect(() => { window.scrollTo(0, 0); }, [view]);
 
+  // The daily-reminder push notification links to /?action=add so tapping it
+  // jumps straight to the entry sheet instead of just opening the dashboard.
+  // Read directly off window.location rather than useSearchParams(), which
+  // forces every page consuming it into a Suspense boundary for static
+  // export — not worth it for a one-shot read on mount. Stripped from the
+  // URL immediately so it doesn't reopen on every reload.
+  useEffect(() => {
+    if (!store.token) return;
+    if (new URLSearchParams(window.location.search).get('action') !== 'add') return;
+    setTxModal(entryDate ? { prefill: { occurred_at: entryDate } } : {});
+    router.replace(pathname);
+  }, [store.token, pathname, router, entryDate]);
+
   // Leaving a screen must not leave a sheet floating over the next one.
   useEffect(() => { closeModals(); }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 

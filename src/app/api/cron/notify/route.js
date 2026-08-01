@@ -85,7 +85,7 @@ export async function POST(request) {
             title: `Over budget: ${breach.label}`,
             body: `You're ${rupees(breach.over)} past your ${rupees(breach.budget)} budget this month.`,
             tag: 'budget-alert',
-            url: '/?view=budgets',
+            url: '/budgets',
           });
         }
       }
@@ -98,7 +98,7 @@ export async function POST(request) {
             title: 'Mid-Month Check',
             body: `Halfway through the month! You've spent ${rupees(s.total)} so far.`,
             tag: 'midmonth-check',
-            url: '/?view=insights',
+            url: '/insights',
           });
         }
       }
@@ -111,7 +111,7 @@ export async function POST(request) {
             title: 'Weekly Review',
             body: `You spent ${rupees(wSpend)} in the last 7 days. Tap to review.`,
             tag: 'weekly-review',
-            url: '/?view=insights',
+            url: '/insights',
           });
         }
       }
@@ -124,7 +124,7 @@ export async function POST(request) {
             title: 'Daily Summary',
             body: `You logged ${rupees(tSpend)} in expenses today.`,
             tag: 'daily-summary',
-            url: '/?view=transactions',
+            url: '/ledger',
           });
         }
       } else {
