@@ -11,6 +11,7 @@ import Landing from './Landing';
 import Dashboard from './views/Dashboard';
 import Ledger from './views/Ledger';
 import Money from './views/Money';
+import Budgets from './views/Budgets';
 import Insights from './views/Insights';
 import Settings from './views/Settings';
 import TxModal from './modals/TxModal';
@@ -49,7 +50,7 @@ const FAB_ROTATE = { type: 'spring', stiffness: 500, damping: 26, mass: 0.5 };
 const FAB_TAP = { scale: 0.9 };
 const FAB_HOVER = { y: -1 };
 
-const VIEWS = { dashboard: Dashboard, transactions: Ledger, money: Money, insights: Insights, settings: Settings };
+const VIEWS = { dashboard: Dashboard, transactions: Ledger, money: Money, budgets: Budgets, insights: Insights, settings: Settings };
 
 export default function App() {
   const store = useStore();
@@ -165,10 +166,10 @@ export default function App() {
   const ActiveView = VIEWS[view] || Dashboard;
 
   const fabActions = [
-    { key: 'voice', Icon: Mic, title: 'Speak an expense', onClick: () => { setFabOpen(false); setVoiceOpen(true); } },
-    { key: 'scan', Icon: ScanLine, title: 'Scan a receipt', onClick: () => { setFabOpen(false); fileRef.current?.click(); } },
-    { key: 'prompt', Icon: Type, title: 'Add by typing a sentence', onClick: () => { setFabOpen(false); setPromptOpen(true); } },
-    { key: 'manual', Icon: PenLine, title: 'Add entry manually', onClick: () => { setFabOpen(false); openTx(); } },
+    { key: 'voice', Icon: Mic, label: 'Speak', title: 'Speak an expense', onClick: () => { setFabOpen(false); setVoiceOpen(true); } },
+    { key: 'scan', Icon: ScanLine, label: 'Scan', title: 'Scan a receipt', onClick: () => { setFabOpen(false); fileRef.current?.click(); } },
+    { key: 'prompt', Icon: Type, label: 'Type', title: 'Add by typing a sentence', onClick: () => { setFabOpen(false); setPromptOpen(true); } },
+    { key: 'manual', Icon: PenLine, label: 'Manual', title: 'Add entry manually', onClick: () => { setFabOpen(false); openTx(); } },
   ];
 
   return (
@@ -215,12 +216,13 @@ export default function App() {
             same buttons, same animation, just a different flex-direction/position per breakpoint. */}
         <div className={`fab-cluster ${fabOpen ? 'open' : ''}`} ref={fabRef}>
           <div className="fab-minis">
-            {fabActions.map(({ key, Icon, title, onClick }, i) => (
+            {fabActions.map(({ key, Icon, label, title, onClick }, i) => (
               <motion.button key={key} className="fab mini" title={title} style={{ pointerEvents: fabOpen ? 'auto' : 'none' }}
                 custom={i} variants={FAB_ITEM} initial="hidden" animate={fabOpen ? 'visible' : 'hidden'}
                 whileHover={fabOpen ? FAB_HOVER : undefined} whileTap={fabOpen ? FAB_TAP : undefined}
                 onClick={onClick}>
                 <Icon size={18} strokeWidth={1.9} />
+                <span className="fab-label">{label}</span>
               </motion.button>
             ))}
           </div>

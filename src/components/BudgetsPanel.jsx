@@ -7,8 +7,8 @@ import { Plus, Sparkles, Check, RefreshCw, Target, TrendingUp, X, Pencil } from 
 import { useStore } from '@/lib/client/store';
 import { rupees, monthKey, CATEGORIES } from '@/lib/client/constants';
 import { DAY_MS, startOfMonth } from '@/lib/client/period';
-import { useUI } from '../App';
-import CategoryIcon from '../CategoryIcon';
+import { useUI } from './App';
+import CategoryIcon from './CategoryIcon';
 
 export default function BudgetsPanel() {
   const store = useStore();

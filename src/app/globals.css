@@ -556,9 +556,13 @@ select {
    a CSS transition on the same property here would fight FM's own rAF-driven
    animation and stutter, so hover/tap feedback comes from whileHover/whileTap instead. */
 .fab.mini {
-  width: 44px; height: 44px; flex-shrink: 0;
+  width: 60px; min-height: 56px; flex-shrink: 0; padding: 7px 4px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   background: var(--surface); color: var(--text); border: 1px solid var(--line-strong); will-change: transform, opacity;
 }
+/* Named actions — an icon alone left people guessing which of the four
+   capture methods they were about to open. */
+.fab-label { font-size: .62rem; font-weight: 600; letter-spacing: .01em; line-height: 1; }
 .fab-plus { display: inline-flex; will-change: transform; }
 
 /* ── modals ── */
@@ -1081,7 +1085,7 @@ select {
   .nav-fab-slot { display: block; flex: 1; }      /* gap the centered FAB sits over */
   /* Settings isn't a tab at all on mobile — it's reached via SettingsLink
      beside each screen's heading (.view-head-utils below) instead. */
-  .settings-item { display: none; }
+  .settings-item, .insights-item { display: none; }
   .main { padding: 0 16px 170px; }   /* top padding moved onto the sticky .view-head itself */
   .grid-2 { grid-template-columns: 1fr; }
   .filter-row { grid-template-columns: 1fr 1fr 1fr; }
@@ -1100,8 +1104,9 @@ select {
   .fab-cluster.open .fab-minis { background: var(--surface); border-color: var(--line-strong); box-shadow: var(--shadow-lg); }
   /* Mini buttons (and the pill itself) get a little bigger on mobile; the +
      that opens them stays exactly as-is per the ask. */
-  .fab.mini { border: none; box-shadow: none; width: 50px; height: 50px; }
+  .fab.mini { border: none; box-shadow: none; width: 64px; min-height: 60px; }
   .fab.mini svg { width: 21px; height: 21px; }
+  .fab-label { font-size: .65rem; }
   .install-prompt { bottom: calc(78px + env(safe-area-inset-bottom)); }
   input, select { font-size: 16px; }   /* prevent iOS Safari auto-zoom on focus */
   .view-head { flex-direction: column; align-items: stretch; gap: 12px; }

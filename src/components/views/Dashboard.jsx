@@ -11,6 +11,7 @@ import {
 import ThemeToggle from '../ThemeToggle';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
+import InsightsLink from '../InsightsLink';
 import { useStore } from '@/lib/client/store';
 import { rupees, monthKey, CATEGORIES } from '@/lib/client/constants';
 import { DAY_MS, startOfDay, startOfWeek, startOfMonth } from '@/lib/client/period';
@@ -228,7 +229,7 @@ export default function Dashboard() {
           <span>RupeeFlow</span>
         </div>
         <ThemeToggle />
-        <div className="view-head-utils"><SyncBadge /><SettingsLink /></div>
+        <div className="view-head-utils"><SyncBadge /><InsightsLink /><SettingsLink /></div>
       </header>
 
       {/* Greeting + date moved down into the scrollable body (leads with a
@@ -278,7 +279,7 @@ export default function Dashboard() {
         )}
         {!overall && (
           <p className="budget-line">
-            No budget yet, <a href="#" className="link" onClick={(e) => { e.preventDefault(); setView('money'); }}>set one</a> to track pace.
+            No budget yet, <a href="#" className="link" onClick={(e) => { e.preventDefault(); setView('budgets'); }}>set one</a> to track pace.
           </p>
         )}
       </div>
@@ -397,7 +398,7 @@ export default function Dashboard() {
       {monthBudgets.length > 0 && (
         <div className="card">
           <div className="card-head"><h3>Budget progress</h3>
-            <a href="#" className="link" onClick={(e) => { e.preventDefault(); setView('money'); }}>Manage</a>
+            <a href="#" className="link" onClick={(e) => { e.preventDefault(); setView('budgets'); }}>Manage</a>
           </div>
           <div className="mini-budgets">
             {monthBudgets.slice(0, 5).map((b) => {

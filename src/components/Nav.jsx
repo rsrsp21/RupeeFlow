@@ -1,5 +1,5 @@
 'use client';
-import { Home, List, Sparkles, Wallet, Settings, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Home, List, Sparkles, Wallet, PieChart, Settings, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 
 // Split around a middle slot so the FAB has a gap to sit in on the mobile tab
@@ -14,7 +14,7 @@ const LEFT_ITEMS = [
 // reached from each screen's header on mobile (SettingsLink).
 const RIGHT_ITEMS = [
   ['money', 'Money', Wallet],
-  ['insights', 'Insights', Sparkles],
+  ['budgets', 'Budgets', PieChart],
 ];
 
 export function Nav({ view, setView, collapsed, setCollapsed }) {
@@ -46,6 +46,12 @@ export function Nav({ view, setView, collapsed, setCollapsed }) {
       {/* mobile-only gap the FAB floats over; collapses on desktop */}
       <div className="nav-fab-slot" aria-hidden="true" />
       {RIGHT_ITEMS.map(item)}
+
+      <button key="insights" className={`nav-item insights-item ${view === 'insights' ? 'active' : ''}`}
+        onClick={() => setView('insights')} title="Insights" aria-label="Insights">
+        <Sparkles size={17} strokeWidth={1.9} />
+        <span className="nav-text">Insights</span>
+      </button>
 
       {/* Desktop-only: on mobile Settings isn't a tab at all — it's reached via
           SettingsLink beside each screen's heading instead (see globals.css). */}

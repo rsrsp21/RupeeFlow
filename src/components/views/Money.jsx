@@ -1,23 +1,24 @@
 'use client';
-// Money — one screen for everything you set up rather than record: where money
-// sits (accounts), where it's parked (savings & investments), and what you've
-// capped (budgets). Categories stay in Settings — they're a labelling
-// preference, not a place money lives.
+// Money — where your money sits (accounts) and where it's parked (savings &
+// investments). Those two are state you set up once and rarely touch, and net
+// worth is literally their sum, so they belong together. Budgets went back to
+// their own screen: you check those through the month, and burying a frequent
+// screen behind two rare ones cost more clicks than the grouping saved.
+// Categories stay in Settings — a labelling preference, not a place money lives.
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, PiggyBank, PieChart } from 'lucide-react';
+import { Wallet, PiggyBank } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees } from '@/lib/client/constants';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
+import InsightsLink from '../InsightsLink';
 import AccountsPanel from '../money/AccountsPanel';
 import SavingsPanel from '../money/SavingsPanel';
-import BudgetsPanel from '../money/BudgetsPanel';
 
 const TABS = [
   ['accounts', 'Accounts', Wallet],
   ['savings', 'Savings', PiggyBank],
-  ['budgets', 'Budgets', PieChart],
 ];
 
 const TAB_KEY = 'rf_money_tab';
@@ -44,9 +45,9 @@ export default function Money() {
       <header className="view-head">
         <div>
           <h2><Wallet size={19} strokeWidth={2} /> Money</h2>
-          <p className="sub">Accounts, savings and budgets</p>
+          <p className="sub">Accounts, savings and investments</p>
         </div>
-        <div className="view-head-utils"><SyncBadge /><SettingsLink /></div>
+        <div className="view-head-utils"><SyncBadge /><InsightsLink /><SettingsLink /></div>
       </header>
 
       {/* Net worth stays pinned above the tabs — it's the one number every
@@ -90,7 +91,6 @@ export default function Money() {
         transition={{ duration: 0.16, ease: 'easeOut' }}>
         {tab === 'accounts' && <AccountsPanel />}
         {tab === 'savings' && <SavingsPanel />}
-        {tab === 'budgets' && <BudgetsPanel />}
       </motion.div>
     </section>
   );

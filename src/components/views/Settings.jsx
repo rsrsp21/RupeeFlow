@@ -9,6 +9,7 @@ import { pushSupported, currentSubscription, enablePush, disablePush } from '@/l
 import { useUI } from '../App';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
+import InsightsLink from '../InsightsLink';
 import ConfirmModal from '../modals/ConfirmModal';
 import CategoriesPanel from '../CategoriesPanel';
 
@@ -31,7 +32,7 @@ export default function Settings() {
     <section className="view">
       <header className="view-head">
         <div><h2><SettingsIcon size={19} strokeWidth={2} /> Settings</h2><p className="sub">{store.name ? `${store.name} · ${store.email}` : store.email}</p></div>
-        <div className="view-head-utils"><SyncBadge /><SettingsLink /></div>
+        <div className="view-head-utils"><SyncBadge /><InsightsLink /><SettingsLink /></div>
       </header>
 
       <div className="card">
