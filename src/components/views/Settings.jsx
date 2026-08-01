@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 // aliased — this module's own default export is already named Settings
 import { Download, LogOut, RefreshCw, Plus, Wallet, Trash2, Pencil, Check, X, Bell, Settings as SettingsIcon, AlertTriangle } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
-import { rupees, TAGLINE, ACCOUNT_TYPES } from '@/lib/client/constants';
+import { rupees, TAGLINE, ACCOUNT_TYPES, toPaise } from '@/lib/client/constants';
 import { pushSupported, currentSubscription, enablePush, disablePush } from '@/lib/client/pushClient';
 import { useUI } from '../App';
 import SyncBadge from '../SyncBadge';
@@ -203,7 +203,10 @@ function AccountsCard() {
   const store = useStore();
   const [addingName, setAddingName] = useState('');
   const [addingType, setAddingType] = useState('Cash');
+  const [addingBalance, setAddingBalance] = useState('');
   const [confirmRemove, setConfirmRemove] = useState(null); // the account object, or null
+  const [editingBal, setEditingBal] = useState(null); // account name currently being edited, or null
+  const [editVal, setEditVal] = useState('');
   const balances = store.accountBalances();
   const usage = {};
   for (const t of store.live()) {
@@ -219,8 +222,9 @@ function AccountsCard() {
     if (store.accounts.some((a) => a.name.toLowerCase() === name.toLowerCase())) {
       return store.toast('That account already exists');
     }
-    await store.saveAccounts([...store.accounts, { name, type: addingType }]);
-    setAddingName('');
+    const opening_balance = toPaise(addingBalance);
+    await store.saveAccounts([...store.accounts, { name, type: addingType, opening_balance: Number.isFinite(opening_balance) ? opening_balance : 0 }]);
+    setAddingName(''); setAddingBalance('');
     store.toast(`Added ${name}`);
   }
 
@@ -235,24 +239,52 @@ function AccountsCard() {
     store.toast(`Removed ${a.name}`);
   }
 
+  function startEditBalance(a) {
+    setEditingBal(a.name);
+    setEditVal(a.opening_balance ? String(a.opening_balance / 100) : '');
+  }
+
+  async function saveBalance(a) {
+    const paise = toPaise(editVal);
+    await store.saveAccounts(store.accounts.map((x) =>
+      x.name === a.name ? { ...x, opening_balance: Number.isFinite(paise) ? paise : 0 } : x));
+    setEditingBal(null);
+    store.toast('Starting balance updated');
+  }
+
   return (
     <div className="card">
       <div className="card-head"><h3><Wallet size={13} style={{ verticalAlign: '-2px' }} /> Accounts</h3></div>
       <p className="muted small" style={{ marginBottom: 12 }}>
-        Balances are derived from your ledger: income adds, expenses subtract, transfers move between accounts.
+        Balances start from an optional starting balance, then follow your ledger: income adds, expenses subtract, transfers move between accounts.
       </p>
 
       <div className="acct-list">
         {store.accounts.map((a) => {
           const bal = balances[a.name] || 0;
+          const editing = editingBal === a.name;
           return (
             <div className="acct-row" key={a.name}>
               <AccountIcon type={a.type} tile size={15} />
               <span className="acct-name">{a.name}</span>
               <span className="acct-count">{usage[a.name] || 0} entries</span>
-              <b className="acct-bal" style={{ color: bal < 0 ? 'var(--red)' : bal > 0 ? 'var(--green)' : 'var(--muted)' }}>
-                {bal < 0 ? '−' : ''}{rupees(Math.abs(bal))}
-              </b>
+              {editing ? (
+                <form className="acct-bal-edit" onSubmit={(e) => { e.preventDefault(); saveBalance(a); }}>
+                  <span>₹</span>
+                  <input autoFocus inputMode="decimal" placeholder="0" value={editVal} onChange={(e) => setEditVal(e.target.value)} />
+                  <button className="icon-btn" type="submit" title="Save"><Check size={13} /></button>
+                  <button className="icon-btn" type="button" onClick={() => setEditingBal(null)} title="Cancel"><X size={13} /></button>
+                </form>
+              ) : (
+                <>
+                  <b className="acct-bal" style={{ color: bal < 0 ? 'var(--red)' : bal > 0 ? 'var(--green)' : 'var(--muted)' }}>
+                    {bal < 0 ? '−' : ''}{rupees(Math.abs(bal))}
+                  </b>
+                  <button className="icon-btn" onClick={() => startEditBalance(a)} title="Set starting balance">
+                    <Pencil size={13} />
+                  </button>
+                </>
+              )}
               <button className="icon-btn" onClick={() => requestRemove(a)} title="Remove account" disabled={!!usage[a.name]}>
                 <Trash2 size={14} />
               </button>
@@ -267,6 +299,8 @@ function AccountsCard() {
         </select>
         <input placeholder="Name (optional, e.g. HDFC, Wife's card)"
           value={addingName} onChange={(e) => setAddingName(e.target.value)} />
+        <input placeholder="Starting balance (optional)" inputMode="decimal"
+          value={addingBalance} onChange={(e) => setAddingBalance(e.target.value)} />
         <button className="btn ghost" type="submit"><Plus size={14} /> Add</button>
       </form>
 

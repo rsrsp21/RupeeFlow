@@ -14,11 +14,11 @@ export const useStore = () => useContext(Ctx);
 // against the known default names, falling back to 'Other'.
 function normalizeAccount(raw) {
   if (raw && typeof raw === 'object' && raw.name) {
-    return { name: String(raw.name).trim(), type: raw.type || 'Other' };
+    return { name: String(raw.name).trim(), type: raw.type || 'Other', opening_balance: Number(raw.opening_balance) || 0 };
   }
   const name = String(raw || '').trim();
   const known = DEFAULT_ACCOUNTS.find((d) => d.name.toLowerCase() === name.toLowerCase());
-  return { name, type: known ? known.type : 'Other' };
+  return { name, type: known ? known.type : 'Other', opening_balance: 0 };
 }
 
 // This interval fires a real API call (/api/tx/pull, and /api/tx/push if the
@@ -45,6 +45,12 @@ export function StoreProvider({ children }) {
   const [customCategories, setCustomCategories] = useState([]); // [{name, icon_svg, color}]
   const [syncState, setSyncState] = useState('offline'); // offline|pending|online|error
   const [lastSync, setLastSync] = useState(0);
+  // Flips true once the first sync attempt (success or failure) resolves —
+  // an existing user on a fresh device/browser has zero *local* accounts
+  // until their real history arrives from the server, so onboarding must
+  // wait for this rather than judging "zero accounts" off the pre-sync
+  // instant, which is what made the onboarding modal briefly flash for them.
+  const [firstSyncDone, setFirstSyncDone] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const cursor = useRef(0);
   const txsRef = useRef({});
@@ -103,7 +109,7 @@ export function StoreProvider({ children }) {
       setSyncState('online');
     } catch {
       setSyncState(typeof navigator !== 'undefined' && navigator.onLine ? 'error' : 'offline');
-    } finally { syncing.current = false; }
+    } finally { syncing.current = false; setFirstSyncDone(true); }
   }, [api]);
 
   const syncTimer = useRef(null);
@@ -418,7 +424,7 @@ export function StoreProvider({ children }) {
   // transfers move between the two named accounts.
   const accountBalances = useCallback(() => {
     const map = {};
-    for (const a of accounts) map[a.name] = 0;
+    for (const a of accounts) map[a.name] = Number(a.opening_balance) || 0;
     for (const t of live()) {
       const amt = Number(t.amount);
       if (t.type === 'income') map[t.account] = (map[t.account] || 0) + amt;
@@ -460,7 +466,7 @@ export function StoreProvider({ children }) {
   };
 
   const value = {
-    token, email, name, booted, txs, budgets, accounts, customCategories, syncState, lastSync, toastMsg,
+    token, email, name, booted, txs, budgets, accounts, customCategories, syncState, lastSync, firstSyncDone, toastMsg,
     api, toast, syncNow, saveTx, saveBudget, deleteBudget, saveAccounts, authenticate, saveName, logout, deleteAccount,
     live, totals, inMonth, catSpend, effectiveBudget, noteHistory, accountBalances, accountType, buildSummary,
     addCustomCategory, removeCustomCategory,

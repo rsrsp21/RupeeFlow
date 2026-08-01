@@ -77,9 +77,14 @@ export default function App() {
   // comment there). Re-showing on every load is suppressed once skipped.
   useEffect(() => {
     if (!store.booted || !store.token) return;
+    // Zero accounts is only conclusive once the first sync has actually
+    // resolved — before that it just means this device/browser has no local
+    // cache yet, not that the account is new (see store.jsx's comment on
+    // firstSyncDone).
+    if (store.accounts.length === 0 && !store.firstSyncDone) return;
     const skipped = localStorage.getItem('rf_onboard_skip') === '1';
     setOnboardOpen(store.accounts.length === 0 && !skipped);
-  }, [store.booted, store.token, store.accounts.length]);
+  }, [store.booted, store.token, store.accounts.length, store.firstSyncDone]);
 
   // remember sidebar preference
   useEffect(() => { setCollapsed(localStorage.getItem('rf_nav') === 'collapsed'); }, []);

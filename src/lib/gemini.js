@@ -120,16 +120,23 @@ ${historyHint(history)}`.trim() },
 // client sanitizes again before rendering.
 export function categoryIcon(name) {
   return gemini([{
-    text: `Design a minimal line icon representing the personal-finance category "${name}", in the same visual style as Lucide icons: a single simple concept, geometric, built from a small number of basic shapes.
+    text: `Design a small line icon for the personal-finance category "${name}", matching the exact visual style of Lucide icons (the set already used everywhere else in this app) — freehand SVG coordinates from a language model tend to come out lopsided or overly ambitious, so lean on the examples below rather than improvising a complex shape.
+
+Study how few shapes these use and how coarse/restrained the coordinates are — copy that restraint, not any specific shape:
+- Heart: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+- Home: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
+- Tag: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.41 0l7.29-7.29a1 1 0 0 0 0-1.41L12 2Z"/><circle cx="7" cy="7" r="1"/></svg>
+- Gift: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg>
+
 Return ONLY JSON: {"svg":"...","color":"#rrggbb"}
-The svg value must be a complete, valid, self-contained SVG string meeting ALL of these rules:
+Requirements:
 - Root element exactly: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"> ... </svg>
-- Only these child elements are allowed, any number of them: path, circle, rect, line, ellipse, polygon, polyline, g.
-- Only these attributes are allowed on any element: d, cx, cy, r, rx, ry, x, y, x1, y1, x2, y2, width, height, points, fill, stroke, stroke-width, stroke-linecap, stroke-linejoin, fill-rule, clip-rule.
-- No script, style, image, foreignObject, href, or xlink:href anywhere, no event attributes, no external references, no comments, no text nodes.
-- Keep it recognizable but simple — 1 to 4 shapes, coordinates within the 0-24 viewBox.
-color is a single hex color that suits the category (not necessarily the icon's own stroke color — it's used separately as a themed background tint).`,
-  }], { temperature: 0.6 });
+- Prefer circle, rect, and straight-line paths over intricate freeform curves — if you're not confident you can draw a shape cleanly, pick a simpler one instead (a labeled tag, a simple bag/box outline, a basic symbol) rather than attempting something detailed.
+- Only these child elements: path, circle, rect, line, ellipse, polygon, polyline, g. Only these attributes: d, cx, cy, r, rx, ry, x, y, x1, y1, x2, y2, width, height, points, fill, stroke, stroke-width, stroke-linecap, stroke-linejoin, fill-rule, clip-rule.
+- No script, style, image, foreignObject, href, or xlink:href, no event attributes, no external references, no comments, no text nodes.
+- 1 to 4 shapes total, coordinates comfortably inside the 0-24 viewBox (roughly 2-22) with breathing room like the examples — never edge-to-edge.
+color is a single hex color that suits the category (used as a themed background tint, not necessarily the icon's own stroke color).`,
+  }], { temperature: 0.35 });
 }
 
 export function weeklyInsights(summary) {

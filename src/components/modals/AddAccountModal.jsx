@@ -7,20 +7,22 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Wallet } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
-import { ACCOUNT_TYPES } from '@/lib/client/constants';
+import { ACCOUNT_TYPES, toPaise } from '@/lib/client/constants';
 import { backdropMotion, panelMotion } from './TxModal';
 
 export default function AddAccountModal({ onDone, onSkip }) {
   const store = useStore();
   const [type, setType] = useState('Cash');
   const [name, setName] = useState('');
+  const [balance, setBalance] = useState('');
   const [busy, setBusy] = useState(false);
 
   async function submit(e) {
     e.preventDefault();
     setBusy(true);
     const finalName = name.trim() || type;
-    await store.saveAccounts([...store.accounts, { name: finalName, type }]);
+    const opening_balance = toPaise(balance);
+    await store.saveAccounts([...store.accounts, { name: finalName, type, opening_balance: Number.isFinite(opening_balance) ? opening_balance : 0 }]);
     store.toast(`Added ${finalName}`);
     onDone();
   }
@@ -39,6 +41,11 @@ export default function AddAccountModal({ onDone, onSkip }) {
             {ACCOUNT_TYPES.map((t) => <option key={t}>{t}</option>)}
           </select>
           <input placeholder="Name (optional)" value={name} onChange={(e) => setName(e.target.value)} />
+          <div className="amount-input">
+            <span>₹</span>
+            <input inputMode="decimal" placeholder="Starting balance (optional)"
+              value={balance} onChange={(e) => setBalance(e.target.value)} />
+          </div>
           <div className="btn-row">
             <button type="button" className="btn ghost" onClick={onSkip}>Maybe later</button>
             <button type="submit" className="btn primary grow" disabled={busy}>Record first expense/income</button>

@@ -926,6 +926,8 @@ select {
 .acct-add { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
 .acct-add select { flex: 0 0 auto; width: auto; }
 .acct-add input { flex: 1; min-width: 140px; }
+.acct-bal-edit { display: flex; align-items: center; gap: 4px; }
+.acct-bal-edit input { width: 76px; text-align: right; }
 .name-edit { display: flex; gap: 6px; align-items: center; padding: 4px 0; }
 .name-edit input { flex: 1; }
 .tx-acct {

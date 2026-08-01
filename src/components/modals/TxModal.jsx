@@ -3,7 +3,7 @@
 // rev + updated_at, so history stays consistent on every synced device.
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, RefreshCw, X } from 'lucide-react';
+import { Sparkles, X } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { CATEGORIES, AUTO_RULES, rupees, toPaise } from '@/lib/client/constants';
 import { normalizeNote } from '@/lib/noteMatch';
