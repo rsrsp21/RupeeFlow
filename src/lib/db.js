@@ -115,6 +115,11 @@ const MIGRATIONS = [
   // means "never valued" — the balance then falls back to contributions.
   `ALTER TABLE holdings ADD COLUMN current_value INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE holdings ADD COLUMN valued_at INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE users ADD COLUMN notify_summary INTEGER NOT NULL DEFAULT 1`,
+  `ALTER TABLE users ADD COLUMN notify_missed INTEGER NOT NULL DEFAULT 1`,
+  `ALTER TABLE users ADD COLUMN notify_budget INTEGER NOT NULL DEFAULT 1`,
+  `ALTER TABLE users ADD COLUMN notify_weekly INTEGER NOT NULL DEFAULT 1`,
+  `ALTER TABLE users ADD COLUMN notify_midmonth INTEGER NOT NULL DEFAULT 1`,
 ];
 
 let schemaRun;

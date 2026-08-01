@@ -8,7 +8,6 @@ import { TAGLINE } from '@/lib/client/constants';
 import { backdropMotion, panelMotion } from './modals/TxModal';
 import AuthView from './AuthView';
 import ThemeToggle from './ThemeToggle';
-import InstallPrompt from './InstallPrompt';
 
 const FEATURES = [
   { Icon: Mic, title: 'Speak an expense', body: 'Say it naturally, like "450 lunch, 120 auto to office," and AI splits it into categorized entries.' },
@@ -105,8 +104,6 @@ export default function Landing() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      <InstallPrompt />
     </div>
   );
 }

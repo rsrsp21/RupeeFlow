@@ -268,6 +268,15 @@ function NotificationsCard() {
   const [on, setOn] = useState(false);
   const [busy, setBusy] = useState(false);
   const supported = pushSupported();
+  
+  const [prefs, setPrefs] = useState({
+    notify_summary: 1,
+    notify_missed: 1,
+    notify_budget: 1,
+    notify_weekly: 1,
+    notify_midmonth: 1
+  });
+  const [prefsLoading, setPrefsLoading] = useState(false);
 
   // Reflect the browser's actual state — the user may have revoked
   // permission or cleared site data since they last turned this on.
@@ -275,6 +284,16 @@ function NotificationsCard() {
     if (!supported) return;
     currentSubscription().then((s) => setOn(!!s && Notification.permission === 'granted')).catch(() => {});
   }, [supported]);
+
+  useEffect(() => {
+    if (on) {
+      setPrefsLoading(true);
+      store.api('/settings/notifications').then((data) => {
+        setPrefs(data);
+        setPrefsLoading(false);
+      }).catch(() => setPrefsLoading(false));
+    }
+  }, [on, store]);
 
   async function toggle(want) {
     setBusy(true);
@@ -295,18 +314,63 @@ function NotificationsCard() {
     setBusy(false);
   }
 
+  async function togglePref(key, val) {
+    const next = { ...prefs, [key]: val ? 1 : 0 };
+    setPrefs(next);
+    try {
+      await store.api('/settings/notifications', {
+        method: 'POST',
+        body: JSON.stringify(next)
+      });
+    } catch (e) {
+      store.toast("Failed to save preference: " + e.message);
+    }
+  }
+
   return (
     <div className="card">
       <div className="card-head"><h3><Bell size={13} style={{ verticalAlign: '-2px' }} /> Notifications</h3></div>
       <p className="muted small" style={{ marginBottom: 12 }}>
-        A daily nudge if you haven’t logged anything, and an alert when a budget goes over.
+        Sent daily at 10:00 PM. Turn on what you want to hear about.
       </p>
       {supported ? (
-        <label className="row-setting">
-          <span>Push notifications</span>
-          <input type="checkbox" className="switch" checked={on} disabled={busy}
-            onChange={(e) => toggle(e.target.checked)} />
-        </label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <label className="row-setting">
+            <span>Push notifications</span>
+            <input type="checkbox" className="switch" checked={on} disabled={busy}
+              onChange={(e) => toggle(e.target.checked)} />
+          </label>
+          
+          {on && !prefsLoading && (
+            <div style={{ marginLeft: 16, paddingLeft: 12, borderLeft: '2px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <label className="row-setting">
+                <span>Daily Summary</span>
+                <input type="checkbox" className="switch" checked={!!prefs.notify_summary}
+                  onChange={(e) => togglePref('notify_summary', e.target.checked)} />
+              </label>
+              <label className="row-setting">
+                <span>Missed entries nudge</span>
+                <input type="checkbox" className="switch" checked={!!prefs.notify_missed}
+                  onChange={(e) => togglePref('notify_missed', e.target.checked)} />
+              </label>
+              <label className="row-setting">
+                <span>Budget alerts</span>
+                <input type="checkbox" className="switch" checked={!!prefs.notify_budget}
+                  onChange={(e) => togglePref('notify_budget', e.target.checked)} />
+              </label>
+              <label className="row-setting">
+                <span>Weekly review</span>
+                <input type="checkbox" className="switch" checked={!!prefs.notify_weekly}
+                  onChange={(e) => togglePref('notify_weekly', e.target.checked)} />
+              </label>
+              <label className="row-setting">
+                <span>Mid-month check</span>
+                <input type="checkbox" className="switch" checked={!!prefs.notify_midmonth}
+                  onChange={(e) => togglePref('notify_midmonth', e.target.checked)} />
+              </label>
+            </div>
+          )}
+        </div>
       ) : (
         <p className="muted small">
           This browser doesn’t support push notifications. On iPhone, install RupeeFlow to your home screen first.
