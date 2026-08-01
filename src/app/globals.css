@@ -1214,7 +1214,14 @@ select {
   .fab.mini { border: none; box-shadow: none; width: 64px; min-height: 60px; }
   .fab.mini svg { width: 21px; height: 21px; }
   .fab-label { font-size: .65rem; }
-  .install-prompt { bottom: calc(78px + env(safe-area-inset-bottom)); }
+  /* Top-centre on a phone: the bottom is already crowded by the tab bar and
+     the centred FAB, and a banner sitting over them is both easy to miss and
+     easy to mis-tap. Full width less a margin, so it fits any screen. */
+  .install-prompt {
+    top: calc(env(safe-area-inset-top) + 10px); bottom: auto;
+    left: 12px; right: 12px; transform: none;
+    width: auto; max-width: none;
+  }
   input, select { font-size: 16px; }   /* prevent iOS Safari auto-zoom on focus */
   .view-head { flex-direction: column; align-items: stretch; gap: 12px; }
   /* the theme toggle's quick-access spot on Dashboard is superseded by
