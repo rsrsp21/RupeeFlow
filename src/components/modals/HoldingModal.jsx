@@ -17,12 +17,13 @@ export default function HoldingModal({ onClose, existing = null }) {
   const [kind, setKind] = useState(existing ? (known ? existing.kind : '__custom__') : HOLDING_TYPES[0]);
   const [customKind, setCustomKind] = useState(existing && !known ? existing.kind : '');
   const [name, setName] = useState(existing?.name || '');
-  // One "what's it worth" field for both create and edit. On save it stamps
-  // valued_at, so later contributions stack on top of the stated value rather
-  // than being swallowed by it.
-  const stated = existing
-    ? (existing.valued_at > 0 ? existing.current_value : existing.opening_balance)
-    : 0;
+  // The field shows what the holding is worth RIGHT NOW — the last stated
+  // value plus anything moved in since — not the raw stored figure. Showing
+  // the stored one meant a holding reading ₹2,20,000 on screen opened its
+  // editor at ₹2,00,000, and anyone "correcting" that to the number they
+  // could see would restate the value and silently stop the ₹20,000 from
+  // counting on top of it.
+  const stated = existing ? (store.holdingBalances()[existing.name] || 0) : 0;
   const [opening, setOpening] = useState(stated ? String(stated / 100) : '');
   const valuedOn = existing?.valued_at
     ? new Date(existing.valued_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -46,6 +47,8 @@ export default function HoldingModal({ onClose, existing = null }) {
     // and the thing every later contribution adds to. current_value is what
     // it's worth now. Zeroing the basis when a value is updated made the
     // whole balance look like pure profit, so an edit never touches it.
+    // Unchanged means "the live figure is still right", so nothing is
+    // restated and contributions since the last valuation keep counting.
     const changed = value !== stated;
     const patch = existing
       ? {
@@ -107,14 +110,16 @@ export default function HoldingModal({ onClose, existing = null }) {
             </label>
           )}
           <label className="stacked-label">
-            <span>What it&apos;s worth today{valuedOn ? ` (last set ${valuedOn})` : ' (optional)'}</span>
+            <span>What it&apos;s worth today{editing ? '' : ' (optional)'}</span>
             <div className="amount-input">
               <span>₹</span>
               <input inputMode="decimal" placeholder="0" value={opening}
                 onChange={(e) => setOpening(e.target.value)} />
             </div>
           </label>
-          <p className="muted small">Its market value today, not what you paid in.</p>
+          <p className="muted small">
+            Market value today, not what you paid in.{valuedOn ? ` Last set ${valuedOn}.` : ''}
+          </p>
           <div className="btn-row">
             <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn primary grow" disabled={busy}>{editing ? 'Save' : 'Add'}</button>
