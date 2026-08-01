@@ -6,7 +6,7 @@
 // the plain grid.
 import { Children, useEffect, useState } from 'react';
 
-const ADVANCE_MS = 4500;
+const ADVANCE_MS = 2800;
 
 function useIsNarrow(bp = 880) {
   const [narrow, setNarrow] = useState(false);

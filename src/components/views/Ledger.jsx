@@ -239,6 +239,8 @@ export default function Ledger() {
         <div className="view-head-utils"><SyncBadge /><InsightsLink /><SettingsLink /></div>
       </header>
 
+      <AccountsSummary onManage={() => setView('money')} onPick={changeAccount} active={account} />
+
       {/* ── period summary ── */}
       <div className="card period-card">
         <div className="period-nav">
@@ -326,8 +328,6 @@ export default function Ledger() {
           Running totals {account ? `for ${account}` : 'across all accounts'} up to the end of this period.
         </p>
       </div>
-
-      <AccountsSummary onManage={() => setView('money')} onPick={changeAccount} active={account} />
 
       {/* ── search + filters ── */}
       <div className="card filters">

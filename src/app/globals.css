@@ -767,8 +767,8 @@ select {
 .chip-row b { font-variant-numeric: tabular-nums; font-weight: 600; }
 
 /* ═══ ledger period header ═══ */
-.period-seg { width: auto; flex-shrink: 0; }
-.period-seg button { padding: 6px 11px; font-size: .74rem; }
+.period-seg { width: auto; flex: 1; min-width: 0; }
+.period-seg button { flex: 1; padding: 6px 11px; font-size: .74rem; white-space: nowrap; }
 .period-card { padding: 16px 18px; }
 .period-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .period-title { text-align: center; flex: 1; min-width: 0; }
@@ -804,7 +804,9 @@ select {
 .list-card { padding: 8px 14px 14px; }
 
 /* ═══ shared bits ═══ */
-.head-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+/* Grows to fill the header row rather than hugging the right edge — the
+   period switcher was leaving a wide dead gap beside the screen title. */
+.head-actions { display: flex; gap: 8px; align-items: center; flex: 1; justify-content: flex-end; }
 .btn.sm { padding: 5px 11px; font-size: .75rem; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -1018,7 +1020,7 @@ select {
 
 /* Auto-advancing insight carousel (mobile only — see InsightCarousel.jsx). */
 .insight-carousel { overflow: hidden; margin-bottom: 14px; }
-.insight-track { display: flex; transition: transform .45s cubic-bezier(.22, 1, .36, 1); }
+.insight-track { display: flex; transition: transform .3s cubic-bezier(.22, 1, .36, 1); }
 .insight-slide { flex: 0 0 100%; min-width: 0; }
 .insight-dots { display: flex; justify-content: center; gap: 5px; margin-top: 9px; }
 .insight-dots button {
@@ -1046,11 +1048,11 @@ select {
 .ai-cta-glow {
   position: absolute; top: 0; bottom: 0; left: -60%; width: 45%;
   background: linear-gradient(100deg, transparent, rgb(255 255 255 / .16), transparent);
-  animation: ai-sheen 3.6s ease-in-out infinite;
+  animation: ai-sheen 2.2s ease-in-out infinite;
 }
 @keyframes ai-sheen {
   0%   { left: -60%; }
-  60%  { left: 120%; }
+  55%  { left: 120%; }
   100% { left: 120%; }
 }
 @media (prefers-reduced-motion: reduce) {
