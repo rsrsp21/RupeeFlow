@@ -24,6 +24,8 @@ export default function AccountsPanel() {
     if (t.to_account) usage[t.to_account] = (usage[t.to_account] || 0) + 1;
   }
 
+  const [reorderMode, setReorderMode] = useState(false);
+
   // A `disabled` button can't be clicked, so it explains nothing — it just
   // looks broken. The button stays live and answers on tap, in a bubble
   // beside the row rather than a toast at the other end of the screen.
@@ -89,14 +91,16 @@ export default function AccountsPanel() {
                   ? `${rupees(Math.abs(bal))}${bal < 0 ? ' due' : ''}`
                   : `${bal < 0 ? '−' : ''}${rupees(Math.abs(bal))}`}
               </b>
-              <div className="reorder-btns" style={{ display: 'flex', flexDirection: 'column', gap: 2, marginRight: 4 }}>
-                <button className="icon-btn" onClick={() => moveUp(i)} disabled={i === 0} title="Move up" style={{ padding: 2, opacity: i === 0 ? 0.2 : 1 }}>
-                  <ChevronUp size={14} />
-                </button>
-                <button className="icon-btn" onClick={() => moveDown(i)} disabled={i === store.accounts.length - 1} title="Move down" style={{ padding: 2, opacity: i === store.accounts.length - 1 ? 0.2 : 1 }}>
-                  <ChevronDown size={14} />
-                </button>
-              </div>
+              {reorderMode && (
+                <div className="reorder-btns" style={{ display: 'flex', flexDirection: 'column', gap: 2, marginRight: 4 }}>
+                  <button className="icon-btn" onClick={() => moveUp(i)} disabled={i === 0} title="Move up" style={{ padding: 2, opacity: i === 0 ? 0.2 : 1 }}>
+                    <ChevronUp size={14} />
+                  </button>
+                  <button className="icon-btn" onClick={() => moveDown(i)} disabled={i === store.accounts.length - 1} title="Move down" style={{ padding: 2, opacity: i === store.accounts.length - 1 ? 0.2 : 1 }}>
+                    <ChevronDown size={14} />
+                  </button>
+                </div>
+              )}
               <button className="icon-btn" onClick={() => setReconciling(a)} title="Reconcile with your bank">
                 <Scale size={13} />
               </button>
@@ -115,9 +119,16 @@ export default function AccountsPanel() {
         })}
       </div>
 
-      <button className="btn ghost" onClick={() => setAdding(true)}>
-        <Plus size={14} /> Add account
-      </button>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="btn ghost" onClick={() => setAdding(true)}>
+          <Plus size={14} /> Add account
+        </button>
+        {store.accounts.length > 1 && (
+          <button className="btn ghost" onClick={() => setReorderMode(!reorderMode)}>
+            {reorderMode ? 'Done reordering' : 'Reorder'}
+          </button>
+        )}
+      </div>
 
       {adding && <AccountModal onClose={() => setAdding(false)} />}
       {editing && <AccountModal existing={editing} onClose={() => setEditing(null)} />}
