@@ -2,12 +2,18 @@
 // Runtime caching: pages network-first (cache fallback), static assets
 // stale-while-revalidate, CDN libs cache-first. API calls skip the SW —
 // the app itself queues mutations in IndexedDB while offline.
-const CACHE = 'rupeeflow-next-v4';
+const CACHE = 'rupeeflow-next-v5';
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE)
-      .then((c) => c.addAll(['/', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png']))
+            // Every screen is its own route now, so each needs its own shell —
+      // falling all of them back to '/' offline would serve the dashboard's
+      // markup under, say, /ledger and hydrate against the wrong page.
+      .then((c) => c.addAll([
+        '/', '/ledger', '/money', '/budgets', '/insights', '/settings',
+        '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png',
+      ]))
       .catch(() => {})   // a missing optional asset must not block install
       .then(() => self.skipWaiting())
   );
@@ -62,9 +68,11 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(
       fetch(e.request).then((res) => {
         const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put('/', copy));
+        // Cache under the requested path, not always '/', so each route keeps
+        // its own shell.
+        caches.open(CACHE).then((c) => c.put(new URL(e.request.url).pathname, copy));
         return res;
-      }).catch(() => caches.match('/'))
+      }).catch(() => caches.match(new URL(e.request.url).pathname).then((hit) => hit || caches.match('/')))
     );
     return;
   }

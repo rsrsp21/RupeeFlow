@@ -1,6 +1,7 @@
 'use client';
 // App shell: auth gate, nav, animated view transitions, FAB cluster, modals, toast.
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Plus, Mic, ScanLine, PenLine, Type, Wallet } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
@@ -8,12 +9,6 @@ import { rupees } from '@/lib/client/constants';
 import { readSharedPayload } from '@/lib/client/shareTarget';
 import { resolveCategory } from '@/lib/client/applyParsed';
 import Landing from './Landing';
-import Dashboard from './views/Dashboard';
-import Ledger from './views/Ledger';
-import Money from './views/Money';
-import Budgets from './views/Budgets';
-import Insights from './views/Insights';
-import Settings from './views/Settings';
 import TxModal from './modals/TxModal';
 import VoiceModal from './modals/VoiceModal';
 import PromptModal from './modals/PromptModal';
@@ -50,11 +45,21 @@ const FAB_ROTATE = { type: 'spring', stiffness: 500, damping: 26, mass: 0.5 };
 const FAB_TAP = { scale: 0.9 };
 const FAB_HOVER = { y: -1 };
 
-const VIEWS = { dashboard: Dashboard, transactions: Ledger, money: Money, budgets: Budgets, insights: Insights, settings: Settings };
+// Screens are real routes now, so the browser's own history stack does the
+// work: back walks the screens you actually visited and only exits from the
+// first one. View ids are kept as the UI's vocabulary (every setView('budgets')
+// call site still reads the same) and mapped to paths here.
+const PATHS = {
+  dashboard: '/', transactions: '/ledger', money: '/money',
+  budgets: '/budgets', insights: '/insights', settings: '/settings',
+};
+const VIEW_BY_PATH = Object.fromEntries(Object.entries(PATHS).map(([v, p]) => [p, v]));
 
-export default function App() {
+export default function App({ children }) {
   const store = useStore();
-  const [view, setViewState] = useState('dashboard');
+  const router = useRouter();
+  const pathname = usePathname();
+  const view = VIEW_BY_PATH[pathname] || 'dashboard';
   const [txModal, setTxModal] = useState(null);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [promptOpen, setPromptOpen] = useState(false);
@@ -91,17 +96,46 @@ export default function App() {
   useEffect(() => { setCollapsed(localStorage.getItem('rf_nav') === 'collapsed'); }, []);
   const toggleNav = (v) => { setCollapsed(v); localStorage.setItem('rf_nav', v ? 'collapsed' : 'open'); };
 
-  // remember the active screen so a reload lands back where you were, not
-  // always on the dashboard
-  useEffect(() => {
-    const saved = localStorage.getItem('rf_view');
-    if (saved && VIEWS[saved]) setViewState(saved);
-  }, []);
-  const setView = (v) => { setViewState(v); localStorage.setItem('rf_view', v); };
+  // A reload already lands back where you were — the URL says so.
+  const setView = (v) => router.push(PATHS[v] || '/');
 
   // Switching views shouldn't carry over the previous page's scroll position —
   // .main isn't its own scroll container, the window is, so it doesn't reset itself.
   useEffect(() => { window.scrollTo(0, 0); }, [view]);
+
+  // Leaving a screen must not leave a sheet floating over the next one.
+  useEffect(() => { closeModals(); }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Back should dismiss an open sheet before it leaves the screen — that's
+  // muscle memory on Android. Opening one adds a history entry at the SAME
+  // url (pushState with no url argument), so popping it changes nothing the
+  // router cares about; it just tells us to close. The entry is wound back
+  // when a sheet is dismissed through the UI instead, so it can't pile up.
+  const anyModal = Boolean(txModal || budgetModal || exportOpen || voiceOpen || promptOpen);
+  const pushedForModal = useRef(false);
+  useEffect(() => {
+    if (anyModal && !pushedForModal.current) {
+      pushedForModal.current = true;
+      window.history.pushState({ rfModal: true }, '');
+    } else if (!anyModal && pushedForModal.current) {
+      pushedForModal.current = false;
+      if (window.history.state?.rfModal) window.history.back();
+    }
+  }, [anyModal]);
+  useEffect(() => {
+    const onPop = () => {
+      if (!pushedForModal.current) return;
+      pushedForModal.current = false;
+      closeModals();
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function closeModals() {
+    setTxModal(null); setBudgetModal(null); setExportOpen(false);
+    setVoiceOpen(false); setPromptOpen(false); setShareText(null); setFabOpen(false);
+  }
 
   // close the FAB cluster on outside tap
   useEffect(() => {
@@ -163,7 +197,6 @@ export default function App() {
   }
 
   const ui = { view, setView, openTx, openBudget, openExport: () => setExportOpen(true), setEntryDate };
-  const ActiveView = VIEWS[view] || Dashboard;
 
   const fabActions = [
     { key: 'voice', Icon: Mic, label: 'Speak', title: 'Speak an expense', onClick: () => { setFabOpen(false); setVoiceOpen(true); } },
@@ -199,13 +232,13 @@ export default function App() {
               position: sticky for every .view-head nested inside it — the
               sticky header just silently never stuck to anything. */}
           <motion.div
-            key={view}
+            key={pathname}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
           >
-            <ErrorBoundary resetKey={view}>
-              <ActiveView />
+            <ErrorBoundary resetKey={pathname}>
+              {children}
             </ErrorBoundary>
           </motion.div>
         </main>
