@@ -380,8 +380,8 @@ select {
 }
 .hero-top-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .hero-acct-select {
-  width: auto; font-size: .72rem; padding: 4px 8px; border-radius: var(--radius-sm);
-  background: var(--surface-2); border-color: transparent; color: var(--muted);
+  width: auto; font-size: .72rem; padding: 6px 28px 6px 10px; border-radius: var(--radius-sm);
+  background-color: var(--surface-2); border-color: transparent; color: var(--text); font-weight: 550;
 }
 .hero-label {
   font-size: .68rem; font-weight: 600; letter-spacing: .09em;
