@@ -55,8 +55,10 @@ export function StoreProvider({ children }) {
   const cursor = useRef(0);
   const txsRef = useRef({});
   const tokenRef = useRef(null);
+  const accountsRef = useRef([]);
   txsRef.current = txs;
   tokenRef.current = token;
+  accountsRef.current = accounts;
 
   const toast = useCallback((msg) => {
     setToastMsg(msg);
@@ -321,12 +323,20 @@ export function StoreProvider({ children }) {
     } catch {}
     try {
       const { accounts: remote } = await api('/accounts');
-      // Empty here just means this device derived its list from transaction
-      // history and never explicitly pushed one — don't erase that guess.
       if (remote?.length) {
+        // Empty here just means this device derived its list from
+        // transaction history and never explicitly pushed one — don't
+        // erase that guess.
         const normalized = remote.map(normalizeAccount);
         setAccounts(normalized);
         idbPut('meta', { k: 'accounts', v: normalized });
+      } else if (accountsRef.current.length) {
+        // Backfill: this device has a real local account list from before
+        // accounts synced to the server at all (or before this device ever
+        // got a chance to push it) — push it once so other devices can see
+        // it too. Once this succeeds, the next refresh finds a non-empty
+        // remote list and this branch stops firing.
+        api('/accounts', { method: 'PUT', body: JSON.stringify({ accounts: accountsRef.current }) }).catch(() => {});
       }
     } catch {}
   }, [api]);
