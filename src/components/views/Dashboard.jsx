@@ -21,7 +21,6 @@ import TrendBars from '../charts/TrendBars';
 import CategoryBars from '../charts/CategoryBars';
 import TxItem from '../TxItem';
 import CategoryIcon from '../CategoryIcon';
-import AccountsSummary from '../AccountsSummary';
 import InsightCarousel from '../InsightCarousel';
 
 function AnimatedAmount({ paise, className = 'hero-amount' }) {
@@ -260,9 +259,9 @@ export default function Dashboard() {
         <AnimatedAmount paise={netBalance} />
         {acctFilter === 'all' && (worth.invested > 0 || worth.dues > 0) && (
           <p className="budget-line hero-worth">
-            {worth.invested > 0 && <>+ {rupees(worth.invested)} invested</>}
-            {worth.dues > 0 && <> · − {rupees(worth.dues)} card dues</>}
-            {' · net worth '}<b>{rupees(worth.total)}</b>
+            {worth.invested > 0 && <>Invested {rupees(worth.invested)}</>}
+            {worth.dues > 0 && <> · Card dues {rupees(worth.dues)}</>}
+            {' · Net worth '}<b>{rupees(worth.total)}</b>
           </p>
         )}
         <div className="kpi-strip">
@@ -281,7 +280,7 @@ export default function Dashboard() {
             <div className={`pace-tag ${mt.exp > overall ? 'warn' : 'good'}`}>
               {mt.exp > overall
                 ? <><TrendingUp size={12} strokeWidth={2.6} /> Over budget by {rupees(mt.exp - overall)}</>
-                : <><Check size={12} strokeWidth={2.6} /> {rupees(overall - mt.exp)} left of {rupees(overall)} · projected {rupees(stats.projected)}</>}
+                : <><Check size={12} strokeWidth={2.6} /> {rupees(overall - mt.exp)} left of {rupees(overall)} · Projected {rupees(stats.projected)}</>}
             </div>
             {overallIsDerived && (
               <p className="budget-line">Cap added up from your category budgets — set an overall one for a single monthly limit.</p>
@@ -294,8 +293,6 @@ export default function Dashboard() {
           </p>
         )}
       </div>
-
-      <AccountsSummary onManage={() => setView('money')} />
 
       {/* ── insight cards ── */}
       <InsightCarousel>

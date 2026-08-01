@@ -223,7 +223,7 @@ export default function Ledger() {
       <header className="view-head">
         <div>
           <h2><List size={19} strokeWidth={2} /> Ledger</h2>
-          <p className="sub">{list.length} {list.length === 1 ? 'entry' : 'entries'}{activeFilters ? ' · filtered' : ''}</p>
+          <p className="sub">{list.length} {list.length === 1 ? 'entry' : 'entries'}{activeFilters ? ' · Filtered' : ''}</p>
         </div>
         <div className="head-actions">
           <div className="seg period-seg">
@@ -322,7 +322,7 @@ export default function Ledger() {
             <b className="stat-v out">{rupees(cum.spent)}</b>
           </div>
         </div>
-        <p className="muted small cum-note">{account || 'All accounts'} · up to the end of this period.</p>
+        <p className="muted small cum-note">{account || 'All accounts'} · Up to the end of this period</p>
       </div>
 
       {/* ── search + filters ── */}

@@ -105,7 +105,7 @@ export default function BudgetsPanel() {
                 <p className="muted small">of {rupees(overall)} budgeted</p>
                 <div className={`pace-tag ${onTrack ? 'good' : 'warn'}`}>
                   {onTrack
-                    ? <><Check size={12} strokeWidth={2.6} /> On track · projected {rupees(projected)}</>
+                    ? <><Check size={12} strokeWidth={2.6} /> On track · Projected {rupees(projected)}</>
                     : <><TrendingUp size={12} strokeWidth={2.6} /> Projected {rupees(projected)} · {rupees(projected - overall)} over</>}
                 </div>
               </div>
