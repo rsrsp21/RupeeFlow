@@ -100,7 +100,15 @@ export function StoreProvider({ children }) {
           const next = { ...prev };
           for (const t of transactions) {
             const local = next[t.id];
-            if (!local || t.updated_at >= local.updated_at) { next[t.id] = t; idbPut('tx', t); }
+            // Mirror the server's own LWW rule exactly (updated_at, then rev
+            // as the tiebreak). A blanket `>=` let a same-millisecond server
+            // row overwrite a newer local one — which for a just-deleted
+            // entry meant pulling the pre-delete version straight back in
+            // and resurrecting it, deleted flag and all.
+            const newer = !local
+              || t.updated_at > local.updated_at
+              || (t.updated_at === local.updated_at && (t.rev || 0) >= (local.rev || 0));
+            if (newer) { next[t.id] = t; idbPut('tx', t); }
             cursor.current = Math.max(cursor.current, t.updated_at);
           }
           return next;
@@ -183,7 +191,13 @@ export function StoreProvider({ children }) {
       // add/rename/remove an account, so saveAccounts() was never called) —
       // derive one from their real transaction history instead.
       const names = new Set();
-      for (const tx of all) { if (tx.account) names.add(tx.account); if (tx.to_account) names.add(tx.to_account); }
+      // Non-deleted only — a deleted entry shouldn't conjure back an account
+      // the user no longer has anything in.
+      for (const tx of all) {
+        if (tx.deleted) continue;
+        if (tx.account) names.add(tx.account);
+        if (tx.to_account) names.add(tx.to_account);
+      }
       if (names.size) {
         const derived = [...names].map(normalizeAccount);
         setAccounts(derived);

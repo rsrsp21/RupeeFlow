@@ -129,6 +129,27 @@ export default function Ledger() {
 
   const biggest = list.filter((t) => t.type === 'expense').sort((a, b) => b.amount - a.amount)[0];
 
+  // Running totals up to the END of whatever period is being viewed, so you
+  // can read "where did I actually stand at this point" without switching to
+  // All — browse to yesterday and it's yesterday's closing position, browse
+  // to a past month and it's that month's. Deliberately ignores the search /
+  // category / amount filters: a cumulative balance filtered down to, say,
+  // just "Food" isn't a balance, it's a category subtotal (already shown in
+  // the period card above).
+  const cumEnd = allTime || searching ? Infinity
+    : hasCustomRange ? (dateTo ? new Date(`${dateTo}T23:59:59.999`).getTime() : Infinity)
+    : end;
+  const cumLabel = allTime || searching ? 'now'
+    : hasCustomRange ? (dateTo || 'now')
+    : periodLabel(kind, start);
+  const cum = useMemo(() => {
+    const t = store.totals(store.live().filter((x) => x.occurred_at < cumEnd));
+    const opening = store.accounts.reduce((s, a) => s + (Number(a.opening_balance) || 0), 0);
+    // Net = money actually on hand, so investments come out of it too (they
+    // left the account) even though they're not counted as "spending".
+    return { spent: t.exp, net: opening + t.inc - t.exp - t.saved };
+  }, [store, store.txs, store.accounts, cumEnd]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // trend buckets over the period (expenses) — skipped for "Day": occurred_at's
   // time-of-day is often just whenever the entry was logged, not the real time,
   // so an hour-by-hour breakdown there would be misleading.
@@ -238,6 +259,22 @@ export default function Ledger() {
             Largest: <b>{biggest.note || biggest.category}</b> · {rupees(biggest.amount)}
           </p>
         )}
+      </div>
+
+      {/* ── running position up to the end of the viewed period ── */}
+      <div className="grid-2">
+        <div className="card cum-card">
+          <h3>Net upto {cumLabel}</h3>
+          <b className="cum-amt" style={{ color: cum.net >= 0 ? 'var(--green)' : 'var(--red)' }}>
+            {cum.net < 0 ? '−' : ''}{rupees(Math.abs(cum.net))}
+          </b>
+          <p className="muted small">Starting balances plus everything received, minus everything paid out, up to this point.</p>
+        </div>
+        <div className="card cum-card">
+          <h3>Spent upto {cumLabel}</h3>
+          <b className="cum-amt out">{rupees(cum.spent)}</b>
+          <p className="muted small">Every expense logged on or before this point, across all accounts.</p>
+        </div>
       </div>
 
       <AccountsSummary onManage={() => setView('settings')} />

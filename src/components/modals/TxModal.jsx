@@ -132,7 +132,10 @@ export default function TxModal({ state, onClose }) {
   }
 
   async function remove() {
-    await store.saveTx({ ...existing, deleted: 1, updated_at: Date.now(), rev: existing.rev + 1 });
+    // (existing.rev || 0) not existing.rev — an entry predating the rev field
+    // makes this NaN, which the server clamps back down to rev 1, throwing
+    // away the delete's version tiebreak entirely (see the LWW merge below).
+    await store.saveTx({ ...existing, deleted: 1, updated_at: Date.now(), rev: (existing.rev || 0) + 1 });
     onClose();
     store.toast('Entry deleted, totals recalculated');
   }
