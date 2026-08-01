@@ -37,7 +37,7 @@ export default function AccountsSummary({ onManage, onPick, active = '' }) {
               onClick={onPick ? () => onPick(a.name) : undefined}>
               <AccountIcon type={a.type} size={13} />
               <span className="acct-chip-name">{a.name}</span>
-              <b style={{ color: active === a.name ? '#fff' : bal < 0 ? 'var(--red)' : bal > 0 ? 'var(--green)' : 'var(--muted)' }}>
+              <b style={{ color: bal < 0 ? 'var(--red)' : bal > 0 ? 'var(--green)' : 'var(--muted)' }}>
                 {card ? rupees(Math.abs(bal)) : `${bal < 0 ? '−' : ''}${rupees(Math.abs(bal))}`}
               </b>
             </button>

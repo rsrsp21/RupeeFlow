@@ -1057,8 +1057,8 @@ select {
 .acct-chip:not(.static):hover { color: var(--text); border-color: var(--line-strong); }
 /* Selection has to be unmistakable — a border tint alone didn't read as
    "this one is picked", especially on a dark background. */
-.acct-chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-.acct-chip.on .acct-chip-name, .acct-chip.on svg { color: #fff; font-weight: 650; }
+.acct-chip.on { background: transparent; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); color: var(--accent-text); }
+.acct-chip.on .acct-chip-name, .acct-chip.on svg { color: var(--accent-text); font-weight: 650; }
 .acct-chip-name { font-weight: 550; color: var(--text); }
 .acct-chip b { font-variant-numeric: tabular-nums; font-weight: 650; }
 
