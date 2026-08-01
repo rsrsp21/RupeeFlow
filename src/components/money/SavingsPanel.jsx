@@ -97,7 +97,16 @@ export default function SavingsPanel() {
                     <span className="holding-name">{h.name}</span>
                     <span className="holding-meta">
                       <span className="tx-tag">{h.kind}</span>
-                      {f.in ? `+${rupees(f.in)} in` : 'no contributions yet'}{f.out ? ` · ${rupees(f.out)} out` : ''}
+                      {rupees(put)} in
+                      {gain !== 0 && (
+                        <span style={{ color: gain > 0 ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>
+                          {gain > 0 ? '▲' : '▼'} {rupees(Math.abs(gain))}
+                          {pct !== null ? ` (${gain > 0 ? '+' : '−'}${Math.abs(pct).toFixed(1)}%)` : ''}
+                        </span>
+                      )}
+                      <span>{h.valued_at
+                        ? `valued ${new Date(h.valued_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
+                        : 'value not set'}</span>
                     </span>
                   </div>
                   <b className="holding-bal" style={{ color: bal < 0 ? 'var(--red)' : bal > 0 ? 'var(--green)' : 'var(--muted)' }}>

@@ -305,13 +305,11 @@ export default function Ledger() {
       </div>
 
       {/* ── running position up to the end of the viewed period ── */}
-      <div className="cum-head">
-        <span className="cum-head-label">Running totals</span>
-      </div>
       {/* Same compact .stat-row treatment as the period card above — these were
           full cards with their own headings and body copy, which made two
           derived figures louder than the ledger they describe. */}
       <div className="card cum-card">
+        <div className="card-head"><h3>Running totals</h3></div>
         <div className="stat-row">
           <div className="stat">
             <span className="stat-k">Net upto {cumLabel}</span>
