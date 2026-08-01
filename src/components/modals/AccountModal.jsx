@@ -39,11 +39,12 @@ export default function AccountModal({ onClose, existing = null }) {
     const limit_amount = isCard && Number.isFinite(enteredLimit) ? Math.abs(enteredLimit) : 0;
     try {
       if (editing) {
-        // Rename first: it rewrites every transaction pointing at the old
-        // name, and saveAccounts below would otherwise leave them orphaned.
-        if (finalName !== existing.name) await store.renameAccount(existing.name, finalName);
+        // Repoint the ledger first so no entry is left pointing at a name
+        // that's about to disappear, then write the list ONCE — built from
+        // the array this component already holds, matched on the old name.
+        if (finalName !== existing.name) await store.renameAccountRefs(existing.name, finalName);
         await store.saveAccounts(store.accounts.map((a) =>
-          a.name === (finalName !== existing.name ? finalName : existing.name)
+          a.name === existing.name
             ? { ...a, name: finalName, type, opening_balance, limit_amount } : a));
         store.toast('Account updated');
       } else {

@@ -61,11 +61,11 @@ export default function HoldingModal({ onClose, existing = null }) {
       : { opening_balance: value, current_value: value, valued_at: value ? Date.now() : 0 };
     try {
       if (editing) {
-        // Rename first — it rewrites the transactions pointing at the old
-        // name, which saveHoldings below would otherwise orphan.
-        if (finalName !== existing.name) await store.renameHolding(existing.name, finalName);
+        // Repoint the ledger first, then one list write matched on the old
+        // name — see AccountModal for why this can't be two saves.
+        if (finalName !== existing.name) await store.renameHoldingRefs(existing.name, finalName);
         await store.saveHoldings(store.holdings.map((h) =>
-          h.name === (finalName !== existing.name ? finalName : existing.name)
+          h.name === existing.name
             ? { ...h, name: finalName, kind: finalKind || 'Other', ...patch } : h));
         store.toast('Updated');
       } else {

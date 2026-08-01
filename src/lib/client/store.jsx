@@ -676,29 +676,27 @@ export function StoreProvider({ children }) {
     }
   }, [api, toast]);
 
-  const renameAccount = useCallback(async (oldName, newName) => {
+  // Repoints the ledger only — it deliberately does NOT write the account
+  // list. The caller is editing other fields in the same action and holds
+  // the list it wants; if this saved a renamed list too, the caller's own
+  // save would follow with an array captured before the rename and quietly
+  // put the old name back.
+  const renameAccountRefs = useCallback(async (oldName, newName) => {
     const clean = String(newName || '').trim();
     if (!clean || clean === oldName) return 0;
-    if (accountsRef.current.some((a) => a.name.toLowerCase() === clean.toLowerCase())) {
-      throw new Error('An account with that name already exists');
-    }
     const moved = await renameTxField('account', oldName, clean);
     const moved2 = await renameTxField('to_account', oldName, clean);
-    await saveAccounts(accountsRef.current.map((a) => (a.name === oldName ? { ...a, name: clean } : a)));
     return moved + moved2;
-  }, [renameTxField, saveAccounts]);
+  }, [renameTxField]);
 
-  const renameHolding = useCallback(async (oldName, newName) => {
+  // Ledger only, for the same reason as renameAccountRefs above.
+  const renameHoldingRefs = useCallback(async (oldName, newName) => {
     const clean = String(newName || '').trim();
     if (!clean || clean === oldName) return 0;
-    if (holdingsRef.current.some((h) => h.name.toLowerCase() === clean.toLowerCase())) {
-      throw new Error('A holding with that name already exists');
-    }
     const moved = await renameTxField('account', oldName, clean);
     const moved2 = await renameTxField('to_account', oldName, clean);
-    await saveHoldings(holdingsRef.current.map((h) => (h.name === oldName ? { ...h, name: clean } : h)));
     return moved + moved2;
-  }, [renameTxField, saveHoldings]);
+  }, [renameTxField]);
 
   // Categories are keyed by (user_id, name) server-side, so a rename is a
   // create-then-delete rather than an update. The new name reuses the old
@@ -863,7 +861,7 @@ export function StoreProvider({ children }) {
     token, email, name, booted, txs, budgets, accounts, holdings, customCategories, syncState, lastSync, firstSyncDone, toastMsg,
     api, toast, syncNow, resync, saveTx, saveBudget, deleteBudget, saveAccounts, authenticate, saveName, logout, deleteAccount,
     live, totals, inMonth, catSpend, effectiveBudget, noteHistory, accountBalances, holdingBalances, holdingContributed, netWorth, saveHoldings, accountType, buildSummary,
-    renameAccount, renameHolding, renameCustomCategory,
+    renameAccountRefs, renameHoldingRefs, renameCustomCategory,
     addCustomCategory, removeCustomCategory,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
