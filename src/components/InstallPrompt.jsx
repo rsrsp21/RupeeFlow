@@ -12,10 +12,19 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Share, Download } from 'lucide-react';
 
-// Shown on every load until the app is actually installed — the standalone
-// check below is the only thing that retires it, so it can't outlive its own
-// purpose. Dismissing hides it for the current page only, deliberately: a
-// persisted opt-out is what made it invisible for good after one stray tap.
+// Shown on every load until the app is actually installed. Dismissing hides
+// it for the current page only, deliberately: a persisted opt-out is what
+// made it invisible for good after one stray tap.
+//
+// "Is it installed" has no direct answer from a browser tab —
+// getInstalledRelatedApps() only covers a linked native app, not the PWA
+// itself. Standalone display mode answers a narrower question: how THIS tab
+// was opened. That's enough on Android and desktop, where Chrome simply
+// stops firing beforeinstallprompt once installed. iOS Safari has neither,
+// so an installed user browsing the site normally would be nagged forever —
+// hence the flag below: launching standalone proves installation happened,
+// and that fact is worth remembering.
+const INSTALLED_KEY = 'rf_installed';
 export default function InstallPrompt() {
   const [deferred, setDeferred] = useState(null); // the browser's install event
   const [showIOS, setShowIOS] = useState(false);
@@ -25,10 +34,13 @@ export default function InstallPrompt() {
     const standalone = window.matchMedia('(display-mode: standalone)').matches
       || window.navigator.standalone === true;
     if (standalone) {
+      // Proof of installation, and the only proof iOS will ever give us.
+      localStorage.setItem(INSTALLED_KEY, '1');
       // Installed: ask the browser to keep our data (prevents eviction under storage pressure)
       navigator.storage?.persist?.().catch(() => {});
       return;
     }
+    const knownInstalled = localStorage.getItem(INSTALLED_KEY) === '1';
 
     // The event itself is caught by an inline script in the document head —
     // it fires before React hydrates, so a listener attached here would
@@ -41,12 +53,17 @@ export default function InstallPrompt() {
     take();
     window.addEventListener('rf-installable', take);
 
-    const onInstalled = () => { setDeferred(null); setShowIOS(false); };
+    const onInstalled = () => {
+      localStorage.setItem(INSTALLED_KEY, '1');
+      setDeferred(null); setShowIOS(false);
+    };
     window.addEventListener('rf-installed', onInstalled);
 
+    // Android and desktop need no such guard: the browser stops offering
+    // beforeinstallprompt once installed, so `deferred` stays null by itself.
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
     const isSafari = /safari/i.test(navigator.userAgent) && !/crios|fxios|chrome/i.test(navigator.userAgent);
-    if (isIOS && isSafari) setShowIOS(true);
+    if (isIOS && isSafari && !knownInstalled) setShowIOS(true);
 
     return () => {
       window.removeEventListener('rf-installable', take);

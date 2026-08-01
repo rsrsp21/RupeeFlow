@@ -130,7 +130,10 @@ function InstallCard() {
   useEffect(() => {
     const standalone = window.matchMedia('(display-mode: standalone)').matches
       || window.navigator.standalone === true;
-    if (standalone) { setInstalled(true); return; }
+    // Same reasoning as InstallPrompt: standalone proves installation, and on
+    // iOS it's the only proof there is, so it's remembered.
+    if (standalone) { localStorage.setItem('rf_installed', '1'); setInstalled(true); return; }
+    if (localStorage.getItem('rf_installed') === '1') { setInstalled(true); return; }
     const sync = () => setReady(Boolean(window.__rfInstall));
     sync();
     window.addEventListener('rf-installable', sync);
