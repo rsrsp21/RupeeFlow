@@ -2,7 +2,7 @@
 // Accounts panel — lives on the Money screen. Accounts are spendable places
 // money sits; savings/investments are holdings and live on their own tab.
 import { useState } from 'react';
-import { Plus, Wallet, Trash2, Pencil, Scale } from 'lucide-react';
+import { Plus, Wallet, Trash2, Pencil, Scale, ChevronUp, ChevronDown } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees, ACCOUNT_TYPES, toPaise } from '@/lib/client/constants';
 import AccountIcon from '../AccountIcon';
@@ -47,13 +47,27 @@ export default function AccountsPanel() {
     } catch {}
   }
 
+  async function moveUp(index) {
+    if (index === 0) return;
+    const arr = [...store.accounts];
+    [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
+    await store.saveAccounts(arr);
+  }
+
+  async function moveDown(index) {
+    if (index === store.accounts.length - 1) return;
+    const arr = [...store.accounts];
+    [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
+    await store.saveAccounts(arr);
+  }
+
   return (
     <div className="card">
       <div className="card-head"><h3><Wallet size={13} style={{ verticalAlign: '-2px' }} /> Accounts</h3></div>
       <p className="muted small" style={{ marginBottom: 12 }}>Edit to rename or set a credit limit. Reconcile to match your bank without rewriting past totals.</p>
 
       <div className="acct-list">
-        {store.accounts.map((a) => {
+        {store.accounts.map((a, i) => {
           const bal = balances[a.name] || 0;
           const card = a.type === 'Credit Card';
           const used = card ? Math.max(0, -bal) : 0;
@@ -64,6 +78,7 @@ export default function AccountsPanel() {
                 <span className="holding-name">{a.name}</span>
                 <span className="holding-meta">
                   <span className="tx-tag">{a.type}</span>
+                  {i === 0 && <span className="tx-tag" style={{ background: 'var(--accent-soft)', color: 'var(--accent-text)', borderColor: 'var(--accent)' }}>Primary</span>}
                   {usage[a.name] || 0} entries
                   {card && a.limit_amount > 0 &&
                     ` · ${rupees(used)} of ${rupees(a.limit_amount)} used`}
@@ -74,6 +89,14 @@ export default function AccountsPanel() {
                   ? `${rupees(Math.abs(bal))}${bal < 0 ? ' due' : ''}`
                   : `${bal < 0 ? '−' : ''}${rupees(Math.abs(bal))}`}
               </b>
+              <div className="reorder-btns" style={{ display: 'flex', flexDirection: 'column', gap: 2, marginRight: 4 }}>
+                <button className="icon-btn" onClick={() => moveUp(i)} disabled={i === 0} title="Move up" style={{ padding: 2, opacity: i === 0 ? 0.2 : 1 }}>
+                  <ChevronUp size={14} />
+                </button>
+                <button className="icon-btn" onClick={() => moveDown(i)} disabled={i === store.accounts.length - 1} title="Move down" style={{ padding: 2, opacity: i === store.accounts.length - 1 ? 0.2 : 1 }}>
+                  <ChevronDown size={14} />
+                </button>
+              </div>
               <button className="icon-btn" onClick={() => setReconciling(a)} title="Reconcile with your bank">
                 <Scale size={13} />
               </button>

@@ -108,6 +108,21 @@ export default function AccountModal({ onClose, existing = null }) {
           )}
           <div className="btn-row">
             <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
+            {editing && existing.name !== store.accounts[0]?.name && (
+              <button type="button" className="btn secondary" onClick={async () => {
+                const arr = [...store.accounts];
+                const idx = arr.findIndex(a => a.name === existing.name);
+                if (idx > 0) {
+                  const [item] = arr.splice(idx, 1);
+                  arr.unshift(item);
+                  try {
+                    await store.saveAccounts(arr);
+                    store.toast('Set as primary account');
+                    onClose();
+                  } catch (err) { store.toast('Could not save'); }
+                }
+              }}>Make Primary</button>
+            )}
             <button type="submit" className="btn primary grow" disabled={busy}>{editing ? 'Save' : 'Add account'}</button>
           </div>
         </form>
