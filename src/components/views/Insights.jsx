@@ -2,7 +2,7 @@
 // AI hub — health score/coach cards, weekly narrative, and ask-anything chat.
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Sparkles, TrendingDown, AlertTriangle, Trophy, Eye, RefreshCw, RotateCcw, Send, Gauge, ScrollText } from 'lucide-react';
+import { Sparkles, TrendingDown, AlertTriangle, Trophy, Eye, CreditCard, PiggyBank, Wallet, RefreshCw, RotateCcw, Send, Gauge, ScrollText } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees } from '@/lib/client/constants';
 import { loadDaily, saveDaily, clearDaily } from '@/lib/client/dailyCache';
@@ -16,6 +16,7 @@ const KIND_META = {
   risk: { icon: AlertTriangle, tone: 'risk', label: 'Risk' },
   win: { icon: Trophy, tone: 'win', label: 'Win' },
   watch: { icon: Eye, tone: 'watch', label: 'Watch' },
+  debt: { icon: CreditCard, tone: 'risk', label: 'Debt' },
 };
 
 const CHIPS = [
@@ -43,6 +44,18 @@ export default function Insights() {
   useEffect(() => { if (chat.length && !chat[chat.length - 1]?.pending) saveDaily('rf_ai_chat', chat); }, [chat]);
 
   const hasData = store.live().length > 0;
+
+  // Same numbers the AI is handed, shown directly — a summary the user can
+  // check the AI's claims against rather than having to trust them.
+  const health = (() => {
+    const w = store.netWorth();
+    const s2 = store.buildSummary(35);
+    const stale = (s2.holdings || []).filter((h) => h.valued_days_ago === null || h.valued_days_ago > 30).length;
+    return {
+      spendable: Math.round(w.spendable), invested: Math.round(w.invested), dues: Math.round(w.dues),
+      rate: s2.savings_rate_pct, stale,
+    };
+  })();
 
   async function runCoach() {
     setLoadingCoach(true);
@@ -105,6 +118,41 @@ export default function Insights() {
 
       {hasData && (
         <>
+          {/* Derived locally, so the screen says something useful before any
+              AI call finishes — and gives the cards below real context. */}
+          <div className="card">
+            <div className="card-head"><h3>Where you stand</h3></div>
+            <div className="stat-row">
+              <div className="stat">
+                <span className="stat-k"><Wallet size={12} /> Spendable</span>
+                <b className="stat-v">{rupees(health.spendable)}</b>
+              </div>
+              <div className="stat">
+                <span className="stat-k"><PiggyBank size={12} /> Invested</span>
+                <b className="stat-v" style={{ color: 'var(--green)' }}>{rupees(health.invested)}</b>
+              </div>
+              {health.dues > 0 && (
+                <div className="stat">
+                  <span className="stat-k"><CreditCard size={12} /> Card dues</span>
+                  <b className="stat-v" style={{ color: 'var(--red)' }}>{rupees(health.dues)}</b>
+                </div>
+              )}
+              <div className="stat">
+                <span className="stat-k">Saved this month</span>
+                <b className="stat-v" style={{ color: health.rate === null ? 'var(--muted)' : health.rate >= 20 ? 'var(--green)' : 'var(--text)' }}>
+                  {health.rate === null ? '—' : `${health.rate.toFixed(0)}%`}
+                </b>
+              </div>
+            </div>
+            {health.stale > 0 && (
+              <p className="muted small" style={{ marginTop: 10 }}>
+                {health.stale === 1
+                  ? "1 holding hasn't been valued in over a month"
+                  : `${health.stale} holdings haven't been valued in over a month`} — net worth may be out of date.
+              </p>
+            )}
+          </div>
+
           {/* ── health score + coach cards ── */}
           <div className="card">
             <div className="card-head">

@@ -141,11 +141,18 @@ color is a single hex color that suits the category (used as a themed background
   }], { temperature: 0.35 });
 }
 
+// The summary now carries a balance sheet, not just a spend list. Spelling
+// out what the unfamiliar fields mean is cheaper than hoping the model infers
+// them, and it stops the classic mistake of reading a transfer into savings
+// as money spent.
+const DATA_NOTES = `Reading the data: all amounts are rupees. "net_worth_rupees" splits into spendable (cash in accounts), invested (savings/investment holdings) and card_dues (credit card debt, a liability). Money moved into a holding is NOT spending — it leaves the spendable balance but stays the user's money, so never call investing an expense or a loss. "savings_rate_pct" is the share of this month's income that went into holdings. "recurring_commitments" are notes seen across two or more months, so treat those as fixed obligations rather than things to casually cut. A holding's "valued_days_ago" is how stale its stated value is — if it is null the user has never valued it, and above about 30 days say the figure may be out of date instead of quoting it as current fact. "utilisation_pct" on a credit card is how much of its limit is used.`;
+
 export function weeklyInsights(summary) {
   return gemini([{
     text: `You are a sharp, friendly personal-finance coach for a busy Indian professional. All amounts in ₹.
 Weekly data (JSON): ${JSON.stringify(summary)}
-Write a concise weekly insight covering: biggest spending categories and week-over-week change, anything unusual or likely unnecessary, budget status, and ONE specific actionable tip. Max 130 words. Format with lightweight markdown — **bold** the key ₹ figures and category names, use a short bullet list ("- ") if you're covering multiple points. No headers (#). Be specific to the data, never generic.`,
+${DATA_NOTES}
+Write a concise weekly insight. Lead with the user's overall position, not just spending: what came in, what went out, what was invested, and which way net worth moved — e.g. "spent ₹10,500 but invested ₹20,000, so you're ₹9,500 ahead". Then cover the biggest spending categories and the week-over-week change, anything unusual or likely unnecessary, budget status, and ONE specific actionable tip. If savings_rate_pct is present, say whether it's strong or thin for their income. Max 140 words. Lightweight markdown — **bold** the key ₹ figures and category names, a short bullet list ("- ") if covering multiple points. No headers (#). Always specific to the data, never generic.`,
   }], { asJson: false, temperature: 0.6 });
 }
 
@@ -155,8 +162,11 @@ export function coachCards(summary) {
     text: `You are a precise personal-finance analyst for an Indian professional. All amounts in ₹.
 Data (JSON): ${JSON.stringify(summary)}
 
-Return ONLY JSON: {"headline":"one-line verdict on this month, max 12 words","score":0-100,"score_reason":"max 12 words","cards":[{"kind":"save|risk|win|watch","title":"max 7 words","detail":"max 24 words, cite a real ₹ figure from the data","impact_rupees":number_or_null}]}
-Give 3–5 cards. "save" = a concrete cut with rupee impact; "risk" = overspending or budget danger; "win" = something genuinely good; "watch" = a trend to monitor. Be specific to the numbers — never generic advice. score = financial health this month (higher is better).`,
+${DATA_NOTES}
+
+Return ONLY JSON: {"headline":"one-line verdict on this month, max 12 words","score":0-100,"score_reason":"max 12 words","cards":[{"kind":"save|risk|win|watch|debt","title":"max 7 words","detail":"max 24 words, cite a real ₹ figure from the data","impact_rupees":number_or_null}]}
+Give 3–5 cards. "save" = a concrete cut with rupee impact; "risk" = overspending or budget danger; "win" = something genuinely good; "watch" = a trend to monitor; "debt" = credit card dues or high utilisation that needs clearing. Raise a "debt" card whenever card_dues are meaningful or any card is above 30% utilisation. Recognise a strong savings_rate_pct as a "win" rather than hunting for something negative.
+score = overall financial health this month, weighing FOUR things, not just overspending: (1) savings rate — investing a healthy share of income should lift the score substantially, (2) card dues and utilisation — outstanding debt should pull it down, (3) spending against budgets, (4) whether net worth is growing. Someone who overspends slightly but invests 30% of income is healthier than someone who spends little and saves nothing; score accordingly. Be specific to the numbers — never generic advice.`,
   }], { temperature: 0.45 });
 }
 
@@ -165,9 +175,10 @@ export function budgetSuggestions(summary) {
   return gemini([{
     text: `You set realistic monthly budgets for an Indian professional. All amounts in ₹.
 Spending history (JSON): ${JSON.stringify(summary)}
+${DATA_NOTES}
 
 Return ONLY JSON: {"overall_rupees":number,"reasoning":"max 20 words","categories":[{"category":"exact category name from the data","suggested_rupees":number,"current_avg_rupees":number,"rationale":"max 12 words"}]}
-Suggest budgets for the 5–7 categories they actually spend on. Base them on real averages: trim discretionary categories ~10-15%, keep essentials (Rent, Bills & Utilities, Health, EMI & Loans) at actual levels. Round to sensible numbers (nearest 100 or 500). overall_rupees should be achievable, not punitive.`,
+Suggest budgets for the 5–7 categories they actually spend on. Base them on real averages: trim discretionary categories ~10-15%, keep essentials (Rent, Bills & Utilities, Health, EMI & Loans) at actual levels. Treat anything in recurring_commitments, and the amount already going into holdings each month, as FIXED — budget around them rather than trimming them, and never propose cutting an investment contribution to hit a spending target. Round to sensible numbers (nearest 100 or 500). overall_rupees is a cap on SPENDING only, so exclude money invested; it should be achievable, not punitive.`,
   }], { temperature: 0.3 });
 }
 
@@ -175,7 +186,8 @@ export function askQuestion(question, summary) {
   return gemini([{
     text: `You are RupeeFlow's finance assistant. Answer using ONLY this user's data (amounts in ₹, JSON):
 ${JSON.stringify(summary || {})}
+${DATA_NOTES}
 Question: "${question}"
-Answer in under 100 words with specific numbers from the data. **Bold** key ₹ figures, and use a short bullet list ("- ") if listing more than two items. If the data can't answer it, say so briefly.`,
+You can answer questions about balances, net worth, individual accounts, credit card dues, investment holdings and their gains, savings rate, and spending — all of that is in the data above, so use it rather than saying you cannot. Answer in under 100 words with specific numbers. **Bold** key ₹ figures, and use a short bullet list ("- ") if listing more than two items. If a holding's value is stale (valued_days_ago is large or null), say so rather than presenting it as current. Only if the data genuinely doesn't contain the answer, say so briefly.`,
   }], { asJson: false, temperature: 0.4 });
 }

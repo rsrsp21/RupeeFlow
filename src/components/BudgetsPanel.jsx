@@ -46,7 +46,7 @@ export default function BudgetsPanel() {
       const out = await store.api('/ai/budget-suggest', {
         method: 'POST', body: JSON.stringify({ summary: store.buildSummary(120) }),
       });
-      const clean = sanitizeSuggestions(out);
+      const clean = sanitizeSuggestions(out, store.customCategories.map((c) => c.name));
       if (!clean) throw new Error('response had no usable budget suggestions');
       setSuggestions(clean);
     } catch (e) { store.toast('Could not generate: ' + e.message); }
@@ -247,11 +247,14 @@ export default function BudgetsPanel() {
 
 // Gemini's output is free-form text coerced to JSON — guard against invented
 // category names, non-numeric or duplicate entries before it ever reaches render.
-function sanitizeSuggestions(raw) {
+function sanitizeSuggestions(raw, extraCategories = []) {
+  // Custom categories are just as real as the built-ins — filtering against
+  // CATEGORIES alone silently dropped every suggestion for one.
+  const valid = new Set([...Object.keys(CATEGORIES), ...extraCategories]);
   if (!raw || typeof raw !== 'object') return null;
   const seen = new Set();
   const categories = (Array.isArray(raw.categories) ? raw.categories : [])
-    .filter((c) => c && typeof c.category === 'string' && CATEGORIES[c.category] && !seen.has(c.category))
+    .filter((c) => c && typeof c.category === 'string' && valid.has(c.category) && !seen.has(c.category))
     .map((c) => {
       seen.add(c.category);
       return {

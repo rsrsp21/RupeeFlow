@@ -4,7 +4,7 @@
 import { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react';
 import { idbPut, idbAll, idbClear } from './idb';
 import { monthKey, ACCOUNTS as DEFAULT_ACCOUNTS } from './constants';
-import { buildNoteHistory } from '../noteMatch';
+import { buildNoteHistory, normalizeNote } from '../noteMatch';
 
 const Ctx = createContext(null);
 export const useStore = () => useContext(Ctx);
@@ -725,10 +725,19 @@ export function StoreProvider({ children }) {
 
 
   // AI summary for insights/Q&A — built from real ledger data
+  // Everything the AI features reason over. This used to be spending only —
+  // no balances, no holdings, no debt — so the coach scored "financial
+  // health" blind to savings rate and card dues, and Ask-anything genuinely
+  // could not answer "how much do I have?" while the app displayed it on
+  // screen. Amounts are rupees (not paise) because the model reasons about
+  // them as money, and a stray 100x is the kind of error it can't catch.
   const buildSummary = (daysBack = 35) => {
     const cut = Date.now() - daysBack * 86400000;
-    const list = live().filter((t) => t.occurred_at >= cut);
+    const all = live();
+    const list = all.filter((t) => t.occurred_at >= cut);
     const mk = monthKey();
+    const rup = (paise) => Math.round(Number(paise) || 0) / 100;
+
     const byCat = {}, byWeek = { thisWeek: 0, lastWeek: 0 };
     const weekStart = Date.now() - 7 * 86400000, prevStart = Date.now() - 14 * 86400000;
     for (const t of list) {
@@ -737,9 +746,50 @@ export function StoreProvider({ children }) {
       if (t.occurred_at >= weekStart) byWeek.thisWeek += t.amount / 100;
       else if (t.occurred_at >= prevStart) byWeek.lastWeek += t.amount / 100;
     }
-    const mt = totals(live().filter((t) => inMonth(t)));
+
+    const monthTx = all.filter((t) => inMonth(t));
+    const mt = totals(monthTx);
+
+    const worth = netWorth();
+    const acctBal = accountBalances();
+    const hBal = holdingBalances();
+    const hPut = holdingContributed();
+    const holdingNames = new Set(holdings.map((h) => h.name));
+    const accountNames = new Set(accounts.map((a) => a.name));
+
+    // Money that left a spendable account this month without being spent —
+    // invested, or moved somewhere outside the tracked accounts entirely.
+    let investedPaise = 0, movedOutPaise = 0;
+    for (const t of monthTx) {
+      if (t.type !== 'transfer') continue;
+      if (holdingNames.has(t.to_account)) investedPaise += t.amount;
+      if (accountNames.has(t.account) && !accountNames.has(t.to_account)) movedOutPaise += t.amount;
+    }
+
+    // A note seen in two or more distinct months is a commitment, not a
+    // one-off — the difference between "you could cut this" and "you can't".
+    const sinceMonths = Date.now() - 186 * 86400000;
+    const seen = {};
+    for (const t of all) {
+      if (t.type !== 'expense' || !t.note || t.occurred_at < sinceMonths) continue;
+      const k = normalizeNote(t.note);
+      if (!k) continue;
+      if (!seen[k]) seen[k] = { note: t.note.trim(), category: t.category, months: new Set(), total: 0 };
+      seen[k].months.add(monthKey(new Date(Number(t.occurred_at))));
+      seen[k].total += t.amount;
+    }
+    const recurring_commitments = Object.values(seen)
+      .filter((r) => r.months.size >= 2)
+      .sort((a, b) => b.total - a.total).slice(0, 8)
+      .map((r) => ({
+        note: r.note, category: r.category,
+        months_seen: r.months.size, total_rupees: rup(r.total),
+      }));
+
+    const daysAgo = (ts) => (ts ? Math.round((Date.now() - ts) / 86400000) : null);
+
     return {
-      month_income_rupees: mt.inc / 100, month_expense_rupees: mt.exp / 100,
+      month_income_rupees: rup(mt.inc), month_expense_rupees: rup(mt.exp),
       spend_by_category_rupees: byCat,
       week_compare_rupees: byWeek,
       budgets: budgets.filter((b) => b.month === mk).map((b) => ({
@@ -747,8 +797,44 @@ export function StoreProvider({ children }) {
       })),
       biggest_recent_expenses: list.filter((t) => t.type === 'expense')
         .sort((a, b) => b.amount - a.amount).slice(0, 5)
-        .map((t) => ({ note: t.note || t.category, category: t.category, rupees: t.amount / 100 })),
+        .map((t) => ({ note: t.note || t.category, category: t.category, rupees: rup(t.amount) })),
       entry_count: list.length,
+
+      net_worth_rupees: {
+        spendable: rup(worth.spendable),
+        invested: rup(worth.invested),
+        card_dues: rup(worth.dues),
+        total: rup(worth.total),
+      },
+      accounts: accounts.map((a) => {
+        const bal = acctBal[a.name] || 0;
+        const row = { name: a.name, type: a.type, balance_rupees: rup(bal) };
+        if (a.type === 'Credit Card') {
+          row.owed_rupees = rup(Math.max(0, -bal));
+          if (a.limit_amount > 0) {
+            row.limit_rupees = rup(a.limit_amount);
+            row.utilisation_pct = Math.round((Math.max(0, -bal) / a.limit_amount) * 100);
+          }
+        }
+        return row;
+      }),
+      holdings: holdings.map((h) => {
+        const value = hBal[h.name] || 0, put = hPut[h.name] || 0;
+        const gain = h.valued_at ? value - put : 0;
+        return {
+          name: h.name, kind: h.kind,
+          value_rupees: rup(value), contributed_rupees: rup(put),
+          gain_rupees: rup(gain),
+          gain_pct: h.valued_at && put > 0 ? Math.round((gain / put) * 1000) / 10 : null,
+          // How stale the value is, so the model can flag it instead of
+          // quoting a months-old figure as current fact.
+          valued_days_ago: daysAgo(h.valued_at),
+        };
+      }),
+      month_invested_rupees: rup(investedPaise),
+      month_transfers_out_rupees: rup(movedOutPaise),
+      savings_rate_pct: mt.inc > 0 ? Math.round((investedPaise / mt.inc) * 1000) / 10 : null,
+      recurring_commitments,
     };
   };
 

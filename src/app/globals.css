@@ -12,6 +12,10 @@
   --shadow: 0 1px 2px rgb(0 0 0 / .04);
   --shadow-lg: 0 4px 24px rgb(0 0 0 / .08);
   --radius: 14px; --radius-sm: 9px;
+  /* One gap between stacked containers, everywhere. Sections were drifting
+     between 10 / 14 / 16 / 18px, which reads as sloppy rhythm rather than
+     deliberate grouping. */
+  --stack: 14px;
 }
 [data-theme="dark"] {
   --bg: #0a0a0b; --surface: #131315; --surface-2: #1a1a1d;
@@ -308,7 +312,7 @@ select {
    content now scrolls underneath it instead of past it. */
 .view-head {
   display: flex; justify-content: space-between; align-items: center; gap: 12px;
-  position: sticky; top: 0; z-index: 15; background: var(--bg); padding: 16px 0; margin-bottom: 10px;
+  position: sticky; top: 0; z-index: 15; background: var(--bg); padding: 14px 0 12px; margin-bottom: 2px;
 }
 /* flex so a leading screen icon sits on the text's optical centre line;
    Dashboard has no icon and is unaffected by the gap. overflow-wrap is a
@@ -357,13 +361,18 @@ select {
 /* ── cards ── */
 .card {
   background: var(--surface); border: 1px solid var(--line);
-  border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow);
-  margin-bottom: 16px;
+  border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow);
+  margin-bottom: var(--stack);
 }
-.card h3 { font-size: .8rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
-.card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 12px; margin-bottom: 6px; }
+/* Quieter than it was (.8rem, wider tracking) — a section label shouldn't
+   compete with the numbers underneath it. */
+.card h3 { font-size: .7rem; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+.card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 12px; margin-bottom: 12px; }
 .card-head h3 { margin-bottom: 0; }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--stack); margin-bottom: var(--stack); }
+/* The grid owns the gap below itself, so its children mustn't add their own
+   or wrapped rows end up unevenly spaced. */
+.grid-2 > .card { margin-bottom: 0; }
 
 /* ── settings footer (brand mark, below Sign out) ── */
 .settings-foot {
@@ -376,7 +385,7 @@ select {
 /* ── hero ── */
 .hero-card {
   background: var(--surface); border: 1px solid var(--line);
-  border-radius: var(--radius); padding: 26px 24px; margin-bottom: 16px; box-shadow: var(--shadow);
+  border-radius: var(--radius); padding: 22px 20px; margin-bottom: var(--stack); box-shadow: var(--shadow);
 }
 .hero-top-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .hero-acct-select {
@@ -700,7 +709,7 @@ select {
 .kpi-strip {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
   background: var(--line); border: 1px solid var(--line);
-  border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 18px;
+  border-radius: var(--radius-sm); overflow: hidden; margin-bottom: var(--stack);
 }
 .kpi { background: var(--surface); padding: 11px 13px; display: flex; flex-direction: column; gap: 3px; }
 .kpi-label { display: flex; align-items: center; gap: 5px; font-size: .7rem; color: var(--muted); }
@@ -724,7 +733,7 @@ select {
    three of them stacked pushed the 7-day chart below the fold on a phone. */
 .insight-strip {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(238px, 1fr));
-  gap: 8px; margin-bottom: 14px;
+  gap: 8px; margin-bottom: var(--stack);
 }
 .insight-tile {
   display: flex; gap: 9px; align-items: flex-start;
@@ -974,7 +983,7 @@ select {
 
 /* Money screen: tab strip under the net-worth hero. */
 .money-tabs {
-  display: flex; gap: 2px; margin-bottom: 14px; overflow-x: auto;
+  display: flex; gap: 2px; margin-bottom: var(--stack); overflow-x: auto;
   border-bottom: 1px solid var(--line); scrollbar-width: none;
 }
 .money-tabs::-webkit-scrollbar { display: none; }
@@ -990,11 +999,11 @@ select {
   position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px;
   background: var(--accent); border-radius: 2px;
 }
-.money-hero { margin-bottom: 14px; }
+.money-hero { margin-bottom: var(--stack); }
 /* Per-panel action row, replacing the view headers those panels used to have. */
 .panel-bar {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 10px; flex-wrap: wrap; margin-bottom: 12px;
+  gap: 10px; flex-wrap: wrap; margin-bottom: var(--stack);
 }
 .panel-bar-note { font-size: .78rem; color: var(--muted); }
 
@@ -1019,7 +1028,7 @@ select {
 .acct-chip b { font-variant-numeric: tabular-nums; font-weight: 650; }
 
 /* Auto-advancing insight carousel (mobile only — see InsightCarousel.jsx). */
-.insight-carousel { overflow: hidden; margin-bottom: 14px; }
+.insight-carousel { overflow: hidden; margin-bottom: var(--stack); }
 .insight-track { display: flex; transition: transform .3s cubic-bezier(.22, 1, .36, 1); }
 .insight-slide { flex: 0 0 100%; min-width: 0; }
 .insight-dots { display: flex; justify-content: center; gap: 5px; margin-top: 9px; }
@@ -1032,7 +1041,7 @@ select {
 /* Ask-AI call to action. The sheen sweeps across on a loop so it reads as the
    one "live" thing on an otherwise static dashboard. */
 .ai-cta {
-  position: relative; overflow: hidden; width: 100%; margin-bottom: 16px;
+  position: relative; overflow: hidden; width: 100%; margin-bottom: var(--stack);
   display: flex; align-items: center; gap: 11px; text-align: left;
   padding: 13px 15px; border-radius: var(--radius); cursor: pointer;
   font: inherit; color: var(--text);
