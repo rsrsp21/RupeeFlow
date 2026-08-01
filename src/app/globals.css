@@ -378,6 +378,11 @@ select {
   background: var(--surface); border: 1px solid var(--line);
   border-radius: var(--radius); padding: 26px 24px; margin-bottom: 16px; box-shadow: var(--shadow);
 }
+.hero-top-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.hero-acct-select {
+  width: auto; font-size: .72rem; padding: 4px 8px; border-radius: var(--radius-sm);
+  background: var(--surface-2); border-color: transparent; color: var(--muted);
+}
 .hero-label {
   font-size: .68rem; font-weight: 600; letter-spacing: .09em;
   text-transform: uppercase; color: var(--muted);

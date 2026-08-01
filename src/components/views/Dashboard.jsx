@@ -1,7 +1,7 @@
 'use client';
 // Dashboard — KPI strip, spend trend, category ranking, budget rings,
 // top merchants, and auto-computed insight cards.
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, Wallet, CalendarDays,
@@ -40,16 +40,49 @@ function AnimatedAmount({ paise, className = 'hero-amount' }) {
   return <h1 className={className} ref={ref}>₹0</h1>;
 }
 
+// One account, another, or everything combined — whichever was picked last
+// stays picked; localStorage survives reloads and even a different device
+// pulling the same login, unlike component state.
+const ACCT_FILTER_KEY = 'rf_dashboard_account';
+
 export default function Dashboard() {
   const store = useStore();
   const { setView, openBudget } = useUI();
-  const all = store.live();
+
+  const [acctFilter, setAcctFilter] = useState('all');
+  useEffect(() => {
+    const saved = localStorage.getItem(ACCT_FILTER_KEY);
+    if (saved) setAcctFilter(saved);
+  }, []);
+  // If the saved filter points at an account that's since been removed,
+  // fall back to "All" rather than silently showing an empty dashboard.
+  useEffect(() => {
+    if (acctFilter !== 'all' && store.accounts.length && !store.accounts.some((a) => a.name === acctFilter)) {
+      setAcctFilter('all');
+      localStorage.setItem(ACCT_FILTER_KEY, 'all');
+    }
+  }, [acctFilter, store.accounts]);
+  function changeFilter(v) {
+    setAcctFilter(v);
+    localStorage.setItem(ACCT_FILTER_KEY, v);
+  }
+
+  const all = useMemo(() => {
+    const live = store.live();
+    if (acctFilter === 'all') return live;
+    return live.filter((t) => t.account === acctFilter || t.to_account === acctFilter);
+  }, [store, store.txs, acctFilter]); // eslint-disable-line react-hooks/exhaustive-deps
   const { inc, exp } = store.totals(all);
   // "Net balance" is meant to read as real money on hand, so it has to start
   // from whatever balance each account already had before RupeeFlow existed
   // (accountBalances() seeds from opening_balance) — inc - exp alone ignores
-  // that entirely and undercounts by exactly the opening balances.
-  const openingTotal = store.accounts.reduce((s, a) => s + (Number(a.opening_balance) || 0), 0);
+  // that entirely. Reusing accountBalances() directly also makes the
+  // single-account view exact (transfers in/out of just that account),
+  // rather than re-deriving it from a filtered transaction list.
+  const balances = store.accountBalances();
+  const netBalance = acctFilter === 'all'
+    ? Object.values(balances).reduce((s, b) => s + b, 0)
+    : (balances[acctFilter] || 0);
 
   const now = Date.now();
   const mStart = startOfMonth(now);
@@ -105,7 +138,13 @@ export default function Dashboard() {
     return out;
   }, [all, now]);
 
-  const catSpend = store.catSpend();
+  // Scoped to the same account filter as everything else, rather than
+  // store.catSpend()'s always-all-accounts view.
+  const catSpend = useMemo(() => {
+    const map = {};
+    for (const t of monthList) if (t.type === 'expense') map[t.category] = (map[t.category] || 0) + t.amount;
+    return map;
+  }, [monthList]);
   const overall = store.effectiveBudget('', monthKey());
   const pct = overall ? Math.min(100, (mt.exp / overall) * 100) : 0;
   const monthBudgets = store.budgets.filter((b) => b.month === monthKey() && b.category);
@@ -161,8 +200,16 @@ export default function Dashboard() {
 
       {/* ── hero + KPI strip ── */}
       <div className="hero-card">
-        <p className="hero-label">Net balance</p>
-        <AnimatedAmount paise={openingTotal + inc - exp} />
+        <div className="hero-top-row">
+          <p className="hero-label">Net balance</p>
+          {store.accounts.length > 1 && (
+            <select className="hero-acct-select" value={acctFilter} onChange={(e) => changeFilter(e.target.value)}>
+              <option value="all">All accounts</option>
+              {store.accounts.map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
+            </select>
+          )}
+        </div>
+        <AnimatedAmount paise={netBalance} />
         <div className="kpi-strip">
           <Kpi icon={<CalendarDays size={14} />} label="Today" value={rupees(stats.today)} />
           <Kpi icon={<Wallet size={14} />} label="This week" value={rupees(stats.week)}
