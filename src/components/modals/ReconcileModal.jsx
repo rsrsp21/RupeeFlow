@@ -15,6 +15,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Scale } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
+import AmountInput from '../AmountInput';
 import { rupees, toPaise } from '@/lib/client/constants';
 import { backdropMotion, panelMotion } from './TxModal';
 
@@ -84,8 +85,7 @@ export default function ReconcileModal({ account, onClose }) {
             <span>{isCard ? 'What you actually owe right now' : 'What your bank actually shows right now'}</span>
             <div className="amount-input">
               <span>₹</span>
-              <input inputMode="decimal" autoFocus placeholder="0" value={actual}
-                onChange={(e) => setActual(e.target.value)} />
+              <AmountInput autoFocus placeholder="0" value={actual} onChange={setActual} />
             </div>
           </label>
           <p className="muted small">

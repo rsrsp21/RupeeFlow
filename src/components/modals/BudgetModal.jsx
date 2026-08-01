@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '@/lib/client/store';
+import AmountInput from '../AmountInput';
 import { CATEGORIES, monthKey, toPaise } from '@/lib/client/constants';
 import { backdropMotion, panelMotion } from './TxModal';
 
@@ -42,7 +43,7 @@ export default function BudgetModal({ category: initial, onClose }) {
           </select>
           <div className="amount-input">
             <span>₹</span>
-            <input inputMode="decimal" placeholder="Monthly amount" required
+            <AmountInput placeholder="Monthly amount" required
               value={amount} onChange={(e) => setAmount(e.target.value)} />
           </div>
           <label className="row-setting">

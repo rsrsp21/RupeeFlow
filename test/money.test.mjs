@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   computeTotals, computeAccountBalances, computeHoldingBalances,
-  computeHoldingContributed, computeNetWorth, isNewerTx,
+  computeHoldingContributed, computeNetWorth, isNewerTx, groupIndian,
 } from '../src/lib/money.mjs';
 
 // Amounts are integer paise throughout, as they are in the app.
@@ -149,4 +149,27 @@ test('entries missing rev do not crash the merge', () => {
   // server clamped back to 1 and which cost the delete its tiebreak.
   assert.equal(isNewerTx({ updated_at: 5 }, { updated_at: 5 }), true);
   assert.equal(isNewerTx({ updated_at: 4 }, { updated_at: 5 }), false);
+});
+
+test('Indian grouping: last three digits, then pairs', () => {
+  assert.equal(groupIndian('123'), '123');
+  assert.equal(groupIndian('1234'), '1,234');
+  assert.equal(groupIndian('123456'), '1,23,456');
+  assert.equal(groupIndian('20000000'), '2,00,00,000');
+  assert.equal(groupIndian('1234567890'), '1,23,45,67,890');
+});
+
+test('Indian grouping: idempotent, so it can run on every keystroke', () => {
+  const once = groupIndian('20000000');
+  assert.equal(groupIndian(once), once);
+});
+
+test('Indian grouping: decimals and part-typed input survive', () => {
+  assert.equal(groupIndian('1234.5'), '1,234.5');
+  assert.equal(groupIndian('1234.'), '1,234.', 'a trailing dot must not vanish mid-typing');
+  assert.equal(groupIndian('.5'), '.5');
+  assert.equal(groupIndian('1.2.3'), '1.23', 'a stray second dot is dropped, not the whole entry');
+  assert.equal(groupIndian(''), '');
+  assert.equal(groupIndian(null), '');
+  assert.equal(groupIndian(12345), '12,345', 'numbers, not just strings');
 });

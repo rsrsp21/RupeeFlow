@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { PiggyBank } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
+import AmountInput from '../AmountInput';
 import { HOLDING_TYPES, toPaise } from '@/lib/client/constants';
 import { backdropMotion, panelMotion } from './TxModal';
 
@@ -113,8 +114,7 @@ export default function HoldingModal({ onClose, existing = null }) {
             <span>What it&apos;s worth today{editing ? '' : ' (optional)'}</span>
             <div className="amount-input">
               <span>₹</span>
-              <input inputMode="decimal" placeholder="0" value={opening}
-                onChange={(e) => setOpening(e.target.value)} />
+              <AmountInput placeholder="0" value={opening} onChange={setOpening} />
             </div>
           </label>
           <p className="muted small">

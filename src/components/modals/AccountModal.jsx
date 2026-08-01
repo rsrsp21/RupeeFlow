@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Wallet, AlertTriangle } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
+import AmountInput from '../AmountInput';
 import { ACCOUNT_TYPES, toPaise } from '@/lib/client/constants';
 import { backdropMotion, panelMotion } from './TxModal';
 
@@ -81,8 +82,7 @@ export default function AccountModal({ onClose, existing = null }) {
             <span>{isCard ? 'Outstanding due when you started tracking' : 'Balance when you started tracking'} (optional)</span>
             <div className="amount-input">
               <span>₹</span>
-              <input inputMode="decimal" placeholder="0" value={balance}
-                onChange={(e) => setBalance(e.target.value)} />
+              <AmountInput placeholder="0" value={balance} onChange={setBalance} />
             </div>
           </label>
           {isCard && (
@@ -90,8 +90,7 @@ export default function AccountModal({ onClose, existing = null }) {
               <span>Credit limit (optional)</span>
               <div className="amount-input">
                 <span>₹</span>
-                <input inputMode="decimal" placeholder="0" value={limit}
-                  onChange={(e) => setLimit(e.target.value)} />
+                <AmountInput placeholder="0" value={limit} onChange={setLimit} />
               </div>
             </label>
           )}

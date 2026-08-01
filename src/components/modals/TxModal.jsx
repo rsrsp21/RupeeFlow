@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, X } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
+import AmountInput from '../AmountInput';
 import { CATEGORIES, AUTO_RULES, rupees, toPaise } from '@/lib/client/constants';
 import { normalizeNote } from '@/lib/noteMatch';
 import { resolveCategory } from '@/lib/client/applyParsed';
@@ -195,8 +196,8 @@ export default function TxModal({ state, onClose }) {
           </div>
           <div className="amount-input">
             <span>₹</span>
-            <input inputMode="decimal" placeholder="0" required autoFocus
-              value={amount} onChange={(e) => setAmount(e.target.value)} />
+            <AmountInput placeholder="0" required autoFocus
+              value={amount} onChange={setAmount} />
           </div>
           <div className="note-field">
             <input placeholder="What was it? (auto-fills from past entries)" autoComplete="off"

@@ -130,3 +130,23 @@ export function isNewerTx(incoming, local) {
   if (a < b) return false;
   return num(incoming.rev) >= num(local.rev);
 }
+
+// Groups digits the Indian way — last three, then pairs: 2,00,00,000. Used
+// on every amount input so a large figure is readable while it's being
+// typed, instead of a wall of digits you have to count. toPaise() already
+// strips commas, so the grouped text stays directly parseable and can be
+// held in state as-is. Idempotent: regrouping already-grouped text is a
+// no-op, which is what makes it safe to run on every keystroke.
+export function groupIndian(input) {
+  const cleaned = String(input ?? '').replace(/[^\d.]/g, '');
+  if (!cleaned) return '';
+  const dot = cleaned.indexOf('.');
+  // Only the first dot counts; later ones are dropped rather than rejected,
+  // so a stray keypress doesn't wipe what's already typed.
+  const whole = dot === -1 ? cleaned : cleaned.slice(0, dot);
+  const frac = dot === -1 ? '' : '.' + cleaned.slice(dot + 1).replace(/\./g, '');
+  if (!whole) return frac;
+  const last3 = whole.slice(-3);
+  const rest = whole.slice(0, -3);
+  return (rest ? `${rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',')},${last3}` : last3) + frac;
+}

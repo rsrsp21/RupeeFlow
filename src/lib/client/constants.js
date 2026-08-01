@@ -81,6 +81,10 @@ export const rupeesShort = (paise) => {
   return `₹${Math.round(r)}`;
 };
 
+// Indian digit grouping lives with the other pure money helpers so the test
+// suite can reach it (test/money.test.mjs).
+export { groupIndian } from '../money.mjs';
+
 export const toPaise = (str) => {
   const n = parseFloat(String(str).replace(/[₹,\s]/g, ''));
   return Number.isFinite(n) ? Math.round(n * 100) : NaN;

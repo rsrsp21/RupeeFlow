@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, SlidersHorizontal, X, Download, List } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
+import AmountInput from '../AmountInput';
 import { CATEGORIES, rupees, toPaise } from '@/lib/client/constants';
 import {
   PERIODS, DAY_MS, periodStart, periodEnd, shiftPeriod, periodLabel, bucketsFor, startOfDay,
@@ -361,10 +362,10 @@ export default function Ledger() {
                   </select>
                 </label>
                 <label><span>Min ₹</span>
-                  <input inputMode="decimal" placeholder="0" value={minAmt} onChange={(e) => setMinAmt(e.target.value)} />
+                  <AmountInput placeholder="0" value={minAmt} onChange={setMinAmt} />
                 </label>
                 <label><span>Max ₹</span>
-                  <input inputMode="decimal" placeholder="Any" value={maxAmt} onChange={(e) => setMaxAmt(e.target.value)} />
+                  <AmountInput placeholder="Any" value={maxAmt} onChange={setMaxAmt} />
                 </label>
                 <label><span>Sort</span>
                   <select value={sort} onChange={(e) => setSort(e.target.value)}>

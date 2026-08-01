@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Wallet, AlertTriangle } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
+import AmountInput from '../AmountInput';
 import { ACCOUNT_TYPES, toPaise } from '@/lib/client/constants';
 import { backdropMotion, panelMotion } from './TxModal';
 
@@ -53,9 +54,9 @@ export default function AddAccountModal({ onDone, onSkip }) {
           <input placeholder="Name (optional)" value={name} onChange={(e) => setName(e.target.value)} />
           <div className="amount-input">
             <span>₹</span>
-            <input inputMode="decimal"
+            <AmountInput
               placeholder={type === 'Credit Card' ? 'Outstanding due right now (optional)' : 'Starting balance (optional)'}
-              value={balance} onChange={(e) => setBalance(e.target.value)} />
+              value={balance} onChange={setBalance} />
           </div>
           {type === 'Credit Card' && (
             <div className="callout">
