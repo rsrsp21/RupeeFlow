@@ -1,12 +1,15 @@
-// Scheduled push sender. Three distinct daily slots, driven by ?slot= on the
+// Scheduled push sender. Four distinct daily slots, driven by ?slot= on the
 // same endpoint — each one says something different, since firing the same
-// "log your expenses" nudge three times a day is spam, not help:
-//   morning — recap of YESTERDAY's spend, closes the loop on the day before
-//   evening — today's summary (or a first nudge if nothing's logged yet),
-//             plus budget alerts, weekly review (Sundays), mid-month check
-//   late    — a second, final nudge, but ONLY if still nothing logged since
-//             the evening run — never a duplicate, always an escalation
-// Meant to be hit by three separate external cron triggers (see the times
+// "log your expenses" nudge four times a day is spam, not help:
+//   morning   — recap of YESTERDAY's spend, closes the loop on the day before
+//   afternoon — a personality check-in, reacting to today SO FAR against your
+//               own trailing average — the one slot that's allowed to be a
+//               little sarcastic, since it's not carrying an alert
+//   evening   — today's summary (or a first nudge if nothing's logged yet),
+//               plus budget alerts, weekly review (Sundays), mid-month check
+//   late      — a second, final nudge, but ONLY if still nothing logged since
+//               the evening run — never a duplicate, always an escalation
+// Meant to be hit by four separate external cron triggers (see the times
 // noted below each slot) with the CRON_SECRET bearer.
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -22,6 +25,43 @@ const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const rupees = (paise) => `₹${Math.round(paise / 100).toLocaleString('en-IN')}`;
 
+// Deterministic per user+day, not Math.random(): re-running the same slot
+// twice in one day (a manual test after the real trigger, say) must land on
+// the same line, not a different one each time — otherwise "testing" the
+// afternoon slot silently rewrites what already went out.
+function pickLine(seed, pool) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+  return pool[Math.abs(h) % pool.length];
+}
+
+const AFTERNOON_LINES = {
+  // Afternoon, nothing logged yet today.
+  quiet: [
+    'Suspiciously quiet today. Either you’re broke already or you’re "forgetting" again.',
+    'Zero entries so far. Bold strategy — let’s see how it pans out by tonight.',
+    'Not one rupee logged today. We both know that’s not actually true.',
+    'Radio silence since midnight. Your wallet, however, has probably been busy.',
+  ],
+  // Logged something, comfortably under your usual daily pace.
+  light: [
+    'Look at you, being responsible. Who are you and what have you done with your card?',
+    'Under your usual pace today. Suspicious levels of self-control detected.',
+    'Quiet spending day. Either great discipline or you just haven’t left the house yet.',
+  ],
+  // Logged something, roughly around your usual daily pace.
+  onPace: [
+    'Right on your usual pace. Consistency is a virtue, apparently, even in overspending.',
+    'Tracking exactly like every other day. Predictable. Almost impressively so.',
+  ],
+  // Already past your usual FULL DAY average, and it's not even evening.
+  over: [
+    'Already past your typical full-day spend — and there’s still half the day left. Ambitious.',
+    'You’ve out-spent an average entire day before lunch was even a memory. Bold.',
+    'Today is apparently trying to break records. Not the good kind.',
+  ],
+};
+
 export async function POST(request) {
   try {
     const secret = process.env.CRON_SECRET;
@@ -29,7 +69,9 @@ export async function POST(request) {
     if (!secret || auth !== `Bearer ${secret}`) throw new HttpError('Unauthorized', 401);
 
     const slot = new URL(request.url).searchParams.get('slot') || 'evening';
-    if (!['morning', 'evening', 'late'].includes(slot)) throw new HttpError('slot must be morning, evening, or late');
+    if (!['morning', 'afternoon', 'evening', 'late'].includes(slot)) {
+      throw new HttpError('slot must be morning, afternoon, evening, or late');
+    }
 
     const nowIst = new Date(Date.now() + IST_OFFSET_MS);
     const monthKey = `${nowIst.getUTCFullYear()}-${String(nowIst.getUTCMonth() + 1).padStart(2, '0')}`;
@@ -65,6 +107,47 @@ export async function POST(request) {
           title: 'Yesterday',
           body: `You spent ${rupees(amt)} yesterday. Tap to review.`,
           tag: 'yesterday-recap',
+          url: '/ledger',
+        });
+      }
+      return jsonRes({ ok: true, slot, candidates: subs.rows.length, sent });
+    }
+
+    // ── afternoon: sarcastic check-in against your own trailing average ──
+    // 2:00 PM IST — reacts to today SO FAR, compared to each user's own
+    // trailing 14-day daily average (their baseline "normal" full day), not
+    // a fixed number — so "over" means genuinely unusual for THEM, not just
+    // a big spender being told the obvious every afternoon.
+    if (slot === 'afternoon') {
+      const fortnightStart = dayStart - 14 * DAY_MS;
+      const [todayRows, trailingRows] = await Promise.all([
+        q(`SELECT user_id, SUM(amount) AS spent FROM transactions
+            WHERE type = 'expense' AND deleted = 0 AND occurred_at >= ? AND occurred_at < ?
+            GROUP BY user_id`, [dayStart, Date.now()]),
+        q(`SELECT user_id, SUM(amount) AS spent FROM transactions
+            WHERE type = 'expense' AND deleted = 0 AND occurred_at >= ? AND occurred_at < ?
+            GROUP BY user_id`, [fortnightStart, dayStart]),
+      ]);
+      const todaySoFar = new Map(todayRows.rows.map((r) => [r.user_id, Number(r.spent) || 0]));
+      const dailyAvg = new Map(trailingRows.rows.map((r) => [r.user_id, (Number(r.spent) || 0) / 14]));
+      const dateKey = `${nowIst.getUTCFullYear()}-${nowIst.getUTCMonth()}-${nowIst.getUTCDate()}`;
+
+      for (const u of subs.rows) {
+        if (u.notify_missed === 0) continue;
+        const avg = dailyAvg.get(u.user_id) || 0;
+        if (avg <= 0) continue; // no history yet — nothing to react to, so stay quiet rather than guess
+        const soFar = todaySoFar.get(u.user_id) || 0;
+
+        const bucket = soFar <= 0 ? 'quiet'
+          : soFar < avg * 0.5 ? 'light'
+          : soFar <= avg ? 'onPace'
+          : 'over';
+        const body = pickLine(`${u.user_id}:${dateKey}`, AFTERNOON_LINES[bucket]);
+
+        sent += await sendToUser(u.user_id, {
+          title: bucket === 'over' ? 'Uh oh' : 'Afternoon check-in',
+          body,
+          tag: 'afternoon-checkin',
           url: '/ledger',
         });
       }
