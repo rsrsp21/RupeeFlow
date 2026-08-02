@@ -46,6 +46,18 @@ export async function sendToUser(userId, payload) {
       await webpush.sendNotification(
         { endpoint: r.endpoint, keys: { p256dh: r.p256dh, auth: r.auth } },
         JSON.stringify(payload),
+        {
+          // Default urgency is "normal", which Doze/App Standby can defer
+          // to the device's next maintenance window instead of delivering
+          // the moment it reconnects — sometimes well after the fact.
+          // "high" tells FCM/the OS this shouldn't wait.
+          urgency: 'high',
+          // Same value as the notification's own `tag`, so if a device is
+          // offline long enough to miss more than one push of the same
+          // kind, the push SERVICE collapses them into the latest rather
+          // than queuing stale duplicates that arrive all at once later.
+          ...(payload.tag ? { topic: payload.tag } : {}),
+        },
       );
       sent++;
     } catch (e) {
