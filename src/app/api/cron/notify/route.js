@@ -35,6 +35,49 @@ function pickLine(seed, pool) {
   return pool[Math.abs(h) % pool.length];
 }
 
+// {amt} is replaced with a formatted rupee figure after a line is picked.
+function fill(line, amt) { return line.replace('{amt}', amt); }
+
+const MORNING_LINES = {
+  // Yesterday had real spending — the normal case.
+  spent: [
+    'Yesterday in numbers: {amt} spent. Let’s see what today brings.',
+    '{amt} went out yesterday. Fresh day, fresh ledger.',
+    'Closing the books on yesterday: {amt}. On to today.',
+    'Yesterday’s total: {amt}. Tap in for the full breakdown.',
+  ],
+  // Nothing logged at all yesterday.
+  quiet: [
+    'Nothing logged yesterday — a clean slate, or one to catch up on?',
+    'A no-spend day yesterday, at least on paper. Nice.',
+    'Yesterday’s ledger is empty. Starting today fresh either way.',
+  ],
+};
+
+const EVENING_LINES = {
+  // Something was logged today.
+  summary: [
+    'Today’s tally: {amt}. See where it went.',
+    'You logged {amt} today. Take a look before the day wraps up.',
+    '{amt} on the books today. One tap for the full picture.',
+    'Day’s spending so far: {amt}. Worth a quick glance.',
+  ],
+  // Nothing logged yet, first nudge of the day.
+  missed: [
+    'Nothing logged today yet — a few seconds is all it takes.',
+    'Your ledger’s waiting on today’s entries. Quick catch-up?',
+    'Haven’t heard from you today. What did the day actually cost?',
+    'Today’s a blank page so far. Fill it in before you forget.',
+  ],
+};
+
+const LATE_LINES = [
+  'Still nothing logged today. One last chance before it becomes tomorrow’s problem.',
+  'The day’s almost done and the ledger’s still empty. Quick, before you forget everything.',
+  'Last call — log today before it blurs into "I don’t even remember."',
+  'One more chance to log today. Future you will thank present you.',
+];
+
 const AFTERNOON_LINES = {
   // Afternoon, nothing logged yet today.
   quiet: [
@@ -89,6 +132,8 @@ export async function POST(request) {
          FROM push_subscriptions p JOIN users u ON p.user_id = u.id`);
 
     let sent = 0;
+    // Shared by every slot's line picker — see pickLine().
+    const dateKey = `${nowIst.getUTCFullYear()}-${nowIst.getUTCMonth()}-${nowIst.getUTCDate()}`;
 
     // ── morning: yesterday's recap ──────────────────────────────────────
     // 9:00 AM IST — the day is over, nothing new to nudge about yet, just
@@ -102,10 +147,12 @@ export async function POST(request) {
       for (const u of subs.rows) {
         if (u.notify_summary === 0) continue;
         const amt = ySpend.get(u.user_id) || 0;
-        if (amt <= 0) continue;
+        const line = amt > 0
+          ? fill(pickLine(`${u.user_id}:${dateKey}:morning`, MORNING_LINES.spent), rupees(amt))
+          : pickLine(`${u.user_id}:${dateKey}:morning`, MORNING_LINES.quiet);
         sent += await sendToUser(u.user_id, {
           title: 'Yesterday',
-          body: `You spent ${rupees(amt)} yesterday. Tap to review.`,
+          body: line,
           tag: 'yesterday-recap',
           url: '/ledger',
         });
@@ -130,7 +177,6 @@ export async function POST(request) {
       ]);
       const todaySoFar = new Map(todayRows.rows.map((r) => [r.user_id, Number(r.spent) || 0]));
       const dailyAvg = new Map(trailingRows.rows.map((r) => [r.user_id, (Number(r.spent) || 0) / 14]));
-      const dateKey = `${nowIst.getUTCFullYear()}-${nowIst.getUTCMonth()}-${nowIst.getUTCDate()}`;
 
       for (const u of subs.rows) {
         if (u.notify_missed === 0) continue;
@@ -142,7 +188,7 @@ export async function POST(request) {
           : soFar < avg * 0.5 ? 'light'
           : soFar <= avg ? 'onPace'
           : 'over';
-        const body = pickLine(`${u.user_id}:${dateKey}`, AFTERNOON_LINES[bucket]);
+        const body = pickLine(`${u.user_id}:${dateKey}:afternoon`, AFTERNOON_LINES[bucket]);
 
         sent += await sendToUser(u.user_id, {
           title: bucket === 'over' ? 'Uh oh' : 'Afternoon check-in',
@@ -243,7 +289,7 @@ export async function POST(request) {
           if (u.notify_summary !== 0) {
             sent += await sendToUser(userId, {
               title: 'Daily Summary',
-              body: `You logged ${rupees(tSpend)} in expenses today.`,
+              body: fill(pickLine(`${userId}:${dateKey}:evening`, EVENING_LINES.summary), rupees(tSpend)),
               tag: 'daily-summary',
               url: '/ledger',
             });
@@ -251,7 +297,7 @@ export async function POST(request) {
         } else if (u.notify_missed !== 0 && !active.has(userId)) {
           sent += await sendToUser(userId, {
             title: 'Log today’s expenses',
-            body: 'Nothing recorded yet today. It takes a few seconds.',
+            body: pickLine(`${userId}:${dateKey}:evening`, EVENING_LINES.missed),
             tag: 'daily-reminder',
             url: '/?action=add',
           });
@@ -263,7 +309,7 @@ export async function POST(request) {
         if (tSpend === 0 && u.notify_missed !== 0 && !active.has(userId)) {
           sent += await sendToUser(userId, {
             title: 'Last call for today',
-            body: 'Still nothing logged today — a few seconds before you turn in.',
+            body: pickLine(`${userId}:${dateKey}:late`, LATE_LINES),
             tag: 'daily-reminder-late',
             url: '/?action=add',
           });
