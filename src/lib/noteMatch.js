@@ -18,6 +18,15 @@ export function normalizeNote(text) {
     .trim();
 }
 
+// A group is free text with no separate entity behind it — two entries are
+// "the same group" purely by matching text, so a casing slip ("Goa Trip" vs
+// "goa trip") would otherwise silently fork one trip into two unrelated
+// totals. Case/whitespace-insensitive matching only; NOT the quantity
+// stripping normalizeNote does, since a group name isn't a purchase amount.
+export function normalizeGroup(text) {
+  return String(text || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 // Groups transactions by normalized note, keeping the most recently used
 // category/account/amount per recurring item so a near-duplicate note
 // reuses what was picked last time instead of drifting.

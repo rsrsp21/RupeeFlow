@@ -164,7 +164,7 @@ export default function ExportModal({ onClose }) {
             <div className="field">
               <span className="field-label">Summarise by</span>
               <div className="pill-grid">
-                {[['category', 'Category'], ['month', 'Month'], ['day', 'Day'], ['account', 'Account']]
+                {[['category', 'Category'], ['month', 'Month'], ['day', 'Day'], ['account', 'Account'], ['group', 'Group']]
                   .map(([k, label]) => (
                     <button key={k} className={`pill-btn ${groupBy === k ? 'on' : ''}`} onClick={() => setGroupBy(k)}>{label}</button>
                   ))}

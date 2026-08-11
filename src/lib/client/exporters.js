@@ -8,6 +8,7 @@ export const COLUMNS = {
   note: { label: 'Note', get: (t) => t.note },
   account: { label: 'Account', get: (t) => t.account },
   to_account: { label: 'To account', get: (t) => t.to_account },
+  project: { label: 'Group', get: (t) => t.project },
   source: { label: 'Added via', get: (t) => t.source },
   // declared last so it sorts last by default — see orderForOutput()
   amount: { label: 'Amount (INR)', get: (t) => (t.amount / 100).toFixed(2) },
@@ -87,6 +88,7 @@ export function summarize(rows, groupBy) {
   const keyOf = (t) => {
     if (groupBy === 'category') return t.category;
     if (groupBy === 'account') return t.account;
+    if (groupBy === 'group') return t.project || '(no group)';
     if (groupBy === 'month') return new Date(Number(t.occurred_at)).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
     if (groupBy === 'day') return new Date(Number(t.occurred_at)).toLocaleDateString('en-IN');
     return 'All';
@@ -195,7 +197,7 @@ export async function toPDF(rows, opts, meta) {
     doc.autoTable({
       startY: y,
       head: [[opts.groupBy === 'month' ? 'Month' : opts.groupBy === 'day' ? 'Day'
-        : opts.groupBy === 'account' ? 'Account' : 'Category',
+        : opts.groupBy === 'account' ? 'Account' : opts.groupBy === 'group' ? 'Group' : 'Category',
         'Entries', 'Spent (Rs)', 'Received (Rs)']],
       body: groups.map((g) => [g.key, g.count, inr(g.expense), inr(g.income)]),
       theme: 'striped',

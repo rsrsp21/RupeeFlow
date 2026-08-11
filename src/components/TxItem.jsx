@@ -1,6 +1,6 @@
 'use client';
 import { motion } from 'framer-motion';
-import { Mic, Camera } from 'lucide-react';
+import { Mic, Camera, Tag } from 'lucide-react';
 import { rupees } from '@/lib/client/constants';
 import { useUI } from './App';
 import { useStore } from '@/lib/client/store';
@@ -40,6 +40,9 @@ export default function TxItem({ t, index = 0 }) {
           ) : <span>{t.category}</span>}
           {t.type !== 'transfer' && t.account && (
             <span className="tx-acct"><AccountIcon type={accountType(t.account)} size={11} /> {t.account}</span>
+          )}
+          {t.project && (
+            <span className="tx-tag" title="Group"><Tag size={9} style={{ verticalAlign: '-1px' }} /> {t.project}</span>
           )}
           {t.source === 'voice' && <Mic size={11} />}
           {t.source === 'receipt' && <Camera size={11} />}

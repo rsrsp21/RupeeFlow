@@ -72,6 +72,11 @@ export default function App({ children }) {
   // not a week/month/year view) — lets a manually-added entry default to
   // that day instead of always defaulting to right now.
   const [entryDate, setEntryDate] = useState(null);
+  // Set by Ledger while a specific account chip (not "All") is selected —
+  // same idea as entryDate, so manual entries AND the three AI capture
+  // flows default to whatever you're currently looking at instead of always
+  // falling back to today/your first account when you don't say otherwise.
+  const [entryAccount, setEntryAccount] = useState(null);
   const fileRef = useRef(null);
   const fabRef = useRef(null);
 
@@ -123,9 +128,12 @@ export default function App({ children }) {
   useEffect(() => {
     if (!store.token) return;
     if (new URLSearchParams(window.location.search).get('action') !== 'add') return;
-    setTxModal(entryDate ? { prefill: { occurred_at: entryDate } } : {});
+    const ctx = {};
+    if (entryDate) ctx.occurred_at = entryDate;
+    if (entryAccount) ctx.account = entryAccount;
+    setTxModal(Object.keys(ctx).length ? { prefill: ctx } : {});
     router.replace(pathname);
-  }, [store.token, pathname, router, entryDate]);
+  }, [store.token, pathname, router, entryDate, entryAccount]);
 
   // Leaving a screen must not leave a sheet floating over the next one.
   useEffect(() => { closeModals(); }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -193,8 +201,14 @@ export default function App({ children }) {
   if (!store.token) return <Landing />;
 
   // A bare openTx() (new manual entry, no explicit prefill — e.g. the FAB)
-  // defaults to the day Ledger is currently browsing, if it's browsing one.
-  const openTx = (arg) => setTxModal(arg || (entryDate ? { prefill: { occurred_at: entryDate } } : {}));
+  // defaults to the day/account Ledger is currently browsing, if either is set.
+  const openTx = (arg) => {
+    if (arg) return setTxModal(arg);
+    const ctx = {};
+    if (entryDate) ctx.occurred_at = entryDate;
+    if (entryAccount) ctx.account = entryAccount;
+    setTxModal(Object.keys(ctx).length ? { prefill: ctx } : {});
+  };
   const openBudget = (category = '') => setBudgetModal({ category });
 
   async function scanReceipt(file) {
@@ -210,17 +224,23 @@ export default function App({ children }) {
       });
       const amount = Math.round((Number(out.total_rupees) || 0) * 100);
       if (amount <= 0) { store.toast('Could not read a total from that photo'); return; }
-      const occurred = out.date ? new Date(out.date + 'T12:00:00').getTime() : Date.now();
+      // Only fall back to the day/account Ledger is browsing when the
+      // receipt itself didn't say — what the photo actually shows always
+      // wins over ambient context.
+      const occurred = out.date ? new Date(out.date + 'T12:00:00').getTime()
+        : entryDate || Date.now();
       const category = await resolveCategory(store, out.category);
-      
-      const accountName = out.account ? store.accounts.find(a => a.name.toLowerCase() === out.account.toLowerCase())?.name : null;
-      
+
+      const accountName = out.account
+        ? store.accounts.find(a => a.name.toLowerCase() === out.account.toLowerCase())?.name
+        : null;
+
       openTx({
         prefill: {
           type: 'expense', amount,
           note: out.merchant || 'Receipt',
           category,
-          account: accountName || undefined,
+          account: accountName || entryAccount || undefined,
           occurred_at: Number.isFinite(occurred) ? occurred : Date.now(),
           source: 'receipt',
         },
@@ -229,7 +249,10 @@ export default function App({ children }) {
     } catch (e) { store.toast('Receipt scan failed: ' + e.message); }
   }
 
-  const ui = { view, setView, openTx, openBudget, openExport: () => setExportOpen(true), setEntryDate };
+  const ui = {
+    view, setView, openTx, openBudget, openExport: () => setExportOpen(true),
+    entryDate, setEntryDate, entryAccount, setEntryAccount,
+  };
 
   const fabActions = [
     { key: 'voice', Icon: Mic, label: 'Speak', title: 'Speak an expense', onClick: () => { setFabOpen(false); setVoiceOpen(true); } },

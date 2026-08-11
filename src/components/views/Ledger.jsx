@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, SlidersHorizontal, X, Download, List } from 
 import { useStore } from '@/lib/client/store';
 import AmountInput from '../AmountInput';
 import { CATEGORIES, rupees, toPaise } from '@/lib/client/constants';
+import { normalizeGroup } from '@/lib/noteMatch';
 import {
   PERIODS, DAY_MS, periodStart, periodEnd, shiftPeriod, periodLabel, bucketsFor, startOfDay,
 } from '@/lib/client/period';
@@ -39,12 +40,13 @@ const LEDGER_ACCT_KEY = 'rf_ledger_account';
 
 export default function Ledger() {
   const store = useStore();
-  const { openExport, setEntryDate, setView } = useUI();
+  const { openExport, setEntryDate, setEntryAccount, setView } = useUI();
   const [kind, setKind] = useState('day');
   const [start, setStart] = useState(() => periodStart('day'));
   const [q, setQ] = useState('');
   const [type, setType] = useState('');
   const [cat, setCat] = useState('');
+  const [group, setGroup] = useState('');
   const [account, setAccount] = useState('');
   const [minAmt, setMinAmt] = useState('');
   const [maxAmt, setMaxAmt] = useState('');
@@ -60,7 +62,11 @@ export default function Ledger() {
   // how anyone expects a search box to behave.
   const searching = q.trim().length > 0;
   const hasCustomRange = Boolean(dateFrom || dateTo);
-  const overridingTimeline = searching || hasCustomRange;
+  // A group can span any number of days (a multi-day trip), so confining it
+  // to whatever period tab happens to be selected would silently hide most
+  // of it — same reasoning as search overriding the tabs.
+  const groupActive = Boolean(group);
+  const overridingTimeline = searching || hasCustomRange || groupActive;
 
   const end = periodEnd(kind, start);
 
@@ -72,6 +78,14 @@ export default function Ledger() {
     setEntryDate(kind === 'day' && !allTime ? start : null);
     return () => setEntryDate(null);
   }, [kind, start, allTime, setEntryDate]);
+
+  // Same idea, for whichever single account chip is selected — "All" means
+  // no default to impose. Independent of the date effect above: you can be
+  // scoped to an account without being scoped to a specific day, or vice versa.
+  useEffect(() => {
+    setEntryAccount(account || null);
+    return () => setEntryAccount(null);
+  }, [account, setEntryAccount]);
 
   useEffect(() => {
     const saved = localStorage.getItem(LEDGER_ACCT_KEY);
@@ -96,11 +110,11 @@ export default function Ledger() {
     setAllTime(false);
   }
 
-  const extraFilters = [type, cat, account, minAmt, maxAmt].filter(Boolean).length + (hasCustomRange ? 1 : 0);
+  const extraFilters = [type, cat, group, account, minAmt, maxAmt].filter(Boolean).length + (hasCustomRange ? 1 : 0);
   const activeFilters = extraFilters + (q ? 1 : 0);
 
   function clearFilters() {
-    setQ(''); setType(''); setCat(''); changeAccount(''); setMinAmt(''); setMaxAmt(''); setDateFrom(''); setDateTo('');
+    setQ(''); setType(''); setCat(''); setGroup(''); changeAccount(''); setMinAmt(''); setMaxAmt(''); setDateFrom(''); setDateTo('');
   }
 
   // period slice (or all time, or a custom range, or unscoped while searching)
@@ -111,25 +125,26 @@ export default function Ledger() {
       const toTs = dateTo ? new Date(`${dateTo}T23:59:59.999`).getTime() : Infinity;
       return all.filter((t) => t.occurred_at >= fromTs && t.occurred_at <= toTs);
     }
-    if (allTime || searching) return all;
+    if (allTime || searching || groupActive) return all;
     return all.filter((t) => t.occurred_at >= start && t.occurred_at < end);
-  }, [store, store.txs, start, end, allTime, searching, hasCustomRange, dateFrom, dateTo]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [store, store.txs, start, end, allTime, searching, groupActive, hasCustomRange, dateFrom, dateTo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // filters
   const list = useMemo(() => {
     let l = periodTx;
     if (type) l = l.filter((t) => t.type === type);
     if (cat) l = l.filter((t) => t.category === cat);
+    if (group) { const gKey = normalizeGroup(group); l = l.filter((t) => normalizeGroup(t.project) === gKey); }
     if (account) l = l.filter((t) => t.account === account || t.to_account === account);
     const lo = toPaise(minAmt), hi = toPaise(maxAmt);
     if (Number.isFinite(lo)) l = l.filter((t) => t.amount >= lo);
     if (Number.isFinite(hi)) l = l.filter((t) => t.amount <= hi);
     if (q) {
       const s = q.toLowerCase();
-      l = l.filter((t) => `${t.note} ${t.category} ${t.account}`.toLowerCase().includes(s));
+      l = l.filter((t) => `${t.note} ${t.category} ${t.account} ${t.project || ''}`.toLowerCase().includes(s));
     }
     return [...l].sort(SORTS[sort].fn);
-  }, [periodTx, q, type, cat, account, minAmt, maxAmt, sort]);
+  }, [periodTx, q, type, cat, group, account, minAmt, maxAmt, sort]);
 
   const totals = store.totals(list);
   const net = totals.inc - totals.exp;
@@ -160,10 +175,10 @@ export default function Ledger() {
   // category / amount filters: a cumulative balance filtered down to, say,
   // just "Food" isn't a balance, it's a category subtotal (already shown in
   // the period card above).
-  const cumEnd = allTime || searching ? Infinity
+  const cumEnd = allTime || searching || groupActive ? Infinity
     : hasCustomRange ? (dateTo ? new Date(`${dateTo}T23:59:59.999`).getTime() : Infinity)
     : end;
-  const cumLabel = allTime || searching ? 'now'
+  const cumLabel = allTime || searching || groupActive ? 'now'
     : hasCustomRange ? (dateTo || 'now')
     : periodLabel(kind, start);
   // Net here is spendable money on hand, so it has to be derived the same way
@@ -248,11 +263,12 @@ export default function Ledger() {
           <button className="day-arrow" disabled={allTime || overridingTimeline} onClick={() => setStart((s) => shiftPeriod(kind, s, -1))} title="Previous">
             <ChevronLeft size={17} strokeWidth={2} />
           </button>
-          <motion.div className="period-title" key={hasCustomRange ? 'range' : searching ? 'search' : allTime ? 'all' : `${kind}-${start}`}
+          <motion.div className="period-title" key={hasCustomRange ? 'range' : groupActive ? 'group' : searching ? 'search' : allTime ? 'all' : `${kind}-${start}`}
             initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.14 }}>
             <div className="day-label">
               {hasCustomRange ? `${dateFrom || 'Start'} → ${dateTo || 'now'}`
+                : groupActive ? `All time · ${group}`
                 : searching ? 'All time (search)'
                 : allTime ? 'All time' : periodLabel(kind, start)}
             </div>
@@ -361,6 +377,14 @@ export default function Ledger() {
                     {store.accounts.map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
                   </select>
                 </label>
+                {store.groupNames().length > 0 && (
+                  <label><span>Group</span>
+                    <select value={group} onChange={(e) => setGroup(e.target.value)}>
+                      <option value="">Any</option>
+                      {store.groupNames().map((g) => <option key={g} value={g}>{g}</option>)}
+                    </select>
+                  </label>
+                )}
                 <label><span>Min ₹</span>
                   <AmountInput placeholder="0" value={minAmt} onChange={setMinAmt} />
                 </label>

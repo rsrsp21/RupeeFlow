@@ -7,9 +7,11 @@ import { useStore } from '@/lib/client/store';
 import { rupees } from '@/lib/client/constants';
 import { applyParsedTransactions } from '@/lib/client/applyParsed';
 import { backdropMotion, panelMotion } from './TxModal';
+import { useUI } from '../App';
 
 export default function VoiceModal({ onClose }) {
   const store = useStore();
+  const { entryDate, entryAccount } = useUI();
   const [status, setStatus] = useState('Listening… speak naturally');
   const [thinking, setThinking] = useState(false);
   const recorder = useRef(null);
@@ -42,9 +44,10 @@ export default function VoiceModal({ onClose }) {
       const b64 = await blobToB64(blob);
       const out = await store.api('/ai/voice', {
         method: 'POST',
-        body: JSON.stringify({ audio: b64, mimeType: rec.mimeType, history: store.noteHistory().slice(0, 60), customCategories: store.customCategories.map((c) => c.name), holdings: store.holdings.map((h) => h.name), accounts: store.accounts.map((a) => a.name) }),
+        body: JSON.stringify({ audio: b64, mimeType: rec.mimeType, history: store.noteHistory().slice(0, 60), customCategories: store.customCategories.map((c) => c.name), holdings: store.holdings.map((h) => h.name), accounts: store.accounts.map((a) => a.name), groups: store.groupNames().slice(0, 30) }),
       });
-      const { added, sum } = await applyParsedTransactions(store, out, 'voice');
+      const { added, sum } = await applyParsedTransactions(store, out, 'voice',
+        { fallbackDate: entryDate, fallbackAccount: entryAccount });
       store.toast(added ? `Added ${added} ${added > 1 ? 'entries' : 'entry'} · ${rupees(sum)} ✓` : `Heard: "${out?.transcript || '…'}", no amounts found`);
     } catch (e) { store.toast('Could not process audio: ' + e.message); }
     onClose();

@@ -2,7 +2,7 @@
 // AI hub — health score/coach cards, weekly narrative, and ask-anything chat.
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Sparkles, TrendingDown, AlertTriangle, Trophy, Eye, CreditCard, PiggyBank, Wallet, Timer, RefreshCw, RotateCcw, Send, Gauge, ScrollText } from 'lucide-react';
+import { Sparkles, TrendingDown, AlertTriangle, Trophy, Eye, CreditCard, PiggyBank, Wallet, Timer, RefreshCw, RotateCcw, Send, Gauge, ScrollText, Tag } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees } from '@/lib/client/constants';
 import { loadDaily, saveDaily, clearDaily } from '@/lib/client/dailyCache';
@@ -67,6 +67,7 @@ export default function Insights() {
       saved: Math.round((s2.month_invested_rupees || 0) * 100),
       rate: s2.savings_rate_pct, stale,
       lastIncome: s2.last_income,
+      groups: s2.groups || [],
     };
   })();
 
@@ -192,6 +193,21 @@ export default function Insights() {
               </p>
             )}
           </div>
+
+          {health.groups.length > 0 && (
+            <div className="card">
+              <div className="card-head"><h3><Tag size={13} style={{ verticalAlign: '-2px' }} /> Groups & trips</h3></div>
+              <div className="stat-row">
+                {health.groups.slice(0, 6).map((g) => (
+                  <div className="stat" key={g.name}>
+                    <span className="stat-k">{g.name}</span>
+                    <b className="stat-v">{rupees(g.total_rupees * 100)}</b>
+                    <span className="stat-sub">{g.entries} {g.entries === 1 ? 'entry' : 'entries'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* ── health score + coach cards ── */}
           <div className="card">

@@ -4,7 +4,7 @@
 import { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react';
 import { idbPut, idbAll, idbClear } from './idb';
 import { monthKey, ACCOUNTS as DEFAULT_ACCOUNTS } from './constants';
-import { buildNoteHistory, normalizeNote } from '../noteMatch';
+import { buildNoteHistory, normalizeNote, normalizeGroup } from '../noteMatch';
 // The money math lives outside React so it can be tested directly — see
 // test/money.test.mjs. These wrappers only supply current state.
 import {
@@ -513,6 +513,31 @@ export function StoreProvider({ children }) {
   };
   const noteHistory = () => buildNoteHistory(live());
 
+  // Groups (e.g. "Goa Trip", "Wedding") let several entries across different
+  // categories/accounts be tied to one event, so "what did the trip cost
+  // altogether" has an answer. Stored in the transactions table's existing
+  // `project` column — present in the schema and synced end to end already,
+  // just never surfaced in the UI — so this needed no migration at all.
+  //
+  // A group has no ID of its own — matching is by text alone, so "Goa Trip"
+  // and "goa trip" would otherwise silently fork one trip into two unrelated
+  // totals purely from a casing slip. Deduped on normalizeGroup(); the
+  // DISPLAY label shown is whichever casing was used most recently, since
+  // that reflects what the user is currently calling it.
+  // Sorted by most-recently-used first, which is also the natural order for
+  // an autocomplete list of your own groups.
+  const groupNames = () => {
+    const last = new Map(); // normalized key -> { label, at }
+    for (const t of live()) {
+      const g = (t.project || '').trim();
+      if (!g) continue;
+      const key = normalizeGroup(g);
+      const seen = last.get(key);
+      if (!seen || t.occurred_at > seen.at) last.set(key, { label: g, at: t.occurred_at });
+    }
+    return [...last.values()].sort((a, b) => b.at - a.at).map((v) => v.label);
+  };
+
   // ── accounts ──
   // Used to only save locally (IndexedDB) with no server call at all, so an
   // account added on one device never reached any other until the next
@@ -851,6 +876,32 @@ export function StoreProvider({ children }) {
 
     const daysAgo = (ts) => (ts ? Math.round((Date.now() - ts) / 86400000) : null);
 
+    // Groups tie several entries to one event ("Goa Trip") across whatever
+    // categories/accounts they actually used, so "what did the trip cost
+    // altogether" has an answer a single category never could. Full history,
+    // not the daysBack-trimmed `list` — a trip predating the window (or
+    // spanning past it) should still total correctly when asked about later.
+    // Keyed by normalizeGroup() so a casing difference can't fork one trip's
+    // total into two — see the comment on groupNames() for why.
+    const groupTotals = {};
+    for (const t of all) {
+      const g = (t.project || '').trim();
+      if (!g || t.type !== 'expense') continue;
+      const key = normalizeGroup(g);
+      if (!groupTotals[key]) groupTotals[key] = { label: g, total: 0, count: 0, first: t.occurred_at, last: t.occurred_at };
+      const gr = groupTotals[key];
+      gr.total += t.amount; gr.count++;
+      if (t.occurred_at < gr.first) gr.first = t.occurred_at;
+      if (t.occurred_at > gr.last) { gr.last = t.occurred_at; gr.label = g; } // most recent casing wins the label
+    }
+    const groups = Object.values(groupTotals)
+      .sort((a, b) => b.total - a.total).slice(0, 12)
+      .map((g) => ({
+        name: g.label, entries: g.count, total_rupees: rup(g.total),
+        from: new Date(g.first).toISOString().slice(0, 10),
+        to: new Date(g.last).toISOString().slice(0, 10),
+      }));
+
     return {
       month_income_rupees: rup(mt.inc), month_expense_rupees: rup(mt.exp),
       spend_by_category_rupees: byCat,
@@ -907,13 +958,14 @@ export function StoreProvider({ children }) {
       // make this read as null (or absurd) for the first days of a month.
       savings_rate_pct: income30 > 0 ? Math.round((investedPaise / income30) * 1000) / 10 : null,
       recurring_commitments,
+      groups,
     };
   };
 
   const value = {
     token, email, name, booted, txs, budgets, accounts, holdings, customCategories, syncState, lastSync, firstSyncDone, toastMsg,
     api, toast, syncNow, resync, importBackup, saveTx, saveBudget, deleteBudget, saveAccounts, authenticate, saveName, logout, deleteAccount,
-    live, totals, inMonth, catSpend, effectiveBudget, noteHistory, accountBalances, holdingBalances, holdingContributed, netWorth, saveHoldings, accountType, buildSummary,
+    live, totals, inMonth, catSpend, effectiveBudget, noteHistory, groupNames, accountBalances, holdingBalances, holdingContributed, netWorth, saveHoldings, accountType, buildSummary,
     renameAccountRefs, renameHoldingRefs, renameCustomCategory,
     addCustomCategory, removeCustomCategory,
   };

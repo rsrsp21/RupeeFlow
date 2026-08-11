@@ -7,8 +7,8 @@ import { parseVoice } from '@/lib/gemini';
 export async function POST(request) {
   try {
     if (!(await requireUser(request))) throw new HttpError('Unauthorized', 401);
-    const { audio, mimeType, history, customCategories, holdings, accounts } = await request.json().catch(() => ({}));
+    const { audio, mimeType, history, customCategories, holdings, accounts, groups } = await request.json().catch(() => ({}));
     if (!audio) throw new HttpError('Audio required');
-    return jsonRes(await parseVoice(audio, mimeType, history || [], customCategories || [], holdings || [], accounts || []));
+    return jsonRes(await parseVoice(audio, mimeType, history || [], customCategories || [], holdings || [], accounts || [], groups || []));
   } catch (e) { return errRes(e); }
 }

@@ -3,11 +3,11 @@
 // rev + updated_at, so history stays consistent on every synced device.
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, X } from 'lucide-react';
+import { Sparkles, Tag, X } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import AmountInput from '../AmountInput';
 import { CATEGORIES, AUTO_RULES, rupees, toPaise } from '@/lib/client/constants';
-import { normalizeNote } from '@/lib/noteMatch';
+import { normalizeNote, normalizeGroup } from '@/lib/noteMatch';
 import { resolveCategory } from '@/lib/client/applyParsed';
 import CategoryIcon from '../CategoryIcon';
 import ConfirmModal from './ConfirmModal';
@@ -40,8 +40,17 @@ export default function TxModal({ state, onClose }) {
   const [type, setType] = useState(openedAs);
   const [amount, setAmount] = useState(existing ? existing.amount / 100 : pre.amount ? pre.amount / 100 : '');
   const [note, setNote] = useState(existing?.note ?? pre.note ?? '');
+  // A trip/event this entry belongs to, e.g. "Goa Trip" — free text, no
+  // separate entity, matched case-insensitively against past groups so
+  // typing "goa trip" reuses the same group as an earlier "Goa Trip" rather
+  // than silently forking a second one (see normalizeGroup).
+  const [group, setGroup] = useState(existing?.project ?? pre.project ?? '');
+  // Collapsed unless there's already a group on this entry — most entries
+  // don't belong to one, so a permanent field would be noise for the common
+  // case.
+  const [groupOpen, setGroupOpen] = useState(!!(existing?.project || pre.project));
   const [category, setCategory] = useState(existing?.category || pre.category || 'Food & Dining');
-  const [account, setAccount] = useState(existing?.account || store.accounts[0]?.name || '');
+  const [account, setAccount] = useState(existing?.account || pre.account || store.accounts[0]?.name || '');
   // Defaulting to a literal 'Bank' used to invent a destination that wasn't
   // in the user's account list at all, which silently made transfers vanish
   // from every total. Empty is honest — save() refuses to write without one.
@@ -143,6 +152,7 @@ export default function TxModal({ state, onClose }) {
       category: type === 'transfer' || type === 'invest' ? 'Other' : category,
       note: note.trim(),
       account, to_account: destination,
+      project: group.trim(),
       occurred_at: occurred,
       created_at: existing?.created_at || Date.now(),
       updated_at: Date.now(),
@@ -216,6 +226,31 @@ export default function TxModal({ state, onClose }) {
               </ul>
             )}
           </div>
+          {!groupOpen ? (
+            <button type="button" className="btn ghost sm" onClick={() => setGroupOpen(true)}>
+              <Tag size={13} /> Add to a group
+            </button>
+          ) : (
+            <div className="new-cat-row">
+              <input list="tx-group-list" placeholder="Trip or event (e.g. Goa Trip)" autoComplete="off"
+                value={group} onChange={(e) => setGroup(e.target.value)}
+                onBlur={() => {
+                  // Snap to an existing group's exact casing so a near-match
+                  // typed by hand can't silently fork its total in two.
+                  const key = normalizeGroup(group);
+                  if (!key) return;
+                  const canon = store.groupNames().find((g) => normalizeGroup(g) === key);
+                  if (canon && canon !== group) setGroup(canon);
+                }} />
+              <datalist id="tx-group-list">
+                {store.groupNames().map((g) => <option key={g} value={g} />)}
+              </datalist>
+              <button type="button" className="icon-btn" title="Remove group"
+                onClick={() => { setGroup(''); setGroupOpen(false); }}>
+                <X size={14} />
+              </button>
+            </div>
+          )}
           {!isMove && (
             <button type="button" className="btn ghost sm ai-cat-btn" onClick={aiCategorize} disabled={aiBusy || !note.trim()}>
               <Sparkles size={13} className={aiBusy ? 'spin' : ''} /> Auto-categorize with AI

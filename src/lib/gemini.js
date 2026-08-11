@@ -60,15 +60,17 @@ function categoryChoices(extra = []) {
 If one of these genuinely fits, use it exactly as written. Only if truly none of them fit, invent a new short category name (Title Case, 1-3 words, e.g. "Pet Care") instead of forcing a bad match — do not use a new name if an existing one is close enough.`;
 }
 
-const entrySchema = (extra = [], holdings = [], accounts = []) => {
+const entrySchema = (extra = [], holdings = [], accounts = [], groups = []) => {
   const today = new Date().toISOString().slice(0, 10);
   const holdingList = (holdings || []).filter(Boolean);
   const accountList = (accounts || []).filter(Boolean);
+  const groupList = (groups || []).filter(Boolean);
   return `Today's date is ${today}.
-Return ONLY a JSON object: {"transactions":[{"type":"expense|income|invest","amount_rupees":number,"category":"a category name","note":"short description","date":"YYYY-MM-DD or null","destination":"holding name or null","account":"account name or null"}],"transcript":"what was said"}.
+Return ONLY a JSON object: {"transactions":[{"type":"expense|income|invest","amount_rupees":number,"category":"a category name","note":"short description","date":"YYYY-MM-DD or null","destination":"holding name or null","account":"account name or null","group":"group/trip/event name or null"}],"transcript":"what was said"}.
 Rules: amounts are in Indian Rupees. "date" is when the expense happened: resolve ANY spoken date reference to an absolute YYYY-MM-DD — "yesterday", "last Friday", "on 26th July", "two days back", "26 tariq ko" all resolve relative to today (${today}); if the year isn't stated use the most recent past occurrence; if no date is mentioned use null (means today). ${categoryChoices(extra)} Multiple expenses in one sentence become multiple transactions.
 Use type "invest" ONLY when money is being put into savings or an investment rather than spent — SIPs, mutual funds, stocks, fixed deposits, gold, recurring deposits, PPF, or money explicitly set aside/saved (e.g. "put 5000 into my SIP", "invested 10k in stocks", "moved 2000 to savings"). Investing is not an expense. For type "invest", set "destination" to the holding it went into.${holdingList.length ? ` The user's existing holdings are: ${holdingList.join(', ')} — reuse one of these names exactly when it fits, and only name a new one if none do.` : ' The user has no holdings set up yet, so name the destination sensibly (e.g. "Mutual Funds", "Stocks", "FD").'} For every other type set "destination" to null.
-The user's existing accounts are: ${accountList.length ? accountList.join(', ') : 'None'}. If the user mentions an account for an expense or income (e.g., "paid with HDFC", "from SBI"), set "account" to the closest matching account name. If none is mentioned, set it to null.`;
+The user's existing accounts are: ${accountList.length ? accountList.join(', ') : 'None'}. If the user mentions an account for an expense or income (e.g., "paid with HDFC", "from SBI"), set "account" to the closest matching account name. If none is mentioned, set it to null.
+A "group" ties several entries to one trip or event (e.g. "for the Goa trip", "wedding shopping", "office offsite") — set it ONLY when the speech names or clearly implies such an event, never invent one for an ordinary standalone expense.${groupList.length ? ` The user's existing groups are: ${groupList.join(', ')} — reuse one of these exactly when it fits, and only propose a new short name if genuinely none do.` : ''} Otherwise set "group" to null.`;
 };
 
 // Few-shot hint from the user's own note history, so a rephrased repeat of
@@ -81,17 +83,17 @@ function historyHint(history) {
   return `This user's own past entries and the category used for each — reuse the same category for the same kind of item even if the quantity, unit, or wording differs slightly, e.g. "chicken 300g" and "chicken 300 grams" are the same item: ${list}\n`;
 }
 
-export function parseText(text, history = [], customCategories = [], holdings = [], accounts = []) {
+export function parseText(text, history = [], customCategories = [], holdings = [], accounts = [], groups = []) {
   return gemini([{
     text: `You convert casual Indian-English/Hinglish speech about money into ledger entries.
-${historyHint(history)}${entrySchema(customCategories, holdings, accounts)}\n\nSpeech: "${text}"`,
+${historyHint(history)}${entrySchema(customCategories, holdings, accounts, groups)}\n\nSpeech: "${text}"`,
   }]);
 }
 
-export function parseVoice(audioB64, mimeType, history = [], customCategories = [], holdings = [], accounts = []) {
+export function parseVoice(audioB64, mimeType, history = [], customCategories = [], holdings = [], accounts = [], groups = []) {
   return gemini([
     { text: `Transcribe this audio (Indian English / Hinglish about money), then convert it into ledger entries.
-${historyHint(history)}${entrySchema(customCategories, holdings, accounts)}` },
+${historyHint(history)}${entrySchema(customCategories, holdings, accounts, groups)}` },
     { inlineData: { mimeType: mimeType || 'audio/webm', data: audioB64 } },
   ]);
 }
@@ -149,7 +151,7 @@ color is a single hex color that suits the category (used as a themed background
 // out what the unfamiliar fields mean is cheaper than hoping the model infers
 // them, and it stops the classic mistake of reading a transfer into savings
 // as money spent.
-const DATA_NOTES = `Reading the data: all amounts are rupees. "net_worth_rupees" splits into spendable (cash in accounts), invested (savings/investment holdings) and card_dues (credit card debt, a liability). Money moved into a holding is NOT spending — it leaves the spendable balance but stays the user's money, so never call investing an expense or a loss. "savings_rate_pct" is the share of this month's income that went into holdings. "recurring_commitments" are notes seen across two or more months, so treat those as fixed obligations rather than things to casually cut. A holding's "valued_days_ago" is how stale its stated value is — if it is null the user has never valued it, and above about 30 days say the figure may be out of date instead of quoting it as current fact. "utilisation_pct" on a credit card is how much of its limit is used. Pay usually arrives at the END of a month, so "month_income_rupees" being 0 in the first days of a new month does NOT mean the user has no income — check "income_last_30d_rupees" and "last_income" before saying anything about earnings, and never tell them they earned nothing when last_income shows a recent credit. "savings_rate_pct" is measured against that trailing 30-day income for the same reason.`;
+const DATA_NOTES = `Reading the data: all amounts are rupees. "net_worth_rupees" splits into spendable (cash in accounts), invested (savings/investment holdings) and card_dues (credit card debt, a liability). Money moved into a holding is NOT spending — it leaves the spendable balance but stays the user's money, so never call investing an expense or a loss. "savings_rate_pct" is the share of this month's income that went into holdings. "recurring_commitments" are notes seen across two or more months, so treat those as fixed obligations rather than things to casually cut. A holding's "valued_days_ago" is how stale its stated value is — if it is null the user has never valued it, and above about 30 days say the figure may be out of date instead of quoting it as current fact. "utilisation_pct" on a credit card is how much of its limit is used. Pay usually arrives at the END of a month, so "month_income_rupees" being 0 in the first days of a new month does NOT mean the user has no income — check "income_last_30d_rupees" and "last_income" before saying anything about earnings, and never tell them they earned nothing when last_income shows a recent credit. "savings_rate_pct" is measured against that trailing 30-day income for the same reason. "groups" are user-defined labels tying several entries across different categories/accounts to one event or trip (e.g. "Goa Trip", "Wedding") — their total_rupees is the LIFETIME total for that label across the user's whole history, not scoped to this data window, so it's the right figure whenever the user asks what something "cost in total" or "cost altogether".`;
 
 export function weeklyInsights(summary) {
   return gemini([{
@@ -192,6 +194,6 @@ export function askQuestion(question, summary) {
 ${JSON.stringify(summary || {})}
 ${DATA_NOTES}
 Question: "${question}"
-You can answer questions about balances, net worth, individual accounts, credit card dues, investment holdings and their gains, savings rate, and spending — all of that is in the data above, so use it rather than saying you cannot. Answer in under 100 words with specific numbers. **Bold** key ₹ figures, and use a short bullet list ("- ") if listing more than two items. If a holding's value is stale (valued_days_ago is large or null), say so rather than presenting it as current. Only if the data genuinely doesn't contain the answer, say so briefly.`,
+You can answer questions about balances, net worth, individual accounts, credit card dues, investment holdings and their gains, savings rate, spending, and named groups/trips/events (their lifetime totals, in "groups") — all of that is in the data above, so use it rather than saying you cannot. Answer in under 100 words with specific numbers. **Bold** key ₹ figures, and use a short bullet list ("- ") if listing more than two items. If a holding's value is stale (valued_days_ago is large or null), say so rather than presenting it as current. Only if the data genuinely doesn't contain the answer, say so briefly.`,
   }], { asJson: false, temperature: 0.4 });
 }

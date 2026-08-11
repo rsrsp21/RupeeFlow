@@ -7,8 +7,8 @@ import { parseText } from '@/lib/gemini';
 export async function POST(request) {
   try {
     if (!(await requireUser(request))) throw new HttpError('Unauthorized', 401);
-    const { text, history, customCategories, holdings, accounts } = await request.json().catch(() => ({}));
+    const { text, history, customCategories, holdings, accounts, groups } = await request.json().catch(() => ({}));
     if (!text) throw new HttpError('Text required');
-    return jsonRes(await parseText(text, history || [], customCategories || [], holdings || [], accounts || []));
+    return jsonRes(await parseText(text, history || [], customCategories || [], holdings || [], accounts || [], groups || []));
   } catch (e) { return errRes(e); }
 }
