@@ -1,0 +1,23 @@
+# Line endings, settled in the repo rather than per-machine.
+#
+# Without this, a Windows checkout has CRLF in the working tree while the repo
+# stores LF, and git reports every line of every file as modified — which
+# buries real changes and eventually gets a whole-file CRLF diff committed by
+# accident. `text=auto` normalizes to LF on commit whatever the machine does.
+* text=auto
+
+# Files whose bytes must survive verbatim.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.woff binary
+*.woff2 binary
+
+# Checked-in lockfile: LF everywhere, never touched by hand.
+package-lock.json text eol=lf
+
+# Windows launcher genuinely needs CRLF to run.
+*.bat text eol=crlf
