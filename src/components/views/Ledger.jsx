@@ -132,7 +132,20 @@ export default function Ledger() {
   // filters
   const list = useMemo(() => {
     let l = periodTx;
-    if (type) l = l.filter((t) => t.type === type);
+    // "invest" and "withdraw" aren't stored types — the transactions table only
+    // allows expense/income/transfer, and moving money into or out of a holding
+    // IS a transfer. Filtering on the stored type alone therefore lumped every
+    // SIP and FD deposit in with ordinary account-to-account moves, with no way
+    // to see either on its own. Split them back apart the same way TxItem
+    // labels them: by whether an end of the transfer is a holding.
+    if (type === 'invest') {
+      l = l.filter((t) => t.type === 'transfer' && store.isHoldingName(t.to_account));
+    } else if (type === 'withdraw') {
+      l = l.filter((t) => t.type === 'transfer' && store.isHoldingName(t.account));
+    } else if (type === 'transfer') {
+      l = l.filter((t) => t.type === 'transfer'
+        && !store.isHoldingName(t.to_account) && !store.isHoldingName(t.account));
+    } else if (type) l = l.filter((t) => t.type === type);
     if (cat) l = l.filter((t) => t.category === cat);
     if (group) { const gKey = normalizeGroup(group); l = l.filter((t) => normalizeGroup(t.project) === gKey); }
     if (account) l = l.filter((t) => t.account === account || t.to_account === account);
@@ -144,7 +157,7 @@ export default function Ledger() {
       l = l.filter((t) => `${t.note} ${t.category} ${t.account} ${t.project || ''}`.toLowerCase().includes(s));
     }
     return [...l].sort(SORTS[sort].fn);
-  }, [periodTx, q, type, cat, group, account, minAmt, maxAmt, sort]);
+  }, [periodTx, q, type, cat, group, account, minAmt, maxAmt, sort, store.isHoldingName]);
 
   const totals = store.totals(list);
   const net = totals.inc - totals.exp;
@@ -362,7 +375,10 @@ export default function Ledger() {
                 <label><span>Type</span>
                   <select value={type} onChange={(e) => setType(e.target.value)}>
                     <option value="">Any</option><option value="expense">Expense</option>
-                    <option value="income">Income</option><option value="transfer">Transfer</option>
+                    <option value="income">Income</option>
+                    <option value="transfer">Transfer (between accounts)</option>
+                    <option value="invest">Invest / Save</option>
+                    <option value="withdraw">Withdraw from savings</option>
                   </select>
                 </label>
                 <label><span>Category</span>
