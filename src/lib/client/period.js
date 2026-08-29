@@ -87,3 +87,12 @@ export function bucketsFor(kind, start) {
   }
   return out;
 }
+
+// Today as the USER sees it, not as the server does. The AI prompts anchor
+// every relative date ("yesterday", "two days back") to this, and the server
+// runs in UTC — so between 00:00 and 05:30 IST its idea of "today" is still
+// yesterday, and every relative date the model resolved came out a day early.
+export function todayISO(t = Date.now()) {
+  const d = new Date(t);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
