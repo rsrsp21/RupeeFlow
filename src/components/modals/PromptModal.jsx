@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '@/lib/client/store';
 import { rupees } from '@/lib/client/constants';
+import { todayISO } from '@/lib/client/period';
 import { applyParsedTransactions } from '@/lib/client/applyParsed';
 import { backdropMotion, panelMotion } from './TxModal';
 import { useUI } from '../App';
@@ -22,7 +23,7 @@ export default function PromptModal({ onClose, initialText }) {
     setBusy(true);
     try {
       const out = await store.api('/ai/parse', {
-        method: 'POST', body: JSON.stringify({ text: v, history: store.noteHistory().slice(0, 60), customCategories: store.customCategories.map((c) => c.name), holdings: store.realHoldings.map((h) => h.name), accounts: store.accounts.map((a) => a.name), groups: store.groupNames().slice(0, 30) }),
+        method: 'POST', body: JSON.stringify({ text: v, history: store.noteHistory().slice(0, 60), customCategories: store.customCategories.map((c) => c.name), holdings: store.realHoldings.map((h) => h.name), accounts: store.accounts.map((a) => a.name), groups: store.groupNames().slice(0, 30), today: todayISO() }),
       });
       const { added, sum } = await applyParsedTransactions(store, out, 'text',
         { fallbackDate: entryDate, fallbackAccount: entryAccount });

@@ -60,8 +60,12 @@ function categoryChoices(extra = []) {
 If one of these genuinely fits, use it exactly as written. Only if truly none of them fit, invent a new short category name (Title Case, 1-3 words, e.g. "Pet Care") instead of forcing a bad match — do not use a new name if an existing one is close enough.`;
 }
 
-const entrySchema = (extra = [], holdings = [], accounts = [], groups = []) => {
-  const today = new Date().toISOString().slice(0, 10);
+const entrySchema = (extra = [], holdings = [], accounts = [], groups = [], clientToday = '') => {
+  // The caller's local date wins. Falling back to the server's UTC date is
+  // only for a client that didn't send one — for a user in IST that fallback
+  // is a day behind for the first five and a half hours of every day.
+  const today = /^\d{4}-\d{2}-\d{2}$/.test(clientToday)
+    ? clientToday : new Date().toISOString().slice(0, 10);
   const holdingList = (holdings || []).filter(Boolean);
   const accountList = (accounts || []).filter(Boolean);
   const groupList = (groups || []).filter(Boolean);
@@ -83,17 +87,17 @@ function historyHint(history) {
   return `This user's own past entries and the category used for each — reuse the same category for the same kind of item even if the quantity, unit, or wording differs slightly, e.g. "chicken 300g" and "chicken 300 grams" are the same item: ${list}\n`;
 }
 
-export function parseText(text, history = [], customCategories = [], holdings = [], accounts = [], groups = []) {
+export function parseText(text, history = [], customCategories = [], holdings = [], accounts = [], groups = [], today = '') {
   return gemini([{
     text: `You convert casual Indian-English/Hinglish speech about money into ledger entries.
-${historyHint(history)}${entrySchema(customCategories, holdings, accounts, groups)}\n\nSpeech: "${text}"`,
+${historyHint(history)}${entrySchema(customCategories, holdings, accounts, groups, today)}\n\nSpeech: "${text}"`,
   }]);
 }
 
-export function parseVoice(audioB64, mimeType, history = [], customCategories = [], holdings = [], accounts = [], groups = []) {
+export function parseVoice(audioB64, mimeType, history = [], customCategories = [], holdings = [], accounts = [], groups = [], today = '') {
   return gemini([
     { text: `Transcribe this audio (Indian English / Hinglish about money), then convert it into ledger entries.
-${historyHint(history)}${entrySchema(customCategories, holdings, accounts, groups)}` },
+${historyHint(history)}${entrySchema(customCategories, holdings, accounts, groups, today)}` },
     { inlineData: { mimeType: mimeType || 'audio/webm', data: audioB64 } },
   ]);
 }

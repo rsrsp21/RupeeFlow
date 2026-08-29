@@ -74,10 +74,24 @@ export default function Ledger() {
   // those don't map to one date) sets the day new manual entries should
   // default to instead of always defaulting to right now. Clears itself on
   // unmount so leaving Ledger for another screen doesn't leave it stuck.
+  // A custom From/To range pinned to ONE day is just as much "the day I am
+  // looking at" as the day tab is, but it left entryDate null — so a voice or
+  // text entry made while browsing a specific past date silently landed on
+  // today. Only an actual single day qualifies; a multi-day span maps to no
+  // one date, exactly like the week/month/year tabs.
+  const rangeDay = useMemo(() => {
+    if (!hasCustomRange) return null;
+    const from = dateFrom || dateTo, to = dateTo || dateFrom;
+    if (from !== to) return null;
+    const [y, m, d] = from.split('-').map(Number);
+    const t = new Date(y, m - 1, d).getTime();
+    return Number.isFinite(t) ? t : null;
+  }, [hasCustomRange, dateFrom, dateTo]);
+
   useEffect(() => {
-    setEntryDate(kind === 'day' && !allTime ? start : null);
+    setEntryDate(rangeDay ?? (kind === 'day' && !allTime ? start : null));
     return () => setEntryDate(null);
-  }, [kind, start, allTime, setEntryDate]);
+  }, [rangeDay, kind, start, allTime, setEntryDate]);
 
   // Same idea, for whichever single account chip is selected — "All" means
   // no default to impose. Independent of the date effect above: you can be
