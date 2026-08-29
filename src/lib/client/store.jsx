@@ -1,7 +1,7 @@
 'use client';
 // Central store: auth, ledger state, offline-first sync engine (outbox + LWW
 // pull cursor + polling for near-real-time cross-device updates).
-import { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { idbPut, idbAll, idbClear } from './idb';
 import { monthKey, ACCOUNTS as DEFAULT_ACCOUNTS } from './constants';
 import { buildNoteHistory, normalizeNote, normalizeGroup } from '../noteMatch';
@@ -10,6 +10,7 @@ import { buildNoteHistory, normalizeNote, normalizeGroup } from '../noteMatch';
 import {
   computeTotals, computeAccountBalances, computeHoldingBalances,
   computeHoldingContributed, computeNetWorth, isNewerTx,
+  activeHoldings, shadowedHoldingNames,
 } from '../money.mjs';
 
 const Ctx = createContext(null);
@@ -613,13 +614,24 @@ export function StoreProvider({ children }) {
     () => computeAccountBalances(accounts, live()),
     [accounts, txs]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Holdings a transfer can actually reach. A holding whose name is also an
+  // account name is shadowed by that account (see activeHoldings) — it stays
+  // visible and editable on the Savings screen so the user can rename it, but
+  // it must not claim transfers that were made between accounts.
+  const realHoldings = useMemo(
+    () => activeHoldings(accounts, holdings), [accounts, holdings]);
+  const nameClashes = useMemo(
+    () => shadowedHoldingNames(accounts, holdings), [accounts, holdings]);
+  const isHoldingName = useCallback(
+    (n) => realHoldings.some((h) => h.name === n), [realHoldings]);
+
   const holdingBalances = useCallback(
-    () => computeHoldingBalances(holdings, live()),
-    [holdings, txs]); // eslint-disable-line react-hooks/exhaustive-deps
+    () => computeHoldingBalances(realHoldings, live()),
+    [realHoldings, txs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const holdingContributed = useCallback(
-    () => computeHoldingContributed(holdings, live()),
-    [holdings, txs]); // eslint-disable-line react-hooks/exhaustive-deps
+    () => computeHoldingContributed(realHoldings, live()),
+    [realHoldings, txs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const netWorth = () => computeNetWorth(accounts, holdings, live());
 
@@ -842,7 +854,7 @@ export function StoreProvider({ children }) {
     const acctBal = accountBalances();
     const hBal = holdingBalances();
     const hPut = holdingContributed();
-    const holdingNames = new Set(holdings.map((h) => h.name));
+    const holdingNames = new Set(realHoldings.map((h) => h.name));
     const accountNames = new Set(accounts.map((a) => a.name));
 
     // Money that left a spendable account this month without being spent —
@@ -963,7 +975,7 @@ export function StoreProvider({ children }) {
   };
 
   const value = {
-    token, email, name, booted, txs, budgets, accounts, holdings, customCategories, syncState, lastSync, firstSyncDone, toastMsg,
+    token, email, name, booted, txs, budgets, accounts, holdings, realHoldings, nameClashes, isHoldingName, customCategories, syncState, lastSync, firstSyncDone, toastMsg,
     api, toast, syncNow, resync, importBackup, saveTx, saveBudget, deleteBudget, saveAccounts, authenticate, saveName, logout, deleteAccount,
     live, totals, inMonth, catSpend, effectiveBudget, noteHistory, groupNames, accountBalances, holdingBalances, holdingContributed, netWorth, saveHoldings, accountType, buildSummary,
     renameAccountRefs, renameHoldingRefs, renameCustomCategory,

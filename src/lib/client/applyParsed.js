@@ -30,6 +30,11 @@ export async function resolveHolding(store, name) {
   if (!clean) return '';
   const existing = store.holdings.find((h) => h.name.toLowerCase() === clean.toLowerCase());
   if (existing) return existing.name;
+  // "moved 2000 to savings" when "Savings" is one of their ACCOUNTS is a
+  // transfer, not an investment. Creating a holding under that name would
+  // shadow the account and make the money count twice, so return '' and let
+  // the caller fall back to booking it as an ordinary entry.
+  if (store.accounts.some((a) => a.name.toLowerCase() === clean.toLowerCase())) return '';
   // Guess the kind from the name so the icon isn't always the generic one.
   const kind = /mutual|sip|fund|nifty|index/i.test(clean) ? 'Mutual Funds'
     : /stock|share|equity|demat/i.test(clean) ? 'Stocks'

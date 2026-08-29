@@ -10,10 +10,12 @@ import HoldingIcon from './HoldingIcon';
 
 export default function TxItem({ t, index = 0 }) {
   const { openTx } = useUI();
-  const { accountType, holdings } = useStore();
+  const { accountType, realHoldings } = useStore();
   // A transfer into a holding is an investment, not a move between accounts —
   // give it the holding's own icon and badge so it reads correctly in a list.
-  const holdingKind = (n) => holdings.find((h) => h.name === n)?.kind;
+  // realHoldings, not holdings — a holding shadowed by an account of the same
+  // name must not make an account-to-account transfer read as "invest".
+  const holdingKind = (n) => realHoldings.find((h) => h.name === n)?.kind;
   const intoHolding = t.type === 'transfer' ? holdingKind(t.to_account) : undefined;
   const outOfHolding = t.type === 'transfer' ? holdingKind(t.account) : undefined;
   const sign = t.type === 'income' ? '+' : t.type === 'expense' ? '−' : '';

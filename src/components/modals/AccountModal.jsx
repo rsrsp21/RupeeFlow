@@ -29,6 +29,12 @@ export default function AccountModal({ onClose, existing = null, onReconcile }) 
     const clash = store.accounts.some((a) =>
       a.name.toLowerCase() === finalName.toLowerCase() && a.name !== existing?.name);
     if (clash) return store.toast('That account already exists');
+    // The ledger names accounts and holdings in the same two columns, so one
+    // name can only ever mean one thing. Sharing it made every transfer into
+    // this account count as an investment as well — the same rupee showing up
+    // as spendable AND invested, inflating net worth out of nothing.
+    if (store.holdings.some((h) => h.name.toLowerCase() === finalName.toLowerCase()))
+      return store.toast(`"${finalName}" is already a saving/investment — pick another name`);
     setBusy(true);
     const entered = toPaise(balance);
     // A card's figure is what you OWE, stored negative — a credit limit is

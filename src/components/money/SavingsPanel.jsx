@@ -6,7 +6,7 @@
 // never counts as spending, but it does leave your spendable balance.
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { PiggyBank, Plus, Trash2, Pencil } from 'lucide-react';
+import { PiggyBank, Plus, Trash2, Pencil, AlertTriangle } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees } from '@/lib/client/constants';
 import { DAY_MS, startOfDay } from '@/lib/client/period';
@@ -59,6 +59,21 @@ export default function SavingsPanel() {
 
   return (
     <>
+      {/* A holding sharing a name with an account can't be told apart from it
+          in the ledger, so it's ignored for every total until one is renamed.
+          Silently dropping it would be worse than saying so. */}
+      {store.nameClashes.length > 0 && (
+        <div className="card warn-card">
+          <p className="small">
+            <AlertTriangle size={13} style={{ verticalAlign: '-2px', color: 'var(--amber, #f59e0b)' }} />{' '}
+            <b>{store.nameClashes.join(', ')}</b> {store.nameClashes.length === 1 ? 'is' : 'are'} used
+            by both an account and a saving/investment. Entries name them the same way, so transfers into
+            the account were being counted as investments too. Rename one of the two — the holding here,
+            or the account on the Accounts tab — and every total corrects itself.
+          </p>
+        </div>
+      )}
+
       {store.holdings.length > 0 && (
         <div className="panel-bar">
           <span className="panel-bar-note">
@@ -91,6 +106,11 @@ export default function SavingsPanel() {
                     <span className="holding-name">{h.name}</span>
                     <span className="holding-meta">
                       <span className="tx-tag">{h.kind}</span>
+                      {store.nameClashes.includes(h.name) && (
+                        <span style={{ color: 'var(--amber, #f59e0b)', fontWeight: 600 }}>
+                          name clashes with an account — not counted
+                        </span>
+                      )}
                       {rupees(put)} invested
                       {gain !== 0 && (
                         <span style={{ color: gain > 0 ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>

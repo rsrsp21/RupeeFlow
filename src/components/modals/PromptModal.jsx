@@ -22,7 +22,7 @@ export default function PromptModal({ onClose, initialText }) {
     setBusy(true);
     try {
       const out = await store.api('/ai/parse', {
-        method: 'POST', body: JSON.stringify({ text: v, history: store.noteHistory().slice(0, 60), customCategories: store.customCategories.map((c) => c.name), holdings: store.holdings.map((h) => h.name), accounts: store.accounts.map((a) => a.name), groups: store.groupNames().slice(0, 30) }),
+        method: 'POST', body: JSON.stringify({ text: v, history: store.noteHistory().slice(0, 60), customCategories: store.customCategories.map((c) => c.name), holdings: store.realHoldings.map((h) => h.name), accounts: store.accounts.map((a) => a.name), groups: store.groupNames().slice(0, 30) }),
       });
       const { added, sum } = await applyParsedTransactions(store, out, 'text',
         { fallbackDate: entryDate, fallbackAccount: entryAccount });
