@@ -26,7 +26,7 @@ export default function PromptModal({ onClose, initialText }) {
         method: 'POST', body: JSON.stringify({ text: v, history: store.noteHistory().slice(0, 60), customCategories: store.customCategories.map((c) => c.name), holdings: store.realHoldings.map((h) => h.name), accounts: store.accounts.map((a) => a.name), groups: store.groupNames().slice(0, 30), today: todayISO() }),
       });
       const { added, sum } = await applyParsedTransactions(store, out, 'text',
-        { fallbackDate: entryDate, fallbackAccount: entryAccount });
+        { fallbackDate: entryDate, fallbackAccount: entryAccount, today: todayISO() });
       store.toast(added ? `Added ${added} ${added > 1 ? 'entries' : 'entry'} · ${rupees(sum)} ✓` : 'No amounts found in that');
       onClose();
     } catch (err) {

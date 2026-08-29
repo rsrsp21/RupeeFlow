@@ -70,19 +70,28 @@ function resolveGroup(store, name) {
 // (App.jsx's entryDate/entryAccount) — used ONLY when the parse itself
 // didn't say otherwise, since what you actually spoke/typed always outranks
 // ambient context.
-export async function applyParsedTransactions(store, out, source, { fallbackDate, fallbackAccount } = {}) {
+export async function applyParsedTransactions(store, out, source, { fallbackDate, fallbackAccount, today } = {}) {
   const entries = out?.transactions || [];
   if (!entries.length) return { added: 0, sum: 0 };
   let added = 0, sum = 0;
   for (const e of entries) {
     const amount = Math.round((Number(e.amount_rupees) || 0) * 100);
     if (amount <= 0) continue;
-    // spoken/written dates ("on 26th July", "yesterday") come back as YYYY-MM-DD
+    // spoken/written dates ("on 26th July", "yesterday") come back as YYYY-MM-DD.
+    //
+    // The prompt asks for null when no date was spoken, but the model reliably
+    // fills in today's date instead — and that echoed date then outranked the
+    // day the Ledger was open on, so an entry logged while browsing 26 July
+    // landed on today unless you said "26 July" out loud. A returned date
+    // equal to the anchor we handed the model is treated as "it said nothing",
+    // so the browsed day wins. Any OTHER date really was spoken and still
+    // outranks ambient context, which is the rule that matters.
+    const echoedToday = Boolean(today) && e.date === today;
     let occurred = fallbackDate || Date.now();
-    if (e.date && /^\d{4}-\d{2}-\d{2}$/.test(e.date)) {
+    if (e.date && !(echoedToday && fallbackDate) && /^\d{4}-\d{2}-\d{2}$/.test(e.date)) {
       const t = new Date(e.date + 'T12:00:00').getTime();
       if (Number.isFinite(t)) occurred = t;
-    } else if (e.occurred_at_offset_days) {
+    } else if (!fallbackDate && e.occurred_at_offset_days) {
       occurred = Date.now() + (Number(e.occurred_at_offset_days) || 0) * 86400000;
     }
     // An investment is stored as a transfer into a holding (the transactions

@@ -48,7 +48,7 @@ export default function VoiceModal({ onClose }) {
         body: JSON.stringify({ audio: b64, mimeType: rec.mimeType, history: store.noteHistory().slice(0, 60), customCategories: store.customCategories.map((c) => c.name), holdings: store.realHoldings.map((h) => h.name), accounts: store.accounts.map((a) => a.name), groups: store.groupNames().slice(0, 30), today: todayISO() }),
       });
       const { added, sum } = await applyParsedTransactions(store, out, 'voice',
-        { fallbackDate: entryDate, fallbackAccount: entryAccount });
+        { fallbackDate: entryDate, fallbackAccount: entryAccount, today: todayISO() });
       store.toast(added ? `Added ${added} ${added > 1 ? 'entries' : 'entry'} · ${rupees(sum)} ✓` : `Heard: "${out?.transcript || '…'}", no amounts found`);
     } catch (e) { store.toast('Could not process audio: ' + e.message); }
     onClose();
