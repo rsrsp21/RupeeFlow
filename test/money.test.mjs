@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import {
   computeTotals, computeAccountBalances, computeHoldingBalances,
   computeHoldingContributed, computeNetWorth, isNewerTx, groupIndian,
+  activeHoldings, shadowedHoldingNames,
 } from '../src/lib/money.mjs';
 
 // Amounts are integer paise throughout, as they are in the app.
@@ -172,4 +173,43 @@ test('Indian grouping: decimals and part-typed input survive', () => {
   assert.equal(groupIndian(''), '');
   assert.equal(groupIndian(null), '');
   assert.equal(groupIndian(12345), '12,345', 'numbers, not just strings');
+});
+
+// A name shared by an account and a holding made an ordinary account-to-account
+// transfer read as an investment everywhere (badge, savings rate, AI data) AND
+// double-counted the money: the destination account's balance went up while the
+// same-named holding's balance also went up, inflating net worth by the full
+// transfer amount out of nothing.
+test('net worth: an account and a holding sharing a name must not double-count a transfer', () => {
+  const accounts = [
+    { name: 'HDFC', type: 'Bank', opening_balance: R(100000) },
+    { name: 'Savings', type: 'Bank', opening_balance: 0 },
+  ];
+  const holdings = [{ name: 'Savings', kind: 'FD', opening_balance: 0, current_value: 0, valued_at: 0 }];
+  const live = [tx({ type: 'transfer', amount: R(5000), account: 'HDFC', to_account: 'Savings' })];
+
+  const worth = computeNetWorth(accounts, holdings, live);
+  // Money only moved between two places the user owns — net worth cannot change.
+  assert.equal(worth.total, R(100000));
+});
+
+test('shadowed holdings: the account wins, and the clash is reportable', () => {
+  const accounts = [{ name: 'Savings', type: 'Bank', opening_balance: 0 }];
+  const holdings = [
+    { name: 'savings', kind: 'FD', opening_balance: 0 },   // case-insensitive
+    { name: 'Nifty 50', kind: 'Mutual Funds', opening_balance: 0 },
+  ];
+  assert.deepEqual(activeHoldings(accounts, holdings).map((h) => h.name), ['Nifty 50']);
+  assert.deepEqual(shadowedHoldingNames(accounts, holdings), ['savings']);
+});
+
+test('net worth: a genuine investment still leaves spendable and lands in invested', () => {
+  const accounts = [{ name: 'HDFC', type: 'Bank', opening_balance: R(100000) }];
+  const holdings = [{ name: 'Nifty 50', kind: 'Mutual Funds', opening_balance: 0, current_value: 0, valued_at: 0 }];
+  const live = [tx({ type: 'transfer', amount: R(5000), account: 'HDFC', to_account: 'Nifty 50' })];
+
+  const worth = computeNetWorth(accounts, holdings, live);
+  assert.equal(worth.spendable, R(95000));
+  assert.equal(worth.invested, R(5000));
+  assert.equal(worth.total, R(100000));
 });

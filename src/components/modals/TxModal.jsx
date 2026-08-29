@@ -32,7 +32,7 @@ export default function TxModal({ state, onClose }) {
   // type to expense/income/transfer, and an investment IS a transfer, just
   // one whose destination is a holding rather than a spendable account. It's
   // a separate tab purely so the form can offer the right destination list.
-  const isHoldingName = (n) => store.holdings.some((h) => h.name === n);
+  const isHoldingName = store.isHoldingName;
   const openedAs = existing
     ? (existing.type === 'transfer' && isHoldingName(existing.to_account) ? 'invest' : existing.type)
     : (pre.type || 'expense');
@@ -56,7 +56,7 @@ export default function TxModal({ state, onClose }) {
   // from every total. Empty is honest — save() refuses to write without one.
   const [toAccount, setToAccount] = useState(existing?.to_account || '');
   const [holding, setHolding] = useState(
-    openedAs === 'invest' ? (existing?.to_account || '') : (store.holdings[0]?.name || ''));
+    openedAs === 'invest' ? (existing?.to_account || '') : (store.realHoldings[0]?.name || ''));
   // Both tabs move money between places rather than spending or earning it,
   // so neither wants a category picker.
   const isMove = type === 'transfer' || type === 'invest';
@@ -300,7 +300,7 @@ export default function TxModal({ state, onClose }) {
                 <span>Into</span>
                 <select value={holding} onChange={(e) => setHolding(e.target.value)}>
                   <option value="" disabled>Select…</option>
-                  {store.holdings.map((h) => <option key={h.name} value={h.name}>{h.name}</option>)}
+                  {store.realHoldings.map((h) => <option key={h.name} value={h.name}>{h.name}</option>)}
                 </select>
               </label>
             )}
@@ -309,7 +309,7 @@ export default function TxModal({ state, onClose }) {
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </label>
           </div>
-          {type === 'invest' && !store.holdings.length && (
+          {type === 'invest' && !store.realHoldings.length && (
             <p className="muted small">
               No savings or investments set up yet — add one on the Savings screen first, then you can move money into it here.
             </p>

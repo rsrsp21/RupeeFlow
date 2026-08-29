@@ -59,6 +59,33 @@ export function computeAccountBalances(accounts, live) {
 }
 
 /**
+ * Accounts and holdings are two separate lists, but the ledger refers to both
+ * by NAME alone — so a holding called "Savings" alongside an account called
+ * "Savings" is indistinguishable to every function here.
+ *
+ * That collision was silently catastrophic: an ordinary account-to-account
+ * transfer credited the destination ACCOUNT (spendable up) and, because the
+ * name also matched a holding, credited that holding too (invested up). Net
+ * worth grew by the full amount of a transfer that moved nothing, and the
+ * entry rendered as "invest" everywhere — badge, savings rate, the balance
+ * sheet handed to the AI.
+ *
+ * Accounts win. A transfer's destination dropdown only ever offers accounts,
+ * so an account is what the user actually picked; the shadowed holding is
+ * ignored for math until they rename one of the two.
+ */
+export function activeHoldings(accounts, holdings) {
+  const taken = new Set((accounts || []).map((a) => String(a.name).toLowerCase()));
+  return (holdings || []).filter((h) => !taken.has(String(h.name).toLowerCase()));
+}
+
+/** Names claimed by an account AND a holding — surfaced so the user can fix it. */
+export function shadowedHoldingNames(accounts, holdings) {
+  const taken = new Set((accounts || []).map((a) => String(a.name).toLowerCase()));
+  return (holdings || []).filter((h) => taken.has(String(h.name).toLowerCase())).map((h) => h.name);
+}
+
+/**
  * Value per holding: whatever the user last said it was worth, plus anything
  * moved in or out SINCE that valuation.
  *
@@ -110,7 +137,9 @@ export function computeNetWorth(accounts, holdings, live) {
     if (cards.has(name)) dues += -v;
     else spendable += v;
   }
-  const invested = Object.values(computeHoldingBalances(holdings, live))
+  // activeHoldings, not holdings — a holding shadowed by an account of the
+  // same name would otherwise count the same rupee as spendable AND invested.
+  const invested = Object.values(computeHoldingBalances(activeHoldings(accounts, holdings), live))
     .reduce((s, v) => s + v, 0);
   return { spendable, invested, dues, total: spendable + invested - dues };
 }

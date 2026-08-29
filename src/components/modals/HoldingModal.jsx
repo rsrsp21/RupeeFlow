@@ -40,6 +40,10 @@ export default function HoldingModal({ onClose, existing = null }) {
     const clash = store.holdings.some((h) =>
       h.name.toLowerCase() === finalName.toLowerCase() && h.name !== existing?.name);
     if (clash) return store.toast('That already exists');
+    // See AccountModal: one name, one meaning. A holding sharing an account's
+    // name is shadowed by it and would silently stop counting.
+    if (store.accounts.some((a) => a.name.toLowerCase() === finalName.toLowerCase()))
+      return store.toast(`"${finalName}" is already an account — pick another name`);
     setBusy(true);
     const ob = toPaise(opening);
     const value = Number.isFinite(ob) ? ob : 0;
