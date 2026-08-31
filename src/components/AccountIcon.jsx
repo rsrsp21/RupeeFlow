@@ -3,7 +3,7 @@
 // same visual treatment as CategoryIcon. Keyed by type rather than the
 // account's display name so a custom name ("HDFC") still gets the right
 // icon — callers resolve name -> type via store.accountType() first.
-import { Banknote, Landmark, Smartphone, CreditCard, PiggyBank, Wallet } from 'lucide-react';
+import { Banknote, Landmark, Smartphone, CreditCard, PiggyBank, Wallet, HandCoins } from 'lucide-react';
 
 const TYPE_ICONS = {
   'Cash': { icon: Banknote, color: '#22c55e' },
@@ -11,6 +11,7 @@ const TYPE_ICONS = {
   'UPI': { icon: Smartphone, color: '#8b5cf6' },
   'Credit Card': { icon: CreditCard, color: '#f59e0b' },
   'Savings': { icon: PiggyBank, color: '#14b8a6' },
+  'IOU': { icon: HandCoins, color: '#eab308' },
 };
 const FALLBACK = { icon: Wallet, color: '#9ca3af' };
 
