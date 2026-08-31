@@ -234,6 +234,14 @@ export default function Ledger() {
     return { spent, net };
   }, [store, store.txs, store.accounts, cumEnd, account]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Today's actual position for the same scope, so "Net upto {date}" (a past
+  // point) can be read next to where things stand right now — otherwise the
+  // only way to see that comparison is to separately flip to "All".
+  const currentNet = useMemo(() => {
+    if (!account) return store.netWorth().spendable;
+    return store.accountBalances()[account] || 0;
+  }, [store, store.txs, store.accounts, account]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // trend buckets over the period (expenses) — skipped for "Day": occurred_at's
   // time-of-day is often just whenever the entry was logged, not the real time,
   // so an hour-by-hour breakdown there would be misleading.
@@ -365,6 +373,17 @@ export default function Ledger() {
             <span className="stat-k">Spent upto {cumLabel}</span>
             <b className="stat-v out">{rupees(cum.spent)}</b>
           </div>
+          {/* Only worth showing as a separate figure when it can actually
+              differ from the one above — i.e. we're looking at a past point,
+              not "now" itself, where the two would just be identical. */}
+          {cumLabel !== 'now' && (
+            <div className="stat">
+              <span className="stat-k">Current balance</span>
+              <b className="stat-v" style={{ color: currentNet >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                {currentNet < 0 ? '−' : ''}{rupees(Math.abs(currentNet))}
+              </b>
+            </div>
+          )}
         </div>
         <p className="muted small cum-note">{account || 'All accounts'} · Up to the end of this period</p>
       </div>
