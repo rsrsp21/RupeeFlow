@@ -20,6 +20,7 @@ export default function AccountModal({ onClose, existing = null, onReconcile }) 
   const [limit, setLimit] = useState(existing?.limit_amount ? String(existing.limit_amount / 100) : '');
   const [busy, setBusy] = useState(false);
   const isCard = type === 'Credit Card';
+  const isIOU = type === 'IOU';
 
   async function submit(e) {
     e.preventDefault();
@@ -85,7 +86,7 @@ export default function AccountModal({ onClose, existing = null, onReconcile }) 
             </label>
           </div>
           <label className="stacked-label">
-            <span>{isCard ? 'Outstanding due when you started tracking' : 'Balance when you started tracking'} (optional)</span>
+            <span>{isCard ? 'Outstanding due when you started tracking' : isIOU ? 'Already owed to you' : 'Balance when you started tracking'} (optional)</span>
             <div className="amount-input">
               <span>₹</span>
               <AmountInput placeholder="0" value={balance} onChange={setBalance} />
@@ -104,6 +105,12 @@ export default function AccountModal({ onClose, existing = null, onReconcile }) 
             <div className="callout">
               <AlertTriangle size={14} />
               <span>Enter what you <b>owe</b>, not your limit. Nothing used? Enter <b>0</b>.</span>
+            </div>
+          )}
+          {isIOU && (
+            <div className="callout">
+              <AlertTriangle size={14} />
+              <span>For tracking money fronted for someone (e.g. a friend&apos;s share of a shared bill). Its balance counts toward net worth but not toward spendable cash, since it isn&apos;t liquid until they pay you back.</span>
             </div>
           )}
           {editing && onReconcile && (

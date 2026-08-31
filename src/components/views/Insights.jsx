@@ -63,7 +63,7 @@ export default function Insights() {
     return {
       dailyBurn,
       runwayDays: dailyBurn > 0 ? Math.floor(Math.max(0, w.spendable) / dailyBurn) : null,
-      spendable: Math.round(w.spendable), invested: Math.round(w.invested), dues: Math.round(w.dues),
+      spendable: Math.round(w.spendable), invested: Math.round(w.invested), dues: Math.round(w.dues), owed: Math.round(w.owed),
       saved: Math.round((s2.month_invested_rupees || 0) * 100),
       rate: s2.savings_rate_pct, stale,
       lastIncome: s2.last_income,
@@ -155,6 +155,12 @@ export default function Insights() {
                 <div className="stat">
                   <span className="stat-k"><CreditCard size={12} /> Card dues</span>
                   <b className="stat-v" style={{ color: 'var(--red)' }}>{rupees(health.dues)}</b>
+                </div>
+              )}
+              {health.owed > 0 && (
+                <div className="stat">
+                  <span className="stat-k">Owed to you</span>
+                  <b className="stat-v" style={{ color: 'var(--green)' }}>{rupees(health.owed)}</b>
                 </div>
               )}
               <div className="stat">

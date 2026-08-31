@@ -132,16 +132,21 @@ export function computeHoldingContributed(holdings, live) {
 export function computeNetWorth(accounts, holdings, live) {
   const bal = computeAccountBalances(accounts, live);
   const cards = new Set(accounts.filter((a) => a.type === 'Credit Card').map((a) => a.name));
-  let spendable = 0, dues = 0;
+  // An IOU account tracks what someone else owes you, not cash you can spend
+  // right now — it's a real asset for net worth, but folding it into
+  // spendable would overstate what's actually liquid until they pay you back.
+  const ious = new Set(accounts.filter((a) => a.type === 'IOU').map((a) => a.name));
+  let spendable = 0, dues = 0, owed = 0;
   for (const [name, v] of Object.entries(bal)) {
     if (cards.has(name)) dues += -v;
+    else if (ious.has(name)) owed += v;
     else spendable += v;
   }
   // activeHoldings, not holdings — a holding shadowed by an account of the
   // same name would otherwise count the same rupee as spendable AND invested.
   const invested = Object.values(computeHoldingBalances(activeHoldings(accounts, holdings), live))
     .reduce((s, v) => s + v, 0);
-  return { spendable, invested, dues, total: spendable + invested - dues };
+  return { spendable, invested, dues, owed, total: spendable + invested + owed - dues };
 }
 
 /**

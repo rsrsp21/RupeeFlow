@@ -7,7 +7,7 @@
 // Categories stay in Settings — a labelling preference, not a place money lives.
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, PiggyBank } from 'lucide-react';
+import { Wallet, PiggyBank, HandCoins } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees } from '@/lib/client/constants';
 import SyncBadge from '../SyncBadge';
@@ -64,6 +64,12 @@ export default function Money() {
             <span className="kpi-label"><PiggyBank size={14} /> Saved &amp; invested</span>
             <b className="kpi-value">{rupees(worth.invested)}</b>
           </div>
+          {worth.owed > 0 && (
+            <div className="kpi">
+              <span className="kpi-label"><HandCoins size={14} /> Owed to you</span>
+              <b className="kpi-value" style={{ color: 'var(--green)' }}>{rupees(worth.owed)}</b>
+            </div>
+          )}
           {worth.dues > 0 && (
             <div className="kpi">
               <span className="kpi-label">Card dues</span>

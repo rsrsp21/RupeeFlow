@@ -26,7 +26,7 @@ export const CATEGORIES = {
 // Type drives the icon (AccountIcon); name is what you actually see and pick
 // from. Kept separate so a custom-named account ("HDFC", "Wife's card")
 // still gets a correct icon instead of falling back to a generic wallet.
-export const ACCOUNT_TYPES = ['Cash', 'Bank', 'UPI', 'Credit Card', 'Other'];
+export const ACCOUNT_TYPES = ['Cash', 'Bank', 'UPI', 'Credit Card', 'IOU', 'Other'];
 export const ACCOUNTS = [
   { name: 'Cash', type: 'Cash' },
   { name: 'Bank', type: 'Bank' },
