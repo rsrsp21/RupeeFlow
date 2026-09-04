@@ -213,3 +213,24 @@ test('net worth: a genuine investment still leaves spendable and lands in invest
   assert.equal(worth.invested, R(5000));
   assert.equal(worth.total, R(100000));
 });
+
+// An IOU account is money someone else owes you: a real asset for net worth,
+// but not cash you can spend until it comes back. It must land in `owed`,
+// never in `spendable` (which drives the runway estimate), and the four
+// buckets must still reconcile to the total.
+test('net worth: an IOU is an asset but not spendable', () => {
+  const accounts = [
+    { name: 'HDFC', type: 'Bank', opening_balance: R(50000) },
+    { name: 'Lent to Ravi', type: 'IOU', opening_balance: 0 },
+    { name: 'Amex', type: 'Credit Card', opening_balance: R(-3000) },
+  ];
+  // Fronted Ravi's ₹2,000 share of a bill: leaves the bank, becomes owed.
+  const live = [tx({ type: 'transfer', amount: R(2000), account: 'HDFC', to_account: 'Lent to Ravi' })];
+
+  const w = computeNetWorth(accounts, [], live);
+  assert.equal(w.spendable, R(48000));
+  assert.equal(w.owed, R(2000));
+  assert.equal(w.dues, R(3000));
+  assert.equal(w.total, R(47000));
+  assert.equal(w.total, w.spendable + w.invested + w.owed - w.dues);
+});
