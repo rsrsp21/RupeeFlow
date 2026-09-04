@@ -169,6 +169,7 @@ export async function toPDF(rows, opts, meta) {
     const cells = [
       ['Spendable', meta.worth.spendable],
       ['Saved & invested', meta.worth.invested],
+      ...(meta.worth.owed > 0 ? [['Owed to you', meta.worth.owed]] : []),
       ...(meta.worth.dues > 0 ? [['Card dues', -meta.worth.dues]] : []),
       ['Net worth', meta.worth.total],
     ];

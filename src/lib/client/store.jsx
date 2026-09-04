@@ -930,6 +930,9 @@ export function StoreProvider({ children }) {
         spendable: rup(worth.spendable),
         invested: rup(worth.invested),
         card_dues: rup(worth.dues),
+        // Omitting this made the four figures fail to add up, and the coach
+        // would "correct" the discrepancy by inventing an explanation.
+        owed_to_you: rup(worth.owed),
         total: rup(worth.total),
       },
       accounts: accounts.map((a) => {

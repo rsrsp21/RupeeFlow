@@ -84,8 +84,17 @@ export default function Dashboard() {
   // Money moved out of the bottom nav, and net worth was the one thing worth
   // opening it for day to day — so it's surfaced here instead.
   const worth = store.netWorth();
+  // The headline figure is the LIQUID position — what's in accounts right now,
+  // credit card debt already netted off. An IOU account holds money someone
+  // else owes you: real, but not spendable until it comes back, so summing it
+  // in here would quietly inflate the one number the whole screen leads with.
+  // It isn't dropped, just moved to where it belongs — the breakdown line
+  // below reports it beside Invested, and both roll up into Net worth.
+  // Selecting the IOU account explicitly still shows its own balance, since
+  // that's the user asking for exactly that figure.
+  const iouNames = new Set(store.accounts.filter((a) => a.type === 'IOU').map((a) => a.name));
   const netBalance = acctFilter === 'all'
-    ? Object.values(balances).reduce((s, b) => s + b, 0)
+    ? Object.entries(balances).reduce((s, [name, b]) => (iouNames.has(name) ? s : s + b), 0)
     : (balances[acctFilter] || 0);
 
   const now = Date.now();
@@ -257,9 +266,10 @@ export default function Dashboard() {
           )}
         </div>
         <AnimatedAmount paise={netBalance} />
-        {acctFilter === 'all' && (worth.invested > 0 || worth.dues > 0) && (
+        {acctFilter === 'all' && (worth.invested > 0 || worth.dues > 0 || worth.owed > 0) && (
           <p className="budget-line hero-worth">
             {worth.invested > 0 && <>Invested {rupees(worth.invested)}</>}
+            {worth.owed > 0 && <>{worth.invested > 0 ? ' · ' : ''}Owed to you {rupees(worth.owed)}</>}
             {worth.dues > 0 && <> · Card dues {rupees(worth.dues)}</>}
             {' · Net worth '}<b>{rupees(worth.total)}</b>
           </p>

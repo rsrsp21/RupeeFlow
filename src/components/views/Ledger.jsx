@@ -214,8 +214,15 @@ export default function Ledger() {
   // moved into a savings holding (or to another account) would never leave
   // the total. Only names that are real accounts count, so a transfer to a
   // holding correctly reduces it.
-  const cum = useMemo(() => {
-    const upto = store.live().filter((x) => x.occurred_at < cumEnd);
+  //
+  // Both the as-of-a-date figure and the current one come from this same
+  // reducer. They are printed side by side to be compared, so computing them
+  // two different ways is the one thing that must not happen: deriving the
+  // current figure from netWorth().spendable instead excluded credit cards and
+  // IOU accounts while the as-of figure still counted them, so the pair
+  // disagreed by the card balance and the "comparison" was nonsense.
+  const netUpto = (cutoff) => {
+    const upto = store.live().filter((x) => x.occurred_at < cutoff);
     const scope = account ? store.accounts.filter((a) => a.name === account) : store.accounts;
     const inScope = new Set(scope.map((a) => a.name));
     let net = scope.reduce((s, a) => s + (Number(a.opening_balance) || 0), 0);
@@ -232,15 +239,15 @@ export default function Ledger() {
       }
     }
     return { spent, net };
-  }, [store, store.txs, store.accounts, cumEnd, account]); // eslint-disable-line react-hooks/exhaustive-deps
+  };
 
-  // Today's actual position for the same scope, so "Net upto {date}" (a past
-  // point) can be read next to where things stand right now — otherwise the
-  // only way to see that comparison is to separately flip to "All".
-  const currentNet = useMemo(() => {
-    if (!account) return store.netWorth().spendable;
-    return store.accountBalances()[account] || 0;
-  }, [store, store.txs, store.accounts, account]); // eslint-disable-line react-hooks/exhaustive-deps
+  const cum = useMemo(() => netUpto(cumEnd),
+    [store, store.txs, store.accounts, cumEnd, account]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Today's actual position for the SAME scope and the same basis, so "Net upto
+  // {date}" (a past point) can be read next to where things stand right now.
+  const currentNet = useMemo(() => netUpto(Infinity).net,
+    [store, store.txs, store.accounts, account]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // trend buckets over the period (expenses) — skipped for "Day": occurred_at's
   // time-of-day is often just whenever the entry was logged, not the real time,
