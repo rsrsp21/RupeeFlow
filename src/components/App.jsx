@@ -65,6 +65,9 @@ export default function App({ children }) {
   const [shareText, setShareText] = useState(null);
   const [budgetModal, setBudgetModal] = useState(null);
   const [exportOpen, setExportOpen] = useState(false);
+  // Which account the export builder should open pre-scoped to, when it was
+  // opened from a view that already has an account in hand (Ledger).
+  const [exportAccount, setExportAccount] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
   const [onboardOpen, setOnboardOpen] = useState(false);
@@ -250,7 +253,8 @@ export default function App({ children }) {
   }
 
   const ui = {
-    view, setView, openTx, openBudget, openExport: () => setExportOpen(true),
+    view, setView, openTx, openBudget,
+    openExport: (acct = '') => { setExportAccount(acct); setExportOpen(true); },
     entryDate, setEntryDate, entryAccount, setEntryAccount,
   };
 
@@ -331,7 +335,7 @@ export default function App({ children }) {
             <PromptModal key="prompt" initialText={shareText} onClose={() => { setPromptOpen(false); setShareText(null); }} />
           )}
           {budgetModal && <BudgetModal key="budget" category={budgetModal.category} onClose={() => setBudgetModal(null)} />}
-          {exportOpen && <ExportModal key="export" onClose={() => setExportOpen(false)} />}
+          {exportOpen && <ExportModal key="export" initialAccount={exportAccount} onClose={() => setExportOpen(false)} />}
           {onboardOpen && (
             <AddAccountModal
               key="onboard"
