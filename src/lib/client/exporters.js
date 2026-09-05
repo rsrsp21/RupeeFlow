@@ -55,11 +55,16 @@ export function formatRangeLabel(opts) {
 
 // Compact, sortable date tag for filenames — no ambiguous words like "month".
 export function rangeFileTag(opts) {
-  if (opts.range === 'all' && opts.customFrom == null && opts.customTo == null) return 'all-time';
+  // An account-scoped export sits next to the all-accounts one in the
+  // downloads folder, so the name has to say which is which.
+  const slug = opts.account
+    ? `${opts.account.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-`
+    : '';
+  if (opts.range === 'all' && opts.customFrom == null && opts.customTo == null) return `${slug}all-time`;
   const { from, to } = resolveRange(opts);
   const iso = (ts) => new Date(ts).toISOString().slice(0, 10);
   const endIso = iso(to - DAY_MS);
-  return iso(from) === endIso ? iso(from) : `${iso(from)}_to_${endIso}`;
+  return slug + (iso(from) === endIso ? iso(from) : `${iso(from)}_to_${endIso}`);
 }
 
 export function selectRows(all, opts) {
@@ -67,6 +72,9 @@ export function selectRows(all, opts) {
   let rows = all.filter((t) => t.occurred_at >= from && t.occurred_at < to);
   if (opts.type) rows = rows.filter((t) => t.type === opts.type);
   if (opts.category) rows = rows.filter((t) => t.category === opts.category);
+  // Both legs, so a statement for one account still shows the transfers that
+  // moved money out of it — matching how Ledger scopes to an account.
+  if (opts.account) rows = rows.filter((t) => t.account === opts.account || t.to_account === opts.account);
   return rows.sort((a, b) => a.occurred_at - b.occurred_at);
 }
 
@@ -140,7 +148,7 @@ export async function toPDF(rows, opts, meta) {
 
   doc.setFontSize(18); doc.text('RupeeFlow', 14, 18);
   doc.setFontSize(10); doc.setTextColor(120);
-  const headLine = [rangeLabel, meta.name || '', `generated ${new Date().toLocaleDateString('en-IN')}`]
+  const headLine = [rangeLabel, opts.account || '', meta.name || '', `generated ${new Date().toLocaleDateString('en-IN')}`]
     .filter(Boolean).join('  ·  ');
   doc.text(headLine, 14, 25);
 

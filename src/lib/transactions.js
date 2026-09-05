@@ -182,9 +182,14 @@ const csvEscape = (v) => {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
-export async function buildCSV(userId) {
+export async function buildCSV(userId, account = '') {
+  // Both legs, so an account's statement keeps the transfers that moved money
+  // out of it — same scoping the in-app export uses.
   const { rows } = await q(
-    `SELECT ${TX_FIELDS} FROM transactions WHERE user_id = ? AND deleted = 0 ORDER BY occurred_at ASC`, [userId]);
+    `SELECT ${TX_FIELDS} FROM transactions WHERE user_id = ? AND deleted = 0
+       ${account ? 'AND (account = ? OR to_account = ?)' : ''}
+     ORDER BY occurred_at ASC`,
+    account ? [userId, account, account] : [userId]);
   const header = 'Date,Type,Category,Note,Account,To Account,Source,Amount (INR)';
   const lines = rows.map((t) => [
     new Date(Number(t.occurred_at)).toISOString().slice(0, 10),

@@ -292,7 +292,8 @@ export default function Ledger() {
             ))}
             <button className={allTime ? 'on' : ''} onClick={() => setAllTime(true)}>All</button>
           </div>
-          <button className="btn ghost" onClick={openExport} title="Export"><Download size={15} /></button>
+          <button className="btn ghost" onClick={() => openExport(account)}
+            title={account ? `Export ${account}` : 'Export'}><Download size={15} /></button>
         </div>
         <div className="view-head-utils"><SyncBadge /><MoneyLink /><SettingsLink /></div>
       </header>

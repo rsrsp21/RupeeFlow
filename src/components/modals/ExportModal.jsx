@@ -12,7 +12,7 @@ import { backdropMotion, panelMotion } from './TxModal';
 
 const DEFAULT_COLS = ['date', 'type', 'category', 'note', 'account', 'amount'];
 
-export default function ExportModal({ onClose }) {
+export default function ExportModal({ onClose, initialAccount = '' }) {
   const store = useStore();
   const [format, setFormat] = useState('pdf');
   const [range, setRange] = useState('month');
@@ -20,6 +20,7 @@ export default function ExportModal({ onClose }) {
   const [customTo, setCustomTo] = useState('');
   const [type, setType] = useState('');
   const [category, setCategory] = useState('');
+  const [account, setAccount] = useState(initialAccount);
   const [groupBy, setGroupBy] = useState('category');
   const [cols, setCols] = useState(DEFAULT_COLS);
   const [includeSummary, setIncludeSummary] = useState(true);
@@ -28,12 +29,12 @@ export default function ExportModal({ onClose }) {
   const [busy, setBusy] = useState(false);
 
   const opts = {
-    range, type, category, groupBy, columns: cols, includeSummary, includeTransactions,
+    range, type, category, account, groupBy, columns: cols, includeSummary, includeTransactions,
     customFrom: range === 'custom' && customFrom ? new Date(`${customFrom}T00:00:00`).getTime() : undefined,
     customTo: range === 'custom' && customTo ? new Date(`${customTo}T00:00:00`).getTime() + 86400000 : undefined,
   };
   const rows = useMemo(() => selectRows(store.live(), opts),
-    [store.txs, range, type, category, customFrom, customTo]); // eslint-disable-line
+    [store.txs, range, type, category, account, customFrom, customTo]); // eslint-disable-line
   const totals = store.totals(rows);
 
   const toggleCol = (c) =>
@@ -143,7 +144,9 @@ export default function ExportModal({ onClose }) {
                 </label>
               </div>
             )}
-            <p className="muted small" style={{ marginTop: 8 }}>Exporting: {formatRangeLabel(opts)}</p>
+            <p className="muted small" style={{ marginTop: 8 }}>
+              Exporting: {formatRangeLabel(opts)}{account ? ` · ${account}` : ''}
+            </p>
           </div>
 
           <div className="field">
@@ -158,6 +161,14 @@ export default function ExportModal({ onClose }) {
                 {[...Object.keys(CATEGORIES), ...store.customCategories.map((c) => c.name)].map((c) => <option key={c}>{c}</option>)}
               </select>
             </div>
+            {store.accounts.length > 0 && (
+              <div className="form-row" style={{ marginTop: 8 }}>
+                <select value={account} onChange={(e) => setAccount(e.target.value)}>
+                  <option value="">All accounts</option>
+                  {store.accounts.map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
+                </select>
+              </div>
+            )}
           </div>
 
           {format !== 'json' && (
