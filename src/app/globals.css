@@ -1047,6 +1047,20 @@ select {
   scrollbar-width: none; -webkit-overflow-scrolling: touch;
 }
 .acct-chips::-webkit-scrollbar { display: none; }
+/* Arrow controls for pointer devices: on a laptop there's no flick gesture and
+   the scrollbar is hidden, so an overflowing strip looked like it ended at the
+   card edge. Touch screens keep the bare swipe. */
+.acct-strip { display: flex; align-items: center; gap: 6px; }
+.acct-strip .acct-chips { flex: 1; min-width: 0; }
+.acct-scroll {
+  display: none; flex: 0 0 auto; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 999px; padding: 0;
+  background: var(--surface-2); border: 1px solid transparent; color: var(--muted);
+  cursor: pointer; transition: border-color .15s, color .15s, opacity .15s;
+}
+.acct-scroll:hover:not(:disabled) { color: var(--text); border-color: var(--line-strong); }
+.acct-scroll:disabled { opacity: .3; cursor: default; }
+@media (hover: hover) and (pointer: fine) { .acct-scroll { display: inline-flex; } }
 .acct-chip {
   display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
   padding: 7px 11px; border-radius: 999px; font: inherit; font-size: .76rem;
