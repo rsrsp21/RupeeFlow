@@ -15,9 +15,23 @@ import { q } from '@/lib/db';
 // Every failure path here falls back to the summary answer rather than
 // surfacing an error: a slightly vaguer answer beats "something went wrong".
 async function sqlBackedAnswer(userId, question, summary) {
+  // The categories this user actually uses, straight from their entries —
+  // narrowing a match by category only works if the model knows the real
+  // names, and reading them from the data picks up custom categories without
+  // needing a separate lookup. A failure here is not fatal: the model just
+  // loses the hint.
+  let categoryList = '';
+  try {
+    const { rows } = await q(
+      `SELECT category, COUNT(*) AS n FROM transactions
+        WHERE user_id = ? AND deleted = 0 AND category <> ''
+        GROUP BY category ORDER BY n DESC LIMIT 40`, [userId]);
+    categoryList = rows.map((r) => r.category).join(', ');
+  } catch { /* hint is optional */ }
+
   let plan;
   try {
-    plan = await writeSqlForQuestion(question, SQL_SCHEMA_NOTE);
+    plan = await writeSqlForQuestion(question, SQL_SCHEMA_NOTE, categoryList);
   } catch { return null; }
   if (!plan?.need_sql || !plan.sql) return null;
 

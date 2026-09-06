@@ -196,18 +196,22 @@ Suggest budgets for the 5–7 categories they actually spend on. Base them on re
 // Kept separate from answering so the query can be validated and run before
 // any prose is written — the model never gets to narrate over rows it didn't
 // actually receive.
-export function writeSqlForQuestion(question, schemaNote) {
+export function writeSqlForQuestion(question, schemaNote, categoryList = '') {
   return gemini([{
     text: `You translate a personal-finance question into ONE SQLite SELECT query.
 ${schemaNote}
 Question: "${question}"
 Return ONLY JSON: {"sql":"SELECT ...","need_sql":true} — or {"need_sql":false} if the question is about balances, net worth, holdings, budgets or savings rate, which live outside this table and are already summarised elsewhere.
 Rules: a single SELECT only; no semicolons, comments, CTEs or other statements. Never reference user_id or any table other than tx. Add ORDER BY and a small LIMIT when listing. For a named month with no year, use the most recent occurrence of that month in the data.
-Matching an item is the part most often got wrong. A bare word is a SUBSTRING of longer, different things: '%chicken%' also matches "chicken biryani", "butter chicken" and "chicken roll", which are restaurant dishes, not the ingredient. Read what was actually asked:
-- Asked for a specific thing ("chicken breast"), match that phrase and nothing else.
-- Asked for the ingredient itself ("chicken", "how much on chicken"), the user means what they bought as chicken to cook, NOT every restaurant dish containing the word. The category tells you which is which far more reliably than the words in the note: raw ingredients are logged under grocery categories, prepared dishes under eating-out ones. Prefer constraining the category, e.g. lower(note) LIKE '%chicken%' AND category NOT IN ('Food & Dining'). A word blocklist cannot work here -- "butter chicken" and "chicken 65" name dishes without containing any generic dish word -- so do not rely on one.
-- Asked broadly ("everything with chicken in it", "all chicken spending"), the plain LIKE is right.
-Always ALSO return the matched notes so the user can see what was counted: GROUP BY note, with SUM(rupees) and COUNT(*), ordered by the total descending. A single bare total hides a wrong match; a per-note breakdown makes it obvious. Aggregate rather than dumping raw rows.`,
+Getting the MATCH right is the part most often got wrong, and it matters for every kind of question, not just one.
+A bare word is a SUBSTRING, so LIKE '%word%' silently catches longer, different things: '%chicken%' also matches "chicken biryani", '%uber%' also matches "uber eats", '%book%' also matches "bookshelf" and "booking fee", '%gym%' also matches "gym bag". Counting those together produces a confident, wrong total.
+So before writing the query, decide what the user actually meant:
+1. A specific phrase ("chicken breast", "uber eats") -> match that phrase and nothing else.
+2. A plain thing ("chicken", "uber", "coffee") -> they mean that thing itself, NOT everything whose text happens to contain the word. Narrow it.
+3. Explicitly broad ("everything with X in it", "all X spending", "anything related to X") -> the plain LIKE is what they asked for.
+For case 2, narrow with the CATEGORY rather than a list of banned words. Each entry already carries the user's own category, and that separates kinds of spending far more reliably than the note text: a raw ingredient sits under a grocery category while a prepared dish sits under an eating-out one; a taxi ride and a food delivery from the same brand differ by category, not by name. A word blocklist cannot work -- "butter chicken" and "chicken 65" name dishes without containing any generic dish word, and you cannot enumerate every case -- so do not build one. The categories in use are: ${categoryList}. Pick from these; never invent a category name.
+When a word is genuinely ambiguous and the category does not settle it, prefer the narrower reading and say what you assumed.
+Always ALSO return the matched notes, never a bare total: GROUP BY note with SUM(rupees) and COUNT(*), ordered by total descending. A single number hides a wrong match; a per-note breakdown lets the user see what was counted and correct it. Aggregate rather than dumping raw rows.`,
   }], { asJson: true, temperature: 0.1 });
 }
 
