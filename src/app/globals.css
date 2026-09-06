@@ -1069,18 +1069,17 @@ select {
 
 /* Ask-anything, reachable from every tab. Sits above the bottom nav on
    mobile, which is why the offset is not a round number. */
+/* Inline at the end of .period-row rather than floating: as a fixed button it
+   competed with the add-entry FAB for the same corner, and this puts it in the
+   row the user is already reading. */
 .chat-fab {
-  /* Stacked ABOVE the add-entry FAB (.fab-cluster: right 28px, bottom 28px,
-     52px tall) rather than beside it — sitting alongside it collided once the
-     button grew, and both stay on the right where the thumb is. */
-  position: fixed; right: 28px; bottom: 92px; z-index: 40;
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 14px 20px; border: 0; border-radius: 999px;
-  font: inherit; font-size: .9rem; font-weight: 650;
+  margin-left: auto; flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border: 0; border-radius: 999px;
+  font: inherit; font-size: .8rem; font-weight: 650;
   /* Same treatment as .btn.primary — the app inverts rather than using a
      saturated accent for solid buttons. */
-  background: var(--text); color: var(--bg);
-  box-shadow: 0 6px 20px rgb(0 0 0 / .18); cursor: pointer;
+  background: var(--text); color: var(--bg); cursor: pointer;
 }
 .chat-fab:hover { filter: brightness(1.06); }
 .chat-sheet-wrap {
@@ -1131,12 +1130,7 @@ select {
   .chat-sheet-wrap { align-items: center; padding: 24px; }
   .chat-sheet { border-radius: 16px; border-bottom: 1px solid var(--line); }
 }
-@media (max-width: 760px) {
-  /* The add FAB is centred on mobile (.fab-cluster, left: 50%), so the right
-     side is free — keep Ask there rather than moving it across, and lift it
-     clear of the bottom nav. */
-  .chat-fab { right: 16px; left: auto; bottom: calc(74px + env(safe-area-inset-bottom)); }
-}
+
 
 /* Month picker on the Insights analysis card — sits in the card head beside
    the title, so it reads as scoping that card rather than the whole screen. */
@@ -1152,7 +1146,8 @@ select {
    Declared after the base rule because that rule's `background` shorthand
    would otherwise reset the drawn caret below. */
 .period-row .month-pick {
-  flex: 0 1 auto; width: auto; max-width: 60%;
+  /* Leaves room for the Ask button that shares this row. */
+  flex: 0 1 auto; width: auto; min-width: 0; max-width: 52%;
   /* A native select loses its affordance once it stops filling the row, so
      the caret is drawn in and space reserved for it. */
   appearance: none; -webkit-appearance: none; padding-right: 26px;

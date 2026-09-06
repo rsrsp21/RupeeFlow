@@ -347,8 +347,8 @@ export default function Insights() {
               inside one card — on Overview the trend and findings follow it
               too, and a control that lived in another tab would leave that
               looking unchangeable. */}
-          {monthOptions.length > 1 && (
-            <div className="period-row">
+          <div className="period-row">
+            {monthOptions.length > 1 && (<>
               <span className="muted small">Analysing</span>
               <select className="month-pick" value={month} onChange={(e) => setMonth(e.target.value)}
                 aria-label="Period to analyse">
@@ -367,8 +367,15 @@ export default function Insights() {
                   ))}
                 </optgroup>
               </select>
-            </div>
-          )}
+            </>)}
+            {/* Ask sits at the end of this row rather than floating over the
+                screen — it was colliding with the add-entry FAB, and this is
+                the row people are already looking at. */}
+            <button className="chat-fab" onClick={() => setChatOpen(true)} title="Ask about your money">
+              <Sparkles size={15} strokeWidth={2} />
+              <span>Ask</span>
+            </button>
+          </div>
 
           <div className="tab-bar" role="tablist">
             {[['overview', 'Overview'], ['breakdown', 'Breakdown'], ['coach', 'Coach']].map(([k, label]) => (
@@ -842,11 +849,6 @@ export default function Insights() {
           {/* ── chat: a sheet over the screen, reachable from every tab,
               because "ask a question" is the thing people come back for and
               it should not be buried at the bottom of one of them. ── */}
-          <button className="chat-fab" onClick={() => setChatOpen(true)} title="Ask about your money">
-            <Sparkles size={17} strokeWidth={2} />
-            <span>Ask</span>
-          </button>
-
           {chatOpen && (
           <div className="chat-sheet-wrap" onClick={(e) => { if (e.target === e.currentTarget) setChatOpen(false); }}>
           <motion.div className="chat-sheet" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
