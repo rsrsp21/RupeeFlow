@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   monthOverMonth, categoryDeltas, projectMonthEnd, weekdayPattern,
-  priceDrift, missingRecurring, outliers, monthlyTrend, spanSummary,
+  priceDrift, missingRecurring, outliers, monthlyTrend, spanSummary, categoryBreakdown,
 } from '../src/lib/analytics.mjs';
 import { normalizeNote } from '../src/lib/noteMatch.js';
 
@@ -234,4 +234,43 @@ test('a span carries income, saving and what was kept', () => {
   assert.equal(s.invested, R(20000));
   assert.equal(s.net, R(50000), 'kept = income minus expenses');
   assert.equal(s.savingsRate, 25);
+});
+
+test('the breakdown keeps steady categories, which "what moved" drops', () => {
+  // Food & Dining is identical in both windows. A delta-only list omits it
+  // entirely — the category is invisible *because* it is consistent, which
+  // is the wrong answer to "where does my money go".
+  const txs = [
+    ...[8, 9].map((m) => tx({ amount: R(6000), category: 'Food & Dining', occurred_at: at(2026, m, 4) })),
+    tx({ amount: R(9000), category: 'Groceries', occurred_at: at(2026, 9, 6) }),
+    tx({ amount: R(3000), category: 'Groceries', occurred_at: at(2026, 8, 6) }),
+  ];
+  const b = categoryBreakdown(txs, at(2026, 9, 1), at(2026, 9, 30), at(2026, 8, 1), at(2026, 8, 31));
+  const food = b.rows.find((r) => r.category === 'Food & Dining');
+  assert.ok(food, 'a flat category still appears');
+  assert.equal(food.delta, 0);
+  // ...and it is absent from the delta-only view, which is why this exists.
+  assert.equal(categoryDeltas(txs, NOW).some((c) => c.category === 'Food & Dining'), false);
+});
+
+test('breakdown shares are of the window total and sum to 100', () => {
+  const txs = [
+    tx({ amount: R(7500), category: 'Rent', occurred_at: at(2026, 9, 2) }),
+    tx({ amount: R(2500), category: 'Groceries', occurred_at: at(2026, 9, 6) }),
+  ];
+  const b = categoryBreakdown(txs, at(2026, 9, 1), at(2026, 9, 30));
+  assert.equal(b.total, R(10000));
+  assert.equal(b.rows[0].share, 75);
+  assert.equal(b.rows[1].share, 25);
+  assert.equal(b.rows.reduce((s2, r) => s2 + r.share, 0), 100);
+});
+
+test('breakdown is ranked by spend, biggest first', () => {
+  const txs = [
+    tx({ amount: R(100), category: 'Coffee', occurred_at: at(2026, 9, 2) }),
+    tx({ amount: R(9000), category: 'Rent', occurred_at: at(2026, 9, 2) }),
+    tx({ amount: R(500), category: 'Fuel', occurred_at: at(2026, 9, 2) }),
+  ];
+  const b = categoryBreakdown(txs, at(2026, 9, 1), at(2026, 9, 30));
+  assert.deepEqual(b.rows.map((r) => r.category), ['Rent', 'Fuel', 'Coffee']);
 });

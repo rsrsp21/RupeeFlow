@@ -1070,6 +1070,14 @@ select {
 }
 .delta-chip.up { background: color-mix(in srgb, var(--red) 13%, transparent); color: var(--red); }
 .delta-chip.down { background: color-mix(in srgb, var(--green) 13%, transparent); color: var(--green); }
+/* Unchanged still gets a chip, so the column stays aligned and a flat
+   category reads as "no change" rather than as missing data. */
+.delta-chip.flat { background: var(--surface-2); color: var(--muted); }
+/* Share of total, sized down so the rupee figure stays the row's anchor. */
+.cat-share {
+  flex-shrink: 0; min-width: 38px; text-align: right;
+  font-size: .7rem; font-variant-numeric: tabular-nums; color: var(--muted);
+}
 
 .month-net-row {
   display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; margin-top: 7px;
