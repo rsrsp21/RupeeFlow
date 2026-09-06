@@ -75,6 +75,8 @@ export default function Insights() {
     try { return localStorage.getItem('rf_chat_voice') === '1'; } catch { return false; }
   });
   const voiceRef = useRef(null);
+  // Which answer is being read aloud, so its own button can show a stop state.
+  const [speakingIdx, setSpeakingIdx] = useState(null);
   useEffect(() => onVoicesReady((v) => { voiceRef.current = v; }), []);
   useEffect(() => {
     try { localStorage.setItem('rf_chat_voice', speakBack ? '1' : '0'); } catch { /* private mode */ }
@@ -82,7 +84,7 @@ export default function Insights() {
   // Nothing should keep talking or listening after the sheet is closed.
   useEffect(() => {
     if (chatOpen) return;
-    stopListening(); stopSpeaking(); setListening(false);
+    stopListening(); stopSpeaking(); setListening(false); setSpeakingIdx(null);
   }, [chatOpen]);
   const [input, setInput] = useState('');
   const [asking, setAsking] = useState(false);
@@ -305,8 +307,22 @@ export default function Insights() {
       const { answer } = await store.api('/ai/ask', {
         method: 'POST', body: JSON.stringify({ question: q, summary: store.buildSummary(120) }),
       });
-      setChat((c) => c.map((m, i) => (i === c.length - 1 ? { who: 'ai', text: answer } : m)));
-      if (speakBack) speak(answer, voiceRef.current);
+      // The answer always replaces the trailing pending bubble, so its index
+      // is captured here rather than read back out of a state updater.
+      let answerIdx = -1;
+      setChat((c) => {
+        answerIdx = c.length - 1;
+        return c.map((m, i) => (i === answerIdx ? { who: 'ai', text: answer } : m));
+      });
+      if (speakBack) {
+        const u = speak(answer, voiceRef.current);
+        // Tracked so the bubble's own button shows a stop state while the
+        // auto-read plays, instead of the two disagreeing.
+        if (u) {
+          setSpeakingIdx(answerIdx);
+          u.onend = () => setSpeakingIdx((cur) => (cur === answerIdx ? null : cur));
+        }
+      }
     } catch (e) {
       setChat((c) => c.map((m, i) => (i === c.length - 1 ? { who: 'ai', text: 'Could not reach AI: ' + e.message } : m)));
     }
@@ -858,6 +874,21 @@ export default function Insights() {
                     initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
                     {m.pending ? <span className="typing"><i /><i /><i /></span>
                       : m.who === 'ai' ? <Markdown text={m.text} /> : m.text}
+                    {/* Per-answer playback, so a specific reply can be heard
+                        again without re-asking. The header toggle governs
+                        whether answers speak automatically; this replays one. */}
+                    {m.who === 'ai' && !m.pending && m.text && speechOutSupported() && (
+                      <button className="bubble-speak"
+                        onClick={() => {
+                          if (speakingIdx === i) { stopSpeaking(); setSpeakingIdx(null); return; }
+                          setSpeakingIdx(i);
+                          const u = speak(m.text, voiceRef.current);
+                          if (u) u.onend = () => setSpeakingIdx((cur) => (cur === i ? null : cur));
+                        }}
+                        title={speakingIdx === i ? 'Stop' : 'Read this answer aloud'}>
+                        {speakingIdx === i ? <VolumeX size={13} /> : <Volume2 size={13} />}
+                      </button>
+                    )}
                   </motion.div>
                 ))}
               </div>

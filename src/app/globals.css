@@ -1043,10 +1043,20 @@ select {
 
 /* Insights tabs — nine stacked cards was a long scroll to reach anything
    specific, so they are grouped by the question each one answers. */
-.period-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+/* Sits directly under the sticky .view-head (z-index 15). Without its own
+   opaque background and a lower z-index, the picker's border showed through
+   the header as the page scrolled, which read as the two colliding. */
+.period-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 0 10px; background: var(--bg);
+  position: relative; z-index: 14;
+}
 .tab-bar {
   display: flex; gap: 4px; margin-bottom: var(--stack);
   background: var(--surface-2); padding: 3px; border-radius: 10px;
+  /* Same reason as .period-row above — it scrolls under the sticky header,
+     so it needs to stay behind it rather than bleed through. */
+  position: relative; z-index: 14;
 }
 .tab-btn {
   flex: 1; font: inherit; font-size: .8rem; font-weight: 550;
@@ -1060,9 +1070,10 @@ select {
 /* Ask-anything, reachable from every tab. Sits above the bottom nav on
    mobile, which is why the offset is not a round number. */
 .chat-fab {
-  /* Sits left of the existing add-entry FAB (.fab-cluster, right: 28px)
-     rather than on top of it. */
-  position: fixed; right: 96px; bottom: 26px; z-index: 40;
+  /* Stacked ABOVE the add-entry FAB (.fab-cluster: right 28px, bottom 28px,
+     52px tall) rather than beside it — sitting alongside it collided once the
+     button grew, and both stay on the right where the thumb is. */
+  position: fixed; right: 28px; bottom: 92px; z-index: 40;
   display: inline-flex; align-items: center; gap: 8px;
   padding: 14px 20px; border: 0; border-radius: 999px;
   font: inherit; font-size: .9rem; font-weight: 650;
@@ -1089,6 +1100,21 @@ select {
 .chat-sheet .chip { flex-shrink: 0; }
 /* Mic sits between the field and Send; it pulses while listening so the
    state is obvious without reading the placeholder. */
+/* Replay control on an answer bubble. Sits low-contrast until hovered so it
+   does not compete with the answer itself. */
+.bubble.ai { position: relative; }
+.bubble-speak {
+  position: absolute; top: 6px; right: 6px;
+  display: grid; place-items: center; width: 24px; height: 24px;
+  border: 0; border-radius: 7px; padding: 0;
+  background: transparent; color: var(--muted); cursor: pointer;
+  opacity: .5; transition: opacity .15s, background .15s, color .15s;
+}
+.bubble-speak:hover { opacity: 1; color: var(--text); background: var(--surface-2); }
+/* Touch has no hover, so keep it discoverable there. */
+@media (hover: none) { .bubble-speak { opacity: .8; } }
+.bubble.ai > :first-child { padding-right: 26px; }
+
 .mic-btn { flex-shrink: 0; padding: 0 12px; }
 .mic-btn.on { color: var(--red); border-color: var(--red); animation: mic-pulse 1.4s ease-in-out infinite; }
 @keyframes mic-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
@@ -1106,8 +1132,10 @@ select {
   .chat-sheet { border-radius: 16px; border-bottom: 1px solid var(--line); }
 }
 @media (max-width: 760px) {
-  /* Clear of the bottom nav and the centred add FAB. */
-  .chat-fab { right: auto; left: 16px; bottom: calc(74px + env(safe-area-inset-bottom)); }
+  /* The add FAB is centred on mobile (.fab-cluster, left: 50%), so the right
+     side is free — keep Ask there rather than moving it across, and lift it
+     clear of the bottom nav. */
+  .chat-fab { right: 16px; left: auto; bottom: calc(74px + env(safe-area-inset-bottom)); }
 }
 
 /* Month picker on the Insights analysis card — sits in the card head beside
