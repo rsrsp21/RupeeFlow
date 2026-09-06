@@ -25,7 +25,7 @@ export default function TrendBars({ buckets, height = 64, showLabels = true, sho
             <div className={`trend-col ${showValues ? 'has-value' : ''}`} key={b.start ?? i}>
               {showValues && b.value > 0 && <span className="trend-val">{rupeesShort(b.value)}</span>}
               <motion.span
-                className={`trend-bar ${b.value > 0 ? '' : 'zero'}`}
+                className={`trend-bar ${b.value > 0 ? '' : 'zero'} ${b.active ? 'active' : ''}`}
                 initial={{ height: 0 }}
                 animate={{ height: `${h}%` }}
                 transition={{ duration: 0.45, delay: Math.min(i * 0.012, 0.25), ease: [0.22, 1, 0.36, 1] }}
@@ -39,7 +39,7 @@ export default function TrendBars({ buckets, height = 64, showLabels = true, sho
       {showLabels && (
         <div className="trend-labels" style={{ gap }}>
           {buckets.map((b, i) => (
-            <span key={b.start ?? i}>{i % labelEvery === 0 ? b.label : ''}</span>
+            <span key={b.start ?? i} className={b.active ? 'on' : undefined}>{i % labelEvery === 0 ? b.label : ''}</span>
           ))}
         </div>
       )}

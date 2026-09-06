@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, Wallet, CalendarDays,
   Flame, PiggyBank, Target, ArrowRight, Check,
-  Sunrise, Sun, Sunset, Moon, Sparkles,
+  Sunrise, Sun, Sunset, Moon, Sparkles, CalendarClock, Receipt, AlertTriangle,
 } from 'lucide-react';
 import ThemeToggle from '../ThemeToggle';
 import SyncBadge from '../SyncBadge';
@@ -22,6 +22,8 @@ import CategoryBars from '../charts/CategoryBars';
 import TxItem from '../TxItem';
 import CategoryIcon from '../CategoryIcon';
 import InsightCarousel from '../InsightCarousel';
+import { weekdayPattern, outliers, missingRecurring } from '@/lib/analytics.mjs';
+import { normalizeNote } from '@/lib/noteMatch';
 
 function AnimatedAmount({ paise, className = 'hero-amount' }) {
   const ref = useRef(null);
@@ -106,6 +108,27 @@ export default function Dashboard() {
   // last month's numbers matter more for actually understanding spending —
   // surfaced as its own comparison/breakdown further down, not just folded
   // into the momDelta percentage.
+  // Pay usually lands on the last working day and tends to be saved the same
+  // day, so on the 1st-3rd a calendar-month "saved" figure is 0 even though
+  // the user just moved money — which read as "you've saved nothing". A
+  // trailing 30-day window catches the transfer whichever side of the month
+  // boundary it fell, matching how buildSummary reports the savings rate.
+  const since30 = now - 30 * 86400000;
+  const holdingNamesForSave = new Set(store.realHoldings.map((h) => h.name));
+  const saved30 = all.reduce((sum, t) => (
+    t.type === 'transfer' && t.occurred_at >= since30 && holdingNamesForSave.has(t.to_account)
+      ? sum + t.amount : sum), 0);
+  const income30 = all.reduce((sum, t) => (
+    t.type === 'income' && t.occurred_at >= since30 ? sum + t.amount : sum), 0);
+
+  // Locally derived insights — no AI call, so they're on screen instantly and
+  // every figure can be checked against the entries behind it.
+  const local = useMemo(() => ({
+    weekday: weekdayPattern(all, now),
+    spikes: outliers(all, now),
+    missing: missingRecurring(all, normalizeNote, now),
+  }), [all]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const lastMonthStart = new Date(new Date(mStart).getFullYear(), new Date(mStart).getMonth() - 1, 1).getTime();
   const lastMonthList = all.filter((t) => t.occurred_at >= lastMonthStart && t.occurred_at < mStart);
   const lmt = store.totals(lastMonthList);
@@ -306,10 +329,18 @@ export default function Dashboard() {
 
       {/* ── insight cards ── */}
       <InsightCarousel>
-        {mt.saved > 0 && (
+        {mt.saved > 0 ? (
           <InsightCard icon={<PiggyBank size={15} />} tone="good"
             title={`${rupees(mt.saved)} saved & invested this month`}
-            body="Kept out of your spending total — that money's still yours, just moved." />
+            body={income30 > 0
+              ? `That's ${Math.round((saved30 / income30) * 100)}% of what came in over the last 30 days.`
+              : "Kept out of your spending total — that money's still yours, just moved."} />
+        ) : saved30 > 0 && (
+          // Saved just before the month rolled over: still worth crediting,
+          // but dated honestly rather than claimed for this month.
+          <InsightCard icon={<PiggyBank size={15} />} tone="good"
+            title={`${rupees(saved30)} saved since your last payday`}
+            body="Moved before this month began, so it isn't in this month's figures — but it still counts." />
         )}
         {momDelta !== null && (
           <InsightCard
@@ -328,6 +359,21 @@ export default function Dashboard() {
           <InsightCard icon={<Flame size={15} />} tone="good"
             title={`${stats.streak} no-spend days`}
             body="You haven't logged an expense in that stretch. Nice discipline." />
+        )}
+        {local.missing.length > 0 && (
+          <InsightCard icon={<CalendarClock size={15} />} tone="warn"
+            title={`${local.missing[0].item} hasn't been paid`}
+            body={`Usually about ${rupees(local.missing[0].typical)} each month — last seen ${local.missing[0].daysSince} days ago.`} />
+        )}
+        {local.spikes.length > 0 && (
+          <InsightCard icon={<AlertTriangle size={15} />} tone="warn"
+            title={`${local.spikes[0].note} was ${local.spikes[0].times}x your usual`}
+            body={`${rupees(local.spikes[0].amount)} against a typical ${rupees(local.spikes[0].median)} for ${local.spikes[0].category}.`} />
+        )}
+        {local.weekday.peak && local.weekday.peak.avg > 0 && (
+          <InsightCard icon={<Receipt size={15} />} tone="neutral"
+            title={`${local.weekday.peak.name}s cost you most`}
+            body={`About ${rupees(local.weekday.peak.avg)} on an average ${local.weekday.peak.name}, over the last 90 days.`} />
         )}
         {Object.keys(catSpend).length > 0 && (() => {
           const [topCat, topVal] = Object.entries(catSpend).sort((a, b) => b[1] - a[1])[0];
