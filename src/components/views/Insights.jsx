@@ -404,6 +404,11 @@ export default function Insights() {
               inside one card — on Overview the trend and findings follow it
               too, and a control that lived in another tab would leave that
               looking unchangeable. */}
+          {/* Period, Ask and the tabs pin together as one strip. Wrapped
+              rather than made sticky individually, because a sticky child
+              needs to know the header's height to offset against and that
+              varies by screen — one container just stacks after it. */}
+          <div className="insights-controls">
           <div className="period-row">
             {monthOptions.length > 1 && (<>
               <span className="muted small">Analysing</span>
@@ -441,6 +446,7 @@ export default function Insights() {
                 {label}
               </button>
             ))}
+          </div>
           </div>
 
           {tab === 'overview' && (<>

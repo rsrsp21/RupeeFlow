@@ -1046,17 +1046,21 @@ select {
 /* Sits directly under the sticky .view-head (z-index 15). Without its own
    opaque background and a lower z-index, the picker's border showed through
    the header as the page scrolled, which read as the two colliding. */
+/* Period + Ask + tabs stay pinned as one strip while the analysis scrolls
+   under them. It sticks at top:0 like .view-head and sits just behind it, so
+   the header slides over this rather than the two fighting — no need to know
+   the header's height, which varies by screen. */
+.insights-controls {
+  position: sticky; top: 0; z-index: 14;
+  background: var(--bg); padding-top: 2px;
+}
 .period-row {
   display: flex; align-items: center; gap: 8px;
   padding: 4px 0 10px; background: var(--bg);
-  position: relative; z-index: 14;
 }
 .tab-bar {
   display: flex; gap: 4px; margin-bottom: var(--stack);
   background: var(--surface-2); padding: 3px; border-radius: 10px;
-  /* Same reason as .period-row above — it scrolls under the sticky header,
-     so it needs to stay behind it rather than bleed through. */
-  position: relative; z-index: 14;
 }
 .tab-btn {
   flex: 1; font: inherit; font-size: .8rem; font-weight: 550;
