@@ -1,0 +1,14 @@
+{
+  "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
+  "type": "AdaptiveCard",
+  "version": "1.5",
+  "body": [
+    { "type": "TextBlock", "text": "Spent today", "size": "Small", "isSubtle": true, "wrap": true },
+    { "type": "TextBlock", "text": "${spentToday}", "size": "ExtraLarge", "weight": "Bolder", "spacing": "None" },
+    { "type": "TextBlock", "text": "${subtitle}", "size": "Small", "isSubtle": true, "wrap": true, "spacing": "None" }
+  ],
+  "actions": [
+    { "type": "Action.OpenUrl", "title": "Add", "url": "https://rupeeflow.app/?action=add" },
+    { "type": "Action.OpenUrl", "title": "Speak", "url": "https://rupeeflow.app/?action=voice" }
+  ]
+}
