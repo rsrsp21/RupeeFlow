@@ -216,6 +216,10 @@ export function outliers(txs, now = Date.now(), days = 90, limit = 5) {
           note: t.note || category, category, amount: t.amount, median,
           times: Math.round((t.amount / median) * 10) / 10,
           daysAgo: Math.round((now - Number(t.occurred_at)) / DAY),
+          // Surfaced so the UI can say what "typical" was measured over —
+          // an unexplained benchmark is just an assertion the user has no
+          // way to check.
+          sampleSize: list.length, windowDays: days,
         });
       }
     }

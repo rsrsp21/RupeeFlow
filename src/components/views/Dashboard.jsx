@@ -368,7 +368,7 @@ export default function Dashboard() {
         {local.spikes.length > 0 && (
           <InsightCard icon={<AlertTriangle size={15} />} tone="warn"
             title={`${local.spikes[0].note} was ${local.spikes[0].times}x your usual`}
-            body={`${rupees(local.spikes[0].amount)} against a typical ${rupees(local.spikes[0].median)} for ${local.spikes[0].category}.`} />
+            body={`${rupees(local.spikes[0].amount)} against a median ${rupees(local.spikes[0].median)} across your last ${local.spikes[0].sampleSize} ${local.spikes[0].category} entries.`} />
         )}
         {local.weekday.peak && local.weekday.peak.avg > 0 && (
           <InsightCard icon={<Receipt size={15} />} tone="neutral"

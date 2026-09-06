@@ -151,3 +151,17 @@ test('monthly trend returns a full oldest-first run, gaps included', () => {
   // A month with no entries still appears, so the chart keeps its shape.
   assert.equal(t[t.length - 2].net, 0);
 });
+
+test('outliers report the sample their "typical" was measured over', () => {
+  // "3x your typical" is an assertion the user cannot check unless the screen
+  // says what typical was measured across — so the sample travels with it.
+  const txs = [
+    ...[1, 2, 3, 4].map((d) => tx({ amount: R(100), category: 'Coffee', occurred_at: at(2026, 9, d) })),
+    tx({ amount: R(900), category: 'Coffee', note: 'Splurge', occurred_at: at(2026, 9, 6) }),
+  ];
+  const [o] = outliers(txs, NOW);
+  assert.equal(o.median, R(100));
+  assert.equal(o.sampleSize, 5, 'sample is that category\'s entries in the window');
+  assert.equal(o.windowDays, 90);
+  assert.equal(o.times, 9);
+});
