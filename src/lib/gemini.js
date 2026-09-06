@@ -84,7 +84,8 @@ function historyHint(history) {
   const items = (history || []).filter((h) => h && h.note && h.category).slice(0, 60);
   if (!items.length) return '';
   const list = items.map((h) => `"${h.note}" → ${h.category}`).join('; ');
-  return `This user's own past entries and the category used for each — reuse the same category for the same kind of item even if the quantity, unit, or wording differs slightly, e.g. "chicken 300g" and "chicken 300 grams" are the same item: ${list}\n`;
+  return `This user's own past entries and the category used for each — reuse the same category for the same kind of item even if the quantity, unit, or wording differs slightly, e.g. "chicken 300g" and "chicken 300 grams" are the same item.
+Reuse their WORDING too: when what they said matches one of these entries, write the note exactly as they have written it before rather than inventing a new phrasing, so their ledger stays consistent. "chicken" said aloud, against a past entry of "chicken 250 grams", should be recorded as "chicken 250 grams" — unless they stated a different quantity, in which case keep the one they just gave: ${list}\n`;
 }
 
 // Decides whether a chat message is a question about the user's money or an
