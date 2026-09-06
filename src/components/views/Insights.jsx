@@ -15,7 +15,7 @@ import TrendBars from '../charts/TrendBars';
 import CategoryIcon from '../CategoryIcon';
 import {
   monthOverMonth, categoryDeltas, projectMonthEnd, weekdayPattern,
-  priceDrift, missingRecurring, outliers, monthlyTrend,
+  priceDrift, missingRecurring, outliers, monthlyTrend, spanSummary,
 } from '@/lib/analytics.mjs';
 import { normalizeNote } from '@/lib/noteMatch';
 
@@ -107,6 +107,19 @@ export default function Insights() {
     return [...seen.entries()].sort((a, b) => b[0].localeCompare(a[0]));
   })();
 
+  // Calendar years the user has entries in — offered alongside rolling spans
+  // because "2026" and "the last 12 months" are different questions, and at
+  // year end it is the calendar one people mean.
+  const yearOptions = [...new Set(store.live()
+    .map((t) => new Date(Number(t.occurred_at)).getFullYear()))].sort((a, b) => b - a);
+
+  // A span selection is "last N months"; a year selection is "y:YYYY"; a bare
+  // YYYY-MM is one month. Kept as one string so the picker stays a single
+  // control rather than a mode switch plus a value.
+  const SPANS = [['s:3', 'Last 3 months'], ['s:6', 'Last 6 months'], ['s:12', 'Last 12 months']];
+  const spanMonths = month.startsWith('s:') ? Number(month.slice(2)) : null;
+  const yearPicked = month.startsWith('y:') ? Number(month.slice(2)) : null;
+
   const local = (() => {
     const txs = store.live();
     // Analysing a past month means anchoring to the END of it, not to today:
@@ -117,10 +130,25 @@ export default function Insights() {
     // clock, so a part-month stays a part-month.
     const now = (() => {
       if (!month) return Date.now();
+      // A rolling span ends now; a calendar year ends with December (or today,
+      // if that year is still running).
+      if (spanMonths) return Date.now();
+      if (yearPicked) return Math.min(new Date(yearPicked + 1, 0, 1).getTime() - 1, Date.now());
       const [y, m] = month.split('-').map(Number);
       return Math.min(new Date(y, m, 1).getTime() - 1, Date.now());
     })();
+
+    // How many whole months the view covers. A single month is 1; the span
+    // options say so outright; a calendar year is 12 (fewer while it runs).
+    const coverMonths = spanMonths
+      || (yearPicked
+        ? (yearPicked === new Date().getFullYear() ? new Date().getMonth() + 1 : 12)
+        : 1);
+    const span = coverMonths > 1 ? spanSummary(txs, now, coverMonths, Date.now()) : null;
+
     return {
+      span,
+      coverMonths,
       mom: monthOverMonth(txs, now),
       cats: categoryDeltas(txs, now),
       projection: projectMonthEnd(txs, now),
@@ -128,7 +156,9 @@ export default function Insights() {
       drift: priceDrift(txs, normalizeNote, now),
       missing: missingRecurring(txs, normalizeNote, now),
       spikes: outliers(txs, now),
-      trend: monthlyTrend(txs, now, 6),
+      // The chart follows the span, so a year view shows twelve bars rather
+      // than six of them.
+      trend: monthlyTrend(txs, now, Math.max(6, Math.min(24, coverMonths))),
       now,
       isPast: Boolean(month),
     };
@@ -274,36 +304,87 @@ export default function Insights() {
             <div className="card-head">
               <h3>
                 <LineChart size={13} style={{ verticalAlign: '-2px' }} />
-                {' '}{local.isPast ? monthOptions.find(([k]) => k === month)?.[1] : 'This month so far'}
+                {' '}{spanMonths ? `Last ${spanMonths} months`
+                  : yearPicked ? `${yearPicked}`
+                  : local.isPast ? monthOptions.find(([k]) => k === month)?.[1]
+                  : 'This month so far'}
               </h3>
               {monthOptions.length > 1 && (
                 <select className="month-pick" value={month} onChange={(e) => setMonth(e.target.value)}
-                  aria-label="Month to analyse">
+                  aria-label="Period to analyse">
                   <option value="">This month</option>
-                  {/* The current month is already the default option, so it
-                      would otherwise appear twice. */}
-                  {monthOptions.filter(([k]) => k !== monthOptions[0][0] || month !== '').map(([k, label]) => (
-                    <option key={k} value={k}>{label}</option>
-                  ))}
+                  <optgroup label="Rolling">
+                    {SPANS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+                  </optgroup>
+                  {yearOptions.length > 0 && (
+                    <optgroup label="Calendar year">
+                      {yearOptions.map((y) => <option key={y} value={`y:${y}`}>{y}</option>)}
+                    </optgroup>
+                  )}
+                  <optgroup label="Month">
+                    {/* The current month is already the default option, so it
+                        would otherwise appear twice. */}
+                    {monthOptions.filter(([k]) => k !== monthOptions[0][0] || month !== '').map(([k, label]) => (
+                      <option key={k} value={k}>{label}</option>
+                    ))}
+                  </optgroup>
                 </select>
               )}
             </div>
             <p className="muted small" style={{ marginBottom: 10 }}>
-              {local.isPast
-                ? `Full month · compared with the same ${local.mom.daysCompared} days of the month before`
-                : `Compared with the first ${local.mom.daysCompared} days of last month`}
+              {local.span
+                ? `${local.span.monthsElapsed} ${local.span.monthsElapsed === 1 ? 'month' : 'months'} · compared with the ${local.span.monthsElapsed === 1 ? 'month' : `${local.span.monthsElapsed} months`} before that`
+                : local.isPast
+                  ? `Full month · compared with the same ${local.mom.daysCompared} days of the month before`
+                  : `Compared with the first ${local.mom.daysCompared} days of last month`}
             </p>
             <div className="stat-row">
               <div className="stat">
                 <span className="stat-k">Spent</span>
-                <b className="stat-v">{rupees(local.mom.current)}</b>
-                {local.mom.pct !== null && (
-                  <span className="stat-sub" style={{ color: local.mom.delta > 0 ? 'var(--red)' : 'var(--green)' }}>
-                    {local.mom.delta > 0 ? '▲' : '▼'} {Math.abs(local.mom.pct)}% vs {rupees(local.mom.previous)}
+                <b className="stat-v">{rupees(local.span ? local.span.expense : local.mom.current)}</b>
+                {(local.span ? local.span.pct : local.mom.pct) !== null && (
+                  <span className="stat-sub" style={{
+                    color: (local.span ? local.span.delta : local.mom.delta) > 0 ? 'var(--red)' : 'var(--green)' }}>
+                    {(local.span ? local.span.delta : local.mom.delta) > 0 ? '▲' : '▼'}{' '}
+                    {Math.abs(local.span ? local.span.pct : local.mom.pct)}% vs{' '}
+                    {rupees(local.span ? local.span.prevExpense : local.mom.previous)}
                   </span>
                 )}
               </div>
-              {!local.isPast && local.projection.projected !== null && (
+              {/* A multi-month view answers different questions than a single
+                  month: the useful figures are the monthly rate and what was
+                  actually kept, not a projection to the end of one month. */}
+              {local.span && (
+                <>
+                  <div className="stat">
+                    <span className="stat-k">Average / month</span>
+                    <b className="stat-v">{rupees(local.span.avgPerMonth)}</b>
+                    <span className="stat-sub">over {local.span.monthsElapsed} {local.span.monthsElapsed === 1 ? 'month' : 'months'}</span>
+                  </div>
+                  <div className="stat">
+                    <span className="stat-k">Kept</span>
+                    <b className="stat-v" style={{ color: local.span.net >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                      {local.span.net < 0 ? '−' : ''}{rupees(Math.abs(local.span.net))}
+                    </b>
+                    <span className="stat-sub">{rupees(local.span.income)} in · {rupees(local.span.expense)} out</span>
+                  </div>
+                  {local.span.savingsRate !== null && local.span.savingsRate > 0 && (
+                    <div className="stat">
+                      <span className="stat-k">Saved</span>
+                      <b className="stat-v" style={{ color: 'var(--green)' }}>{rupees(local.span.invested)}</b>
+                      <span className="stat-sub">{local.span.savingsRate}% of income</span>
+                    </div>
+                  )}
+                  {local.span.topCategory && (
+                    <div className="stat">
+                      <span className="stat-k">Biggest category</span>
+                      <b className="stat-v">{local.span.topCategory.category}</b>
+                      <span className="stat-sub">{rupees(local.span.topCategory.current)}</span>
+                    </div>
+                  )}
+                </>
+              )}
+              {!local.span && !local.isPast && local.projection.projected !== null && (
                 <div className="stat">
                   <span className="stat-k">On pace for</span>
                   <b className="stat-v">{rupees(local.projection.projected)}</b>
@@ -319,11 +400,11 @@ export default function Insights() {
               )}
             </div>
 
-            {local.cats.length > 0 && (
+            {(local.span ? local.span.cats : local.cats).length > 0 && (
               <>
                 <div className="card-head" style={{ marginTop: 14 }}><h3>What moved</h3></div>
                 <div className="delta-list">
-                  {local.cats.map((c) => (
+                  {(local.span ? local.span.cats : local.cats).map((c) => (
                     <div className="delta-row" key={c.category}>
                       <CategoryIcon category={c.category} size={14} />
                       <span className="delta-name">{c.category}</span>

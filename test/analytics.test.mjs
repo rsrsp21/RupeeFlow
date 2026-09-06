@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   monthOverMonth, categoryDeltas, projectMonthEnd, weekdayPattern,
-  priceDrift, missingRecurring, outliers, monthlyTrend,
+  priceDrift, missingRecurring, outliers, monthlyTrend, spanSummary,
 } from '../src/lib/analytics.mjs';
 import { normalizeNote } from '../src/lib/noteMatch.js';
 
@@ -184,4 +184,54 @@ test('a past month is analysed at its own end, not at today', () => {
 
   // And a completed month has no meaningful pace left to project.
   assert.equal(projectMonthEnd(txs, endOfAugust).spent, R(5000));
+});
+
+test('a span is compared against an equally long span, not a single month', () => {
+  // Three months at 1,000/month against three earlier months at 500/month.
+  // Comparing the span against just the month before would report +100%
+  // against 500 rather than +100% against 1,500.
+  const txs = [
+    ...[7, 8, 9].map((m) => tx({ amount: R(1000), category: 'Rent', occurred_at: at(2026, m, 2) })),
+    ...[4, 5, 6].map((m) => tx({ amount: R(500), category: 'Rent', occurred_at: at(2026, m, 2) })),
+  ];
+  const s = spanSummary(txs, NOW, 3, NOW);
+  assert.equal(s.expense, R(3000));
+  assert.equal(s.prevExpense, R(1500), 'baseline covers three months, not one');
+  assert.equal(s.pct, 100);
+});
+
+test('a span reports the biggest category even when it did not change', () => {
+  // Rent is flat across both windows, so it has no delta — but it is still
+  // far and away the largest line, and omitting it would be absurd.
+  const txs = [
+    ...[4, 5, 6, 7, 8, 9].map((m) => tx({ amount: R(20000), category: 'Rent', occurred_at: at(2026, m, 2) })),
+    tx({ amount: R(900), category: 'Coffee', occurred_at: at(2026, 9, 3) }),
+  ];
+  const s = spanSummary(txs, NOW, 3, NOW);
+  assert.equal(s.topCategory.category, 'Rent');
+  assert.equal(s.cats.some((c) => c.category === 'Rent'), false, 'flat rent is not "what moved"');
+});
+
+test('a running span averages over months elapsed, not months requested', () => {
+  // Asking for 12 months when only 3 have data must not divide by 12 and
+  // report a monthly rate a quarter of the truth.
+  const txs = [7, 8, 9].map((m) => tx({ amount: R(3000), category: 'Rent', occurred_at: at(2026, m, 2) }));
+  const s = spanSummary(txs, NOW, 3, NOW);
+  assert.equal(s.monthsElapsed, 3);
+  assert.equal(s.avgPerMonth, R(3000));
+  // And paise stay integers — an average is where a fraction creeps in.
+  assert.equal(Number.isInteger(s.avgPerMonth), true);
+});
+
+test('a span carries income, saving and what was kept', () => {
+  const txs = [
+    tx({ type: 'income', amount: R(80000), category: 'Salary', occurred_at: at(2026, 9, 1) }),
+    tx({ type: 'transfer', amount: R(20000), to_account: 'Savings', occurred_at: at(2026, 9, 1) }),
+    tx({ amount: R(30000), category: 'Rent', occurred_at: at(2026, 9, 2) }),
+  ];
+  const s = spanSummary(txs, NOW, 3, NOW);
+  assert.equal(s.income, R(80000));
+  assert.equal(s.invested, R(20000));
+  assert.equal(s.net, R(50000), 'kept = income minus expenses');
+  assert.equal(s.savingsRate, 25);
 });
