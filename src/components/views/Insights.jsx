@@ -19,6 +19,7 @@ import {
   priceDrift, missingRecurring, outliers, monthlyTrend, spanSummary, categoryBreakdown, accountSpending, cardHealth,
 } from '@/lib/analytics.mjs';
 import { normalizeNote } from '@/lib/noteMatch';
+import { applyParsedTransactions } from '@/lib/client/applyParsed';
 import {
   listen, stopListening, speak, stopSpeaking, pickVoice, onVoicesReady,
   speechInSupported, speechOutSupported,
@@ -77,6 +78,10 @@ export default function Insights() {
   const voiceRef = useRef(null);
   // Which answer is being read aloud, so its own button can show a stop state.
   const [speakingIdx, setSpeakingIdx] = useState(null);
+  // A part-built entry the assistant is still collecting details for. Held
+  // here rather than on the server so the conversation survives a failed
+  // request, and cleared the moment it is saved or the chat is restarted.
+  const [pendingEntry, setPendingEntry] = useState(null);
   useEffect(() => onVoicesReady((v) => { voiceRef.current = v; }), []);
   useEffect(() => {
     try { localStorage.setItem('rf_chat_voice', speakBack ? '1' : '0'); } catch { /* private mode */ }
@@ -279,6 +284,7 @@ export default function Insights() {
   function restartChat() {
     setChat([]);
     setInput('');
+    setPendingEntry(null);
     clearDaily('rf_ai_chat');
     store.toast('Chat cleared');
   }
@@ -299,11 +305,62 @@ export default function Insights() {
     });
   }
 
+  // Saves a completed entry and reports back. Reuses applyParsedTransactions,
+  // which already knows how an "invest" becomes a transfer into a holding and
+  // how to resolve categories, groups and account names — the chat should not
+  // grow a second, subtly different way of writing a transaction.
+  async function commitEntry(entry, confirmText) {
+    try {
+      const { added } = await applyParsedTransactions(
+        store, { transactions: [entry] }, 'ai-chat',
+        { today: new Date().toISOString().slice(0, 10) },
+      );
+      if (!added) throw new Error('nothing was recorded');
+      setPendingEntry(null);
+      return confirmText || 'Added it.';
+    } catch (e) {
+      setPendingEntry(null);
+      return `Could not save that: ${e.message}`;
+    }
+  }
+
   async function ask(q) {
     if (asking) return;
     setAsking(true);
     setChat((c) => [...c, { who: 'me', text: q }, { who: 'ai', text: '', pending: true }]);
     try {
+      // Recording is tried first: a message that states a spend is an
+      // instruction, and answering it with an analysis would silently drop it.
+      // The route replies intent:"ask" for anything that is really a question,
+      // and for an entry it cannot make sense of.
+      const entryOut = await store.api('/ai/chat-entry', {
+        method: 'POST',
+        body: JSON.stringify({
+          message: q,
+          pending: pendingEntry,
+          history: store.noteHistory(),
+          customCategories: store.customCategories.map((c) => c.name),
+          holdings: store.holdings.map((h) => h.name),
+          accounts: store.accounts.map((a) => a.name),
+          groups: store.groupNames(),
+          today: new Date().toISOString().slice(0, 10),
+        }),
+      }).catch(() => null);
+
+      if (entryOut?.intent === 'add') {
+        const text = entryOut.ready
+          ? await commitEntry(entryOut.entry, entryOut.reply)
+          : (setPendingEntry(entryOut.entry), entryOut.reply);
+        let idx = -1;
+        setChat((c) => { idx = c.length - 1; return c.map((m, i) => (i === idx ? { who: 'ai', text } : m)); });
+        if (speakBack) {
+          const u = speak(text, voiceRef.current);
+          if (u) { setSpeakingIdx(idx); u.onend = () => setSpeakingIdx((cur) => (cur === idx ? null : cur)); }
+        }
+        setAsking(false);
+        return;
+      }
+
       const { answer } = await store.api('/ai/ask', {
         method: 'POST', body: JSON.stringify({ question: q, summary: store.buildSummary(120) }),
       });
@@ -896,7 +953,9 @@ export default function Insights() {
               </div>
             )}
             <form className="ask-row" onSubmit={(e) => { e.preventDefault(); const v = input.trim(); if (v) { ask(v); setInput(''); } }}>
-              <input placeholder={listening ? 'Listening…' : 'Ask about your spending…'}
+              <input placeholder={listening ? 'Listening…'
+                : pendingEntry ? 'Your answer…'
+                : 'Ask, or say what you spent…'}
                 value={input} onChange={(e) => setInput(e.target.value)} />
               {speechInSupported() && (
                 <button type="button" className={`btn ghost mic-btn ${listening ? 'on' : ''}`}

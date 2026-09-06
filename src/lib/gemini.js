@@ -87,6 +87,35 @@ function historyHint(history) {
   return `This user's own past entries and the category used for each — reuse the same category for the same kind of item even if the quantity, unit, or wording differs slightly, e.g. "chicken 300g" and "chicken 300 grams" are the same item: ${list}\n`;
 }
 
+// Decides whether a chat message is a question about the user's money or an
+// instruction to record something. The assistant can do both, so this has to
+// be settled before anything else happens — answering "I spent 300 on chicken"
+// with an analysis, or recording "what did I spend on chicken" as an expense,
+// are both bad failures.
+export function classifyChatIntent(message) {
+  return gemini([{
+    text: `Decide what this message to a personal-finance assistant wants.
+Message: "${message}"
+Return ONLY JSON: {"intent":"add"|"ask"}.
+"add" = the user is telling you about money they spent, received, or moved, so it should be recorded. Past or present statements of fact: "spent 300 on chicken", "paid 2000 rent from HDFC", "got my salary", "put 5000 in my SIP".
+"ask" = the user wants to know something about money already recorded: "what did I spend on chicken", "how much last month", "am I over budget", "show me my biggest expense".
+A question is always "ask", even if it names an amount. When genuinely unclear, choose "ask" -- answering a question that was meant as an entry is a small annoyance, but silently recording something the user only asked about is a wrong number in their ledger.`,
+  }], { asJson: true, temperature: 0 });
+}
+
+// Writes the assistant's side of a recording conversation: either the one
+// question needed to fill a gap, or the confirmation once an entry is saved.
+export function entryReply(kind, entry, missing, accounts = []) {
+  const detail = JSON.stringify(entry || {});
+  const prompt = kind === 'confirm'
+    ? `You are a finance assistant that has just recorded an entry for the user. Entry (JSON): ${detail}
+Confirm it in ONE short sentence, stating what was recorded, the amount, the account and the date in plain words (e.g. "Added ₹300 for chicken on HDFC, dated 5 September"). **Bold** the amount. Do not ask a follow-up question, do not mention JSON or fields.`
+    : `You are a finance assistant recording an entry for the user. So far (JSON): ${detail}
+You still need: ${missing.join(' and ')}.${missing.includes('account') && accounts.length ? ` The user's accounts are: ${accounts.join(', ')}.` : ''}
+Ask for ONLY the missing detail, in one short friendly sentence, repeating back what you already understood so they know it landed (e.g. "Got ₹300 for chicken — which account was that from?"). If you need the account and the user has accounts listed, name a few as options. Never ask about anything already present above. No JSON, no lists.`;
+  return gemini([{ text: prompt }], { asJson: false, temperature: 0.3 });
+}
+
 export function parseText(text, history = [], customCategories = [], holdings = [], accounts = [], groups = [], today = '') {
   return gemini([{
     text: `You convert casual Indian-English/Hinglish speech about money into ledger entries.
