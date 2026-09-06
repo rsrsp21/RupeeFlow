@@ -135,11 +135,20 @@ export default function App({ children }) {
   // URL immediately so it doesn't reopen on every reload.
   useEffect(() => {
     if (!store.token) return;
-    if (new URLSearchParams(window.location.search).get('action') !== 'add') return;
-    const ctx = {};
-    if (entryDate) ctx.occurred_at = entryDate;
-    if (entryAccount) ctx.account = entryAccount;
-    setTxModal(Object.keys(ctx).length ? { prefill: ctx } : {});
+    const action = new URLSearchParams(window.location.search).get('action');
+    if (!action) return;
+    // Home-screen shortcuts land here. Each opens the sheet it names, so a
+    // long-press on the icon goes straight to the way the user wants to add
+    // something rather than to the dashboard with more taps to go.
+    if (action === 'voice') setVoiceOpen(true);
+    else if (action === 'type') setPromptOpen(true);
+    else if (action === 'scan') fileRef.current?.click();
+    else if (action === 'add') {
+      const ctx = {};
+      if (entryDate) ctx.occurred_at = entryDate;
+      if (entryAccount) ctx.account = entryAccount;
+      setTxModal(Object.keys(ctx).length ? { prefill: ctx } : {});
+    } else return; // unknown action — leave the URL alone rather than eat it
     router.replace(pathname);
   }, [store.token, pathname, router, entryDate, entryAccount]);
 
