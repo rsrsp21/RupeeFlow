@@ -1087,6 +1087,12 @@ select {
 }
 .chat-sheet .chips::-webkit-scrollbar { display: none; }
 .chat-sheet .chip { flex-shrink: 0; }
+/* Mic sits between the field and Send; it pulses while listening so the
+   state is obvious without reading the placeholder. */
+.mic-btn { flex-shrink: 0; padding: 0 12px; }
+.mic-btn.on { color: var(--red); border-color: var(--red); animation: mic-pulse 1.4s ease-in-out infinite; }
+@keyframes mic-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+
 .chat-sheet .card-head { gap: 6px; }
 .chat-sheet .card-head h3 { flex: 1; }
 .chat-sheet .card-head .btn.ghost.sm { margin-left: auto; }
