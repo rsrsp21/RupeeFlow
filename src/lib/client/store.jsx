@@ -866,6 +866,17 @@ export function StoreProvider({ children }) {
       if (accountNames.has(t.account) && !accountNames.has(t.to_account)) movedOutPaise += t.amount;
     }
 
+    // The same trailing-30-day window income uses. Pay landing on the 31st is
+    // usually saved the same day, so a calendar-month figure counts the salary
+    // (via income30) but not the transfer it funded — which read as "you saved
+    // nothing this month" on the 1st. Both sides of the ratio have to cover
+    // the same period or the rate is meaningless.
+    let invested30Paise = 0;
+    for (const t of all) {
+      if (t.type !== 'transfer' || t.occurred_at < since30) continue;
+      if (holdingNames.has(t.to_account)) invested30Paise += t.amount;
+    }
+
     // A note seen in two or more distinct months is a commitment, not a
     // one-off — the difference between "you could cut this" and "you can't".
     const sinceMonths = Date.now() - 186 * 86400000;
@@ -884,6 +895,36 @@ export function StoreProvider({ children }) {
       .map((r) => ({
         note: r.note, category: r.category,
         months_seen: r.months.size, total_rupees: rup(r.total),
+      }));
+
+    // Per-item spend, split by month. Everything else here is pre-aggregated
+    // by category, which left "what did I spend on chicken in August" flatly
+    // unanswerable — the model could only see a Groceries total and would
+    // correctly say so, which reads as the assistant being useless when the
+    // notes were there all along. normalizeNote() collapses "chicken 1kg" and
+    // "chicken 500g" onto one key, so quantity phrasing doesn't fork an item.
+    // Monthly buckets (rather than one lifetime total) are what make a
+    // question scoped to a named month answerable.
+    const itemAgg = {};
+    for (const t of list) {
+      if (t.type !== 'expense' || !t.note) continue;
+      const k = normalizeNote(t.note);
+      if (!k) continue;
+      if (!itemAgg[k]) itemAgg[k] = { label: t.note.trim(), category: t.category, total: 0, count: 0, months: {}, last: 0 };
+      const it = itemAgg[k];
+      it.total += t.amount; it.count++;
+      const m = monthKey(new Date(Number(t.occurred_at)));
+      it.months[m] = (it.months[m] || 0) + t.amount;
+      // most recent spelling wins the label, matching how groups are handled
+      if (t.occurred_at > it.last) { it.last = t.occurred_at; it.label = t.note.trim(); it.category = t.category; }
+    }
+    const items = Object.values(itemAgg)
+      .sort((a, b) => b.total - a.total).slice(0, 40)
+      .map((it) => ({
+        item: it.label, category: it.category,
+        times: it.count, total_rupees: rup(it.total),
+        by_month_rupees: Object.fromEntries(
+          Object.entries(it.months).sort(([a], [b]) => a.localeCompare(b)).map(([m, v]) => [m, rup(v)])),
       }));
 
     const daysAgo = (ts) => (ts ? Math.round((Date.now() - ts) / 86400000) : null);
@@ -961,6 +1002,7 @@ export function StoreProvider({ children }) {
         };
       }),
       month_invested_rupees: rup(investedPaise),
+      invested_last_30d_rupees: rup(invested30Paise),
       month_transfers_out_rupees: rup(movedOutPaise),
       income_last_30d_rupees: rup(income30),
       last_income: lastIncomeTx ? {
@@ -971,9 +1013,15 @@ export function StoreProvider({ children }) {
       } : null,
       // Measured against the trailing window, so a month-end payday doesn't
       // make this read as null (or absurd) for the first days of a month.
-      savings_rate_pct: income30 > 0 ? Math.round((investedPaise / income30) * 1000) / 10 : null,
+      savings_rate_pct: income30 > 0 ? Math.round((invested30Paise / income30) * 1000) / 10 : null,
       recurring_commitments,
       groups,
+      items,
+      // The window the item/category figures cover, so a question about a
+      // month outside it gets "that's before your data here" instead of a
+      // confidently wrong zero.
+      covers_from: new Date(cut).toISOString().slice(0, 10),
+      covers_to: new Date().toISOString().slice(0, 10),
     };
   };
 
