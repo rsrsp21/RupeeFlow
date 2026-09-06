@@ -149,6 +149,41 @@ A minimalist, offline-first budget and expense tracker built for busy profession
 
 Tables auto-create on the app's first request, so there's no migration step.
 
+### Clearing out deleted entries
+
+A deletion is a soft delete: the row stays with `deleted = 1`. That is not a
+recycle bin — it is how the deletion reaches your other devices. Sync is
+incremental (`pullTransactions` sends only rows with `updated_at > since`), so
+an absent row reads as *unchanged*, not *deleted*. The tombstone is the only
+thing that says "this is gone", and a device that never sees one will push the
+entry back up.
+
+So purge only tombstones old enough that every device has certainly synced past
+them:
+
+```sql
+DELETE FROM transactions
+WHERE deleted = 1
+  AND updated_at < (strftime('%s','now') - 2592000) * 1000;
+```
+
+```bash
+npx wrangler d1 execute rupeeflow-db --remote --command "DELETE FROM transactions WHERE deleted = 1 AND updated_at < (strftime('%s','now') - 2592000) * 1000;"
+```
+
+Count first if you want to see what will go:
+
+```sql
+SELECT COUNT(*) FROM transactions WHERE deleted = 1;
+```
+
+Deleting **every** tombstone regardless of age is only safe when each device
+has synced since the last deletion — otherwise the entries come back:
+
+```sql
+DELETE FROM transactions WHERE deleted = 1;
+```
+
 ## Run locally
 
 ```bash
