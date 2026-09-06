@@ -57,6 +57,14 @@ export default function Insights() {
   // The full category list can run long, so it is collapsed by default and
   // expanded on demand rather than pushing everything else off the screen.
   const [showAllCats, setShowAllCats] = useState(false);
+  // Nine stacked cards was a long scroll to reach anything specific. Grouped
+  // into tabs by the question each answers: where I stand, where it goes, and
+  // what the AI makes of it. Kept in state rather than the URL — it is a view
+  // preference, not a destination worth restoring or sharing.
+  const [tab, setTab] = useState('overview');
+  // Chat is the thing people reach for most, so it opens over the screen from
+  // anywhere here rather than living at the bottom of one tab.
+  const [chatOpen, setChatOpen] = useState(false);
   const [input, setInput] = useState('');
   const [asking, setAsking] = useState(false);
 
@@ -283,6 +291,43 @@ export default function Insights() {
 
       {hasData && (
         <>
+          {/* The period scopes every tab, so it sits above them rather than
+              inside one card — on Overview the trend and findings follow it
+              too, and a control that lived in another tab would leave that
+              looking unchangeable. */}
+          {monthOptions.length > 1 && (
+            <div className="period-row">
+              <span className="muted small">Analysing</span>
+              <select className="month-pick" value={month} onChange={(e) => setMonth(e.target.value)}
+                aria-label="Period to analyse">
+                <option value="">This month</option>
+                <optgroup label="Rolling">
+                  {SPANS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+                </optgroup>
+                {yearOptions.length > 0 && (
+                  <optgroup label="Calendar year">
+                    {yearOptions.map((y) => <option key={y} value={`y:${y}`}>{y}</option>)}
+                  </optgroup>
+                )}
+                <optgroup label="Month">
+                  {monthOptions.filter(([k]) => k !== monthOptions[0][0] || month !== '').map(([k, label]) => (
+                    <option key={k} value={k}>{label}</option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+          )}
+
+          <div className="tab-bar" role="tablist">
+            {[['overview', 'Overview'], ['breakdown', 'Breakdown'], ['coach', 'Coach']].map(([k, label]) => (
+              <button key={k} role="tab" aria-selected={tab === k}
+                className={`tab-btn ${tab === k ? 'on' : ''}`} onClick={() => setTab(k)}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {tab === 'overview' && (<>
           {/* Derived locally, so the screen says something useful before any
               AI call finishes — and gives the cards below real context. */}
           <div className="card">
@@ -358,27 +403,6 @@ export default function Insights() {
                   : local.isPast ? monthOptions.find(([k]) => k === month)?.[1]
                   : 'This month so far'}
               </h3>
-              {monthOptions.length > 1 && (
-                <select className="month-pick" value={month} onChange={(e) => setMonth(e.target.value)}
-                  aria-label="Period to analyse">
-                  <option value="">This month</option>
-                  <optgroup label="Rolling">
-                    {SPANS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
-                  </optgroup>
-                  {yearOptions.length > 0 && (
-                    <optgroup label="Calendar year">
-                      {yearOptions.map((y) => <option key={y} value={`y:${y}`}>{y}</option>)}
-                    </optgroup>
-                  )}
-                  <optgroup label="Month">
-                    {/* The current month is already the default option, so it
-                        would otherwise appear twice. */}
-                    {monthOptions.filter(([k]) => k !== monthOptions[0][0] || month !== '').map(([k, label]) => (
-                      <option key={k} value={k}>{label}</option>
-                    ))}
-                  </optgroup>
-                </select>
-              )}
             </div>
             <p className="muted small" style={{ marginBottom: 10 }}>
               {local.span
@@ -449,6 +473,103 @@ export default function Insights() {
               )}
             </div>
 
+          </div>
+
+          {/* Trend + findings stay in Overview: they are about the shape of
+              things, not about where individual rupees went. */}
+          {/* ── 6-month shape: whether things are actually improving ── */}
+          {local.trend.some((m) => m.expense > 0 || m.income > 0) && (
+            <div className="card">
+              <div className="card-head">
+                <h3>Last 6 months</h3>
+                {local.isPast && <span className="muted small">up to {monthOptions.find(([k]) => k === month)?.[1]}</span>}
+              </div>
+              <TrendBars buckets={local.trend.map((m) => ({ start: m.key, label: m.label, value: m.expense }))}
+                height={64} showValues />
+              <div className="month-net-row">
+                {local.trend.map((m) => (
+                  <span key={m.key} className={m.net >= 0 ? 'pos' : 'neg'}>
+                    {m.net >= 0 ? '+' : '−'}{rupees(Math.abs(m.net))}
+                  </span>
+                ))}
+              </div>
+              <p className="muted small" style={{ marginTop: 6 }}>Bars are spending; the row beneath is what you kept.</p>
+            </div>
+          )}
+
+          {/* ── things worth acting on, found locally ── */}
+          {(local.missing.length > 0 || local.spikes.length > 0 || local.drift.length > 0) && (
+            <div className="card">
+              <div className="card-head">
+                <h3>Worth a look</h3>
+                {local.isPast && <span className="muted small">as of that month</span>}
+              </div>
+              <div className="finding-list">
+                {local.missing.map((m) => (
+                  <div className="finding" key={`m-${m.item}`}>
+                    <CalendarClock size={14} className="finding-icon warn" />
+                    <div>
+                      <b>{m.item} hasn&apos;t been paid this month</b>
+                      <span className="muted small">
+                        Paid {m.monthsSeen} months running, typically {rupees(m.typical)} — last seen {m.daysSince} days ago.
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {local.spikes.map((o, i) => (
+                  <div className="finding" key={`s-${i}`}>
+                    <AlertTriangle size={14} className="finding-icon warn" />
+                    <div>
+                      <b>{o.note} — {o.times}x the usual {o.category}</b>
+                      <span className="muted small">
+                        {rupees(o.amount)} against a median {rupees(o.median)} across your
+                        {' '}{o.sampleSize} {o.category} entries in the last {o.windowDays} days · {o.daysAgo} days ago.
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {local.drift.map((d) => (
+                  <div className="finding" key={`d-${d.item}`}>
+                    {d.pct > 0 ? <TrendingUp size={14} className="finding-icon warn" />
+                      : <TrendingDown size={14} className="finding-icon good" />}
+                    <div>
+                      <b>{d.item} is {Math.abs(d.pct)}% {d.pct > 0 ? 'dearer' : 'cheaper'} than it was</b>
+                      <span className="muted small">
+                        Averaging {rupees(d.after)}, up from {rupees(d.before)} earlier in the last 6 months.
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {health.groups.length > 0 && (
+            <div className="card">
+              <div className="card-head"><h3><Tag size={13} style={{ verticalAlign: '-2px' }} /> Groups & trips</h3></div>
+              <div className="stat-row">
+                {health.groups.slice(0, 6).map((g) => (
+                  <div className="stat" key={g.name}>
+                    <span className="stat-k">{g.name}</span>
+                    <b className="stat-v">{rupees(g.total_rupees * 100)}</b>
+                    <span className="stat-sub">{g.entries} {g.entries === 1 ? 'entry' : 'entries'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          </>)}
+
+          {tab === 'breakdown' && (<>
+          <div className="card">
+            <div className="card-head">
+              <h3>Where it goes</h3>
+              <span className="muted small">
+                {spanMonths ? `Last ${spanMonths} months` : yearPicked ? `${yearPicked}`
+                  : local.isPast ? monthOptions.find(([k]) => k === month)?.[1] : 'This month'}
+              </span>
+            </div>
             {/* Two different questions, so two sections. "What moved" answers
                 what CHANGED — the short list worth reacting to. "Where it
                 went" answers where the money actually goes, including steady
@@ -584,88 +705,9 @@ export default function Insights() {
             </div>
           )}
 
-          {/* ── 6-month shape: whether things are actually improving ── */}
-          {local.trend.some((m) => m.expense > 0 || m.income > 0) && (
-            <div className="card">
-              <div className="card-head">
-                <h3>Last 6 months</h3>
-                {local.isPast && <span className="muted small">up to {monthOptions.find(([k]) => k === month)?.[1]}</span>}
-              </div>
-              <TrendBars buckets={local.trend.map((m) => ({ start: m.key, label: m.label, value: m.expense }))}
-                height={64} showValues />
-              <div className="month-net-row">
-                {local.trend.map((m) => (
-                  <span key={m.key} className={m.net >= 0 ? 'pos' : 'neg'}>
-                    {m.net >= 0 ? '+' : '−'}{rupees(Math.abs(m.net))}
-                  </span>
-                ))}
-              </div>
-              <p className="muted small" style={{ marginTop: 6 }}>Bars are spending; the row beneath is what you kept.</p>
-            </div>
-          )}
+          </>)}
 
-          {/* ── things worth acting on, found locally ── */}
-          {(local.missing.length > 0 || local.spikes.length > 0 || local.drift.length > 0) && (
-            <div className="card">
-              <div className="card-head">
-                <h3>Worth a look</h3>
-                {local.isPast && <span className="muted small">as of that month</span>}
-              </div>
-              <div className="finding-list">
-                {local.missing.map((m) => (
-                  <div className="finding" key={`m-${m.item}`}>
-                    <CalendarClock size={14} className="finding-icon warn" />
-                    <div>
-                      <b>{m.item} hasn&apos;t been paid this month</b>
-                      <span className="muted small">
-                        Paid {m.monthsSeen} months running, typically {rupees(m.typical)} — last seen {m.daysSince} days ago.
-                      </span>
-                    </div>
-                  </div>
-                ))}
-                {local.spikes.map((o, i) => (
-                  <div className="finding" key={`s-${i}`}>
-                    <AlertTriangle size={14} className="finding-icon warn" />
-                    <div>
-                      <b>{o.note} — {o.times}x the usual {o.category}</b>
-                      <span className="muted small">
-                        {rupees(o.amount)} against a median {rupees(o.median)} across your
-                        {' '}{o.sampleSize} {o.category} entries in the last {o.windowDays} days · {o.daysAgo} days ago.
-                      </span>
-                    </div>
-                  </div>
-                ))}
-                {local.drift.map((d) => (
-                  <div className="finding" key={`d-${d.item}`}>
-                    {d.pct > 0 ? <TrendingUp size={14} className="finding-icon warn" />
-                      : <TrendingDown size={14} className="finding-icon good" />}
-                    <div>
-                      <b>{d.item} is {Math.abs(d.pct)}% {d.pct > 0 ? 'dearer' : 'cheaper'} than it was</b>
-                      <span className="muted small">
-                        Averaging {rupees(d.after)}, up from {rupees(d.before)} earlier in the last 6 months.
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {health.groups.length > 0 && (
-            <div className="card">
-              <div className="card-head"><h3><Tag size={13} style={{ verticalAlign: '-2px' }} /> Groups & trips</h3></div>
-              <div className="stat-row">
-                {health.groups.slice(0, 6).map((g) => (
-                  <div className="stat" key={g.name}>
-                    <span className="stat-k">{g.name}</span>
-                    <b className="stat-v">{rupees(g.total_rupees * 100)}</b>
-                    <span className="stat-sub">{g.entries} {g.entries === 1 ? 'entry' : 'entries'}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
+          {tab === 'coach' && (<>
           {/* ── health score + coach cards ── */}
           <div className="card">
             <div className="card-head">
@@ -743,8 +785,20 @@ export default function Insights() {
               : <p className="empty">A written summary of your week, with one concrete tip.</p>}
           </div>
 
-          {/* ── chat ── */}
-          <div className="card">
+          </>)}
+
+          {/* ── chat: a sheet over the screen, reachable from every tab,
+              because "ask a question" is the thing people come back for and
+              it should not be buried at the bottom of one of them. ── */}
+          <button className="chat-fab" onClick={() => setChatOpen(true)} title="Ask about your money">
+            <Sparkles size={17} strokeWidth={2} />
+            <span>Ask</span>
+          </button>
+
+          {chatOpen && (
+          <div className="chat-sheet-wrap" onClick={(e) => { if (e.target === e.currentTarget) setChatOpen(false); }}>
+          <motion.div className="chat-sheet" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}>
             <div className="card-head">
               <h3><Sparkles size={13} style={{ verticalAlign: '-2px' }} /> Ask anything</h3>
               {chat.length > 0 && (
@@ -752,6 +806,7 @@ export default function Insights() {
                   <RotateCcw size={13} /> Restart
                 </button>
               )}
+              <button className="icon-btn" onClick={() => setChatOpen(false)} title="Close">✕</button>
             </div>
             {chat.length > 0 && (
               <div className="chat">
@@ -771,7 +826,9 @@ export default function Insights() {
             <div className="chips">
               {CHIPS.map((c) => <button key={c} className="chip" onClick={() => ask(c)}>{c}</button>)}
             </div>
+          </motion.div>
           </div>
+          )}
         </>
       )}
     </section>
