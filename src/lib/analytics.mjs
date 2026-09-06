@@ -371,3 +371,74 @@ export function categoryBreakdown(txs, start, end, prevStart, prevEnd) {
     .sort((a, b) => b.amount - a.amount);
   return { rows, total };
 }
+
+// Per-category month-by-month history, for setting budgets.
+//
+// The budget suggester previously saw one blended 120-day total per category,
+// which cannot distinguish "3,000 every month" from "9,000 once and nothing
+// since" — they average identically, but only the first is a budget. This
+// returns the actual monthly series plus the statistics that make a category
+// budgetable: how often it occurs, its typical level, and how much it swings.
+//
+// Median is the headline figure rather than mean: one festival month should
+// not permanently raise a grocery budget. `p80` is offered alongside it for
+// categories the user would rather not breach, and `volatility` says how
+// trustworthy the median is.
+export function categoryHistory(txs, now = Date.now(), months = 6) {
+  const base = new Date(now);
+  // Whole months only, excluding the current one — a part-month would drag
+  // every average down and produce budgets that are quietly too tight.
+  const buckets = [];
+  for (let i = months; i >= 1; i--) {
+    const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
+    buckets.push({
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      start: d.getTime(),
+      end: new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime(),
+    });
+  }
+  if (!buckets.length) return [];
+
+  const perCat = new Map();
+  for (const t of txs) {
+    if (t.type !== 'expense') continue;
+    const ts = Number(t.occurred_at);
+    const b = buckets.findIndex((x) => ts >= x.start && ts < x.end);
+    if (b === -1) continue;
+    if (!perCat.has(t.category)) perCat.set(t.category, new Array(buckets.length).fill(0));
+    perCat.get(t.category)[b] += t.amount;
+  }
+
+  const out = [];
+  for (const [category, series] of perCat.entries()) {
+    const active = series.filter((v) => v > 0);
+    if (!active.length) continue;
+    const sorted = [...active].sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    const mean = active.reduce((a, b) => a + b, 0) / active.length;
+    // Spread as a share of the typical value, so it is comparable across
+    // categories of wildly different sizes.
+    const spread = median > 0
+      ? Math.round(((sorted[sorted.length - 1] - sorted[0]) / median) * 100) / 100
+      : 0;
+    out.push({
+      category,
+      by_month: buckets.map((b, i) => ({ month: b.key, rupees: Math.round(series[i]) / 100 })),
+      months_active: active.length,
+      months_tracked: buckets.length,
+      median_rupees: Math.round(median) / 100,
+      mean_rupees: Math.round(mean) / 100,
+      min_rupees: Math.round(sorted[0]) / 100,
+      max_rupees: Math.round(sorted[sorted.length - 1]) / 100,
+      // A level most months stay under — a safer cap than the median for
+      // anything the user would rather not breach.
+      p80_rupees: Math.round(sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.8))]) / 100,
+      spread,
+      // Every month present means a fixed commitment (rent, subscriptions):
+      // budget it at what it actually costs, never trimmed.
+      every_month: active.length === buckets.length,
+      volatility: spread > 1 ? 'high' : spread > 0.4 ? 'medium' : 'low',
+    });
+  }
+  return out.sort((a, b) => b.median_rupees - a.median_rupees);
+}

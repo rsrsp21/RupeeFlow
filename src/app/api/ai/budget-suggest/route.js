@@ -7,8 +7,8 @@ import { budgetSuggestions } from '@/lib/gemini';
 export async function POST(request) {
   try {
     if (!(await requireUser(request))) throw new HttpError('Unauthorized', 401);
-    const { summary } = await request.json().catch(() => ({}));
+    const { summary, history } = await request.json().catch(() => ({}));
     if (!summary) throw new HttpError('Summary required');
-    return jsonRes(await budgetSuggestions(summary));
+    return jsonRes(await budgetSuggestions(summary, history));
   } catch (e) { return errRes(e); }
 }

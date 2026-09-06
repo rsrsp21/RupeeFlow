@@ -183,14 +183,24 @@ State in score_reason what actually drove the number, so a low score is explaina
 }
 
 // Suggest monthly budgets per category from actual history.
-export function budgetSuggestions(summary) {
+export function budgetSuggestions(summary, history) {
   return gemini([{
     text: `You set realistic monthly budgets for an Indian professional. All amounts in ₹.
 Spending history (JSON): ${JSON.stringify(summary)}
+${history?.length ? `Per-category month-by-month history (JSON): ${JSON.stringify(history)}` : ''}
 ${DATA_NOTES}
 
 Return ONLY JSON: {"overall_rupees":number,"reasoning":"max 20 words","categories":[{"category":"exact category name from the data","suggested_rupees":number,"current_avg_rupees":number,"rationale":"max 12 words"}]}
-Suggest budgets for the 5–7 categories they actually spend on. Base them on real averages: trim discretionary categories ~10-15%, keep essentials (Rent, Bills & Utilities, Health, EMI & Loans) at actual levels. Treat anything in recurring_commitments, and the amount already going into holdings each month, as FIXED — budget around them rather than trimming them, and never propose cutting an investment contribution to hit a spending target. Round to sensible numbers (nearest 100 or 500). overall_rupees is a cap on SPENDING only, so exclude money invested; it should be achievable, not punitive.`,
+Suggest budgets for the 5–7 categories they actually spend on.${history?.length ? `
+Base every figure on that per-category history, which holds whole past months only:
+- "median_rupees" is the anchor, NOT the mean — one festival or repair month must not permanently raise a budget.
+- "every_month": true marks a fixed commitment (rent, subscriptions, EMI). Budget it AT its actual cost and never trim it.
+- "volatility" says how much a category swings. For "low", the median is a safe budget. For "high", budget nearer "p80_rupees" — a median cap on a category that regularly doubles will be breached most months and the user will stop trusting the budgets.
+- "months_active" against "months_tracked" shows how often it occurs at all. Something seen in 1 of 6 months is occasional, not monthly; leave it out rather than inventing a monthly line for it.
+- Set "current_avg_rupees" to that category's median_rupees, so the user sees what the suggestion was measured against.` : `
+Base them on real averages.`}
+Trim discretionary categories ~10-15%, keep essentials (Rent, Bills & Utilities, Health, EMI & Loans) at actual levels. Treat anything in recurring_commitments, and the amount already going into holdings each month, as FIXED — budget around them rather than trimming them, and never propose cutting an investment contribution to hit a spending target. Round to sensible numbers (nearest 100 or 500). overall_rupees is a cap on SPENDING only, so exclude money invested; it should be achievable, not punitive.
+A budget the user breaches every month is worse than none — prefer achievable over aspirational, and say briefly in each rationale what the figure is based on.`,
   }], { temperature: 0.3 });
 }
 
