@@ -85,8 +85,36 @@ export default function TxModal({ state, onClose }) {
   const noteKey = normalizeNote(note);
   const matches = useMemo(() => {
     if (noteKey.length < 2) return [];
-    return history.filter((h) => h.key !== noteKey && h.key.includes(noteKey)).slice(0, 8);
-  }, [history, noteKey]);
+    // Match on the RAW text as well as the normalized key. normalizeNote
+    // strips quantities, so typing "chicken 250 grams" normalizes to
+    // "chicken" — and excluding h.key === noteKey then hid the user's own
+    // "chicken 250 grams" at exactly the point it was worth offering,
+    // leaving only unrelated entries like "chicken biryani".
+    const raw = note.trim().toLowerCase();
+    // Every typed word must appear somewhere in the entry, in any order, so
+    // "grams chicken" and "case phone" still find their entry — a single
+    // contiguous match would miss both.
+    const words = raw.split(/\s+/).filter(Boolean);
+    const allWords = (hn) => words.length > 1 && words.every((w) => hn.includes(w));
+    const scored = history
+      .filter((h) => {
+        const hn = h.note.toLowerCase();
+        return h.key.includes(noteKey) || (raw.length > 1 && hn.includes(raw)) || allWords(hn);
+      })
+      // Nothing to offer if the note is already exactly what is stored.
+      .filter((h) => h.note.toLowerCase() !== raw)
+      .map((h) => {
+        const hn = h.note.toLowerCase();
+        // Prefer what the user is literally typing, then same-item variants.
+        const rank = hn.startsWith(raw) ? 0
+          : hn.includes(raw) ? 1
+          : allWords(hn) ? 2
+          : h.key === noteKey ? 3 : 4;
+        return { h, rank };
+      })
+      .sort((a, b) => a.rank - b.rank || a.h.note.length - b.h.note.length);
+    return scored.slice(0, 8).map((x) => x.h);
+  }, [history, noteKey, note]);
 
   // auto-fill category from the user's own history first, since it reflects
   // what they actually picked before; fall back to keyword rules. Skipped
