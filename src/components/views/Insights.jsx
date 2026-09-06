@@ -75,7 +75,13 @@ export default function Insights() {
       dailyBurn,
       runwayDays: dailyBurn > 0 ? Math.floor(Math.max(0, w.spendable) / dailyBurn) : null,
       spendable: Math.round(w.spendable), invested: Math.round(w.invested), dues: Math.round(w.dues), owed: Math.round(w.owed),
+      // Calendar-month AND trailing-30-day. Pay lands on the last working day
+      // and is usually saved the same day, so on the 1st-3rd the calendar
+      // figure is 0 while the money has in fact just been moved — showing
+      // that 0 next to a "25% of 30-day income" subtitle read as broken,
+      // because the two described different windows.
       saved: Math.round((s2.month_invested_rupees || 0) * 100),
+      saved30: Math.round((s2.invested_last_30d_rupees || 0) * 100),
       rate: s2.savings_rate_pct, stale,
       lastIncome: s2.last_income,
       groups: s2.groups || [],
@@ -204,9 +210,12 @@ export default function Insights() {
                 {health.dailyBurn > 0 && <span className="stat-sub">{rupees(health.dailyBurn)} a day</span>}
               </div>
               <div className="stat">
-                <span className="stat-k">Saved this month</span>
-                <b className="stat-v" style={{ color: health.saved > 0 ? 'var(--green)' : 'var(--muted)' }}>
-                  {rupees(health.saved)}
+                {/* Label follows the figure: if this month is empty but the
+                    last 30 days aren't, say so rather than reporting a zero
+                    that contradicts the line underneath it. */}
+                <span className="stat-k">{health.saved > 0 ? 'Saved this month' : 'Saved since last pay'}</span>
+                <b className="stat-v" style={{ color: (health.saved || health.saved30) > 0 ? 'var(--green)' : 'var(--muted)' }}>
+                  {rupees(health.saved > 0 ? health.saved : health.saved30)}
                 </b>
                 {/* Only shown when it's a share of income that means
                     something — investing out of last month's balance can put
@@ -215,7 +224,7 @@ export default function Insights() {
                 {health.rate !== null && health.rate > 0 && health.rate <= 100 && (
                   <span className="stat-sub">{health.rate.toFixed(0)}% of 30-day income</span>
                 )}
-                {health.saved === 0 && health.lastIncome && (
+                {health.saved === 0 && health.saved30 === 0 && health.lastIncome && (
                   <span className="stat-sub">
                     Last pay {health.lastIncome.days_ago === 0 ? 'today' : `${health.lastIncome.days_ago}d ago`}
                   </span>
@@ -320,7 +329,8 @@ export default function Insights() {
                     <div>
                       <b>{o.note} — {o.times}x the usual {o.category}</b>
                       <span className="muted small">
-                        {rupees(o.amount)} against a typical {rupees(o.median)}, {o.daysAgo} days ago.
+                        {rupees(o.amount)} against a median {rupees(o.median)} across your
+                        {' '}{o.sampleSize} {o.category} entries in the last {o.windowDays} days · {o.daysAgo} days ago.
                       </span>
                     </div>
                   </div>
