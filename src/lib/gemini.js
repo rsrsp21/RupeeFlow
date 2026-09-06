@@ -202,7 +202,12 @@ export function writeSqlForQuestion(question, schemaNote) {
 ${schemaNote}
 Question: "${question}"
 Return ONLY JSON: {"sql":"SELECT ...","need_sql":true} — or {"need_sql":false} if the question is about balances, net worth, holdings, budgets or savings rate, which live outside this table and are already summarised elsewhere.
-Rules: a single SELECT only; no semicolons, comments, CTEs or other statements. Never reference user_id or any table other than tx. Always aggregate (SUM/COUNT/AVG/GROUP BY) rather than dumping rows, and prefer grouping by month/category/note so the answer has context. Add ORDER BY and a small LIMIT when listing. For an item question match on lower(note) LIKE '%item%'. For a named month with no year, use the most recent occurrence of that month in the data.`,
+Rules: a single SELECT only; no semicolons, comments, CTEs or other statements. Never reference user_id or any table other than tx. Add ORDER BY and a small LIMIT when listing. For a named month with no year, use the most recent occurrence of that month in the data.
+Matching an item is the part most often got wrong. A bare word is a SUBSTRING of longer, different things: '%chicken%' also matches "chicken biryani", "butter chicken" and "chicken roll", which are restaurant dishes, not the ingredient. Read what was actually asked:
+- Asked for a specific thing ("chicken breast"), match that phrase and nothing else.
+- Asked for the ingredient itself ("chicken", "how much on chicken"), the user means what they bought as chicken to cook, NOT every restaurant dish containing the word. The category tells you which is which far more reliably than the words in the note: raw ingredients are logged under grocery categories, prepared dishes under eating-out ones. Prefer constraining the category, e.g. lower(note) LIKE '%chicken%' AND category NOT IN ('Food & Dining'). A word blocklist cannot work here -- "butter chicken" and "chicken 65" name dishes without containing any generic dish word -- so do not rely on one.
+- Asked broadly ("everything with chicken in it", "all chicken spending"), the plain LIKE is right.
+Always ALSO return the matched notes so the user can see what was counted: GROUP BY note, with SUM(rupees) and COUNT(*), ordered by the total descending. A single bare total hides a wrong match; a per-note breakdown makes it obvious. Aggregate rather than dumping raw rows.`,
   }], { asJson: true, temperature: 0.1 });
 }
 
@@ -213,7 +218,7 @@ export function answerFromRows(question, rows, summary) {
 The user asked: "${question}"
 This query result is the authoritative answer to it (JSON rows): ${JSON.stringify(rows)}
 Wider context if useful: ${JSON.stringify(summary || {})}
-Answer the question directly from the rows. If the rows are empty, say there are no matching entries — do NOT say the data cannot answer it, and never report an empty result as ₹0 spent. Under 100 words, specific numbers, **bold** key ₹ figures, short "- " bullets if listing more than two items. Do not mention SQL, queries, databases or how the answer was computed.`,
+Answer the question directly from the rows. When the rows are a per-item breakdown, give the total AND list what it is made of, so the user can see what was counted and correct you if an entry does not belong. If something ambiguous was included or excluded (a dish containing the ingredient, say), say so in a few words rather than silently folding it in. If the rows are empty, say there are no matching entries — do NOT say the data cannot answer it, and never report an empty result as ₹0 spent. Under 100 words, specific numbers, **bold** key ₹ figures, short "- " bullets if listing more than two items. Do not mention SQL, queries, databases or how the answer was computed.`,
   }], { asJson: false, temperature: 0.3 });
 }
 
