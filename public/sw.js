@@ -180,3 +180,62 @@ self.addEventListener('notificationclick', (e) => {
     return self.clients.openWindow(target);
   })());
 });
+
+// ── Windows 11 widget (see `widgets` in the manifest) ────────────────────
+//
+// The Widgets Board asks the service worker to fill the Adaptive Card, so
+// without these handlers a widget installs and then renders nothing at all.
+// Four events matter: install and resume (populate it), periodic refresh
+// (keep it current), and click (open the app).
+//
+// Auth is a Bearer token, not a cookie, so a plain fetch here would always
+// 401 — the service worker cannot read localStorage. The app mirrors the
+// token into IndexedDB for exactly this reason (see pushOutbox above), so the
+// widget reads it from there.
+async function renderWidget(widget) {
+  if (!widget || !self.widgets) return;
+  let payload = null;
+  try {
+    const db = await idbOpen();
+    const token = (await idbGetAll(db, 'meta')).find((m) => m.k === 'token')?.v;
+    if (token) {
+      const res = await fetch('/api/widget/today', {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      if (res.ok) payload = await res.json();
+    }
+  } catch {
+    payload = null; // offline, signed out, or no local db yet
+  }
+  // A placeholder rather than a stale figure: a number with no way to tell
+  // how old it is would be worse than an honest dash.
+  const data = payload || { spentToday: '—', subtitle: 'Open RupeeFlow to sync' };
+  try {
+    const template = await (await fetch(widget.definition.msAcTemplate)).text();
+    await self.widgets.updateByTag(widget.definition.tag, {
+      template,
+      data: JSON.stringify(data),
+    });
+  } catch { /* the board may have removed it since */ }
+}
+
+self.addEventListener('widgetinstall', (e) => {
+  e.waitUntil(renderWidget(e.widget));
+});
+// Fires when the board is reopened — the card may have been evicted from
+// memory, so it has to be filled again rather than assumed still present.
+self.addEventListener('widgetresume', (e) => {
+  e.waitUntil(renderWidget(e.widget));
+});
+self.addEventListener('periodicsync', (e) => {
+  if (e.tag !== 'rupeeflow-today') return;
+  e.waitUntil((async () => {
+    const widget = await self.widgets?.getByTag?.('rupeeflow-today');
+    if (widget) await renderWidget(widget);
+  })());
+});
+self.addEventListener('widgetclick', (e) => {
+  // Actions on the card are Action.OpenUrl, which the host opens itself; this
+  // covers a click on the card body.
+  e.waitUntil(self.clients.openWindow('/'));
+});
