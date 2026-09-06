@@ -1041,6 +1041,16 @@ select {
 .empty-state h4 { font-size: .95rem; font-weight: 600; }
 .empty-state p { font-size: .8rem; color: var(--muted); line-height: 1.5; max-width: 380px; margin-bottom: 6px; }
 
+/* Month picker on the Insights analysis card — sits in the card head beside
+   the title, so it reads as scoping that card rather than the whole screen. */
+.month-pick {
+  font: inherit; font-size: .74rem; font-weight: 550;
+  padding: 4px 8px; border-radius: 8px;
+  background: var(--surface-2); border: 1px solid var(--line);
+  color: var(--text); cursor: pointer; max-width: 46%;
+}
+.month-pick:hover { border-color: var(--line-strong); }
+
 /* Insights: locally-derived analysis blocks. Deliberately plain rows rather
    than more cards — this sits above the AI section and shouldn't compete
    with it for attention. */
