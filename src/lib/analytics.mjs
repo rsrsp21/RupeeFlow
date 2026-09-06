@@ -251,3 +251,84 @@ export function monthlyTrend(txs, now = Date.now(), months = 6) {
   }
   return out;
 }
+
+// Spending across an arbitrary span of whole months, against the equally-long
+// span immediately before it. The month functions above cannot answer "how was
+// this quarter" or "how was last year" — a span needs its own like-for-like
+// baseline, and comparing 3 months against 1 would be meaningless.
+//
+// `endTs` is the last instant of the final month in the span; `months` is how
+// many months the span covers. A span that is still running (the current
+// month) is compared on elapsed days, so a part-period is never measured
+// against a whole one — the same fairness rule the monthly view uses.
+export function spanSummary(txs, endTs, months, now = Date.now()) {
+  const end = new Date(endTs);
+  // First instant of the span: `months` back from the month `end` sits in.
+  const startD = new Date(end.getFullYear(), end.getMonth() - (months - 1), 1);
+  const start = startD.getTime();
+  const prevStart = new Date(startD.getFullYear(), startD.getMonth() - months, 1).getTime();
+
+  // If the span runs to the present its final month is incomplete, so the
+  // baseline is truncated by the same elapsed time rather than taking the
+  // whole earlier span.
+  const liveEnd = Math.min(endTs, now);
+  const elapsed = liveEnd - start;
+  const prevEnd = Math.min(prevStart + elapsed, start - 1);
+
+  let income = 0, expense = 0, invested = 0, prevExpense = 0, count = 0;
+  const byCat = {}, prevByCat = {};
+  for (const t of txs) {
+    const ts = Number(t.occurred_at);
+    if (ts >= start && ts <= liveEnd) {
+      if (t.type === 'income') income += t.amount;
+      else if (t.type === 'expense') {
+        expense += t.amount; count++;
+        byCat[t.category] = (byCat[t.category] || 0) + t.amount;
+      } else if (t.type === 'transfer') invested += t.amount;
+    } else if (ts >= prevStart && ts <= prevEnd) {
+      if (t.type === 'expense') {
+        prevExpense += t.amount;
+        prevByCat[t.category] = (prevByCat[t.category] || 0) + t.amount;
+      }
+    }
+  }
+
+  const allCats = [...new Set([...Object.keys(byCat), ...Object.keys(prevByCat)])]
+    .map((category) => {
+      const current = byCat[category] || 0, previous = prevByCat[category] || 0;
+      return {
+        category, current, previous, delta: current - previous,
+        pct: previous > 0 ? Math.round(((current - previous) / previous) * 1000) / 10 : null,
+        isNew: previous === 0 && current > 0,
+      };
+    });
+  // "What moved" wants only categories that changed; "biggest category" wants
+  // the largest by spend whether it moved or not — a steady rent is still the
+  // biggest line, and dropping it because it did not change would be absurd.
+  const cats = allCats
+    .filter((c) => c.delta !== 0)
+    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+  const spentCats = allCats.filter((c) => c.current > 0)
+    .sort((a, b) => b.current - a.current);
+
+  // Average per month over the months actually elapsed, so a running span
+  // reports a real monthly rate rather than dividing by months it hasn't
+  // reached yet.
+  const monthsElapsed = Math.max(1, Math.min(months,
+    (new Date(liveEnd).getFullYear() - startD.getFullYear()) * 12
+    + (new Date(liveEnd).getMonth() - startD.getMonth()) + 1));
+
+  return {
+    start, end: liveEnd, months, monthsElapsed,
+    income, expense, invested, count,
+    prevExpense, delta: expense - prevExpense,
+    pct: prevExpense > 0 ? Math.round(((expense - prevExpense) / prevExpense) * 1000) / 10 : null,
+    net: income - expense,
+    // Paise are integers everywhere else in the app; an average is the one
+    // place a fraction can creep in and render as "Rs40,000.01".
+    avgPerMonth: Math.round(expense / monthsElapsed),
+    savingsRate: income > 0 ? Math.round((invested / income) * 1000) / 10 : null,
+    cats: cats.slice(0, 6),
+    topCategory: spentCats[0] || null,
+  };
+}
