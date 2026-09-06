@@ -408,13 +408,13 @@ export default function Insights() {
     <section className="view">
       <header className="view-head" ref={headRef}>
         <div>
-          <h2><Sparkles size={19} strokeWidth={2} /> AI Insights</h2>
+          <h2><Sparkles size={19} strokeWidth={2} /> Insights</h2>
           <p className="sub">Analysis grounded in your actual entries</p>
         </div>
         <div className="view-head-utils"><SyncBadge /><MoneyLink /><SettingsLink /></div>
       </header>
 
-      {!hasData && <div className="card"><p className="empty">Add a few entries first. AI analysis needs data to work from.</p></div>}
+      {!hasData && <div className="card"><p className="empty">Add a few entries first. There's nothing to analyse yet.</p></div>}
 
       {hasData && (
         <>
