@@ -82,6 +82,20 @@ export default function Insights() {
   // here rather than on the server so the conversation survives a failed
   // request, and cleared the moment it is saved or the chat is restarted.
   const [pendingEntry, setPendingEntry] = useState(null);
+  // The controls stick BELOW the sticky header, so they need its height as an
+  // offset. It varies (subtitle length, wrapping, font scaling), so it is
+  // measured rather than hardcoded — a fixed guess left them sliding behind
+  // the header on some screens and floating below it on others.
+  const headRef = useRef(null);
+  useEffect(() => {
+    const el = headRef.current;
+    if (!el) return undefined;
+    const apply = () => el.parentElement?.style.setProperty('--head-h', `${el.offsetHeight}px`);
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   useEffect(() => onVoicesReady((v) => { voiceRef.current = v; }), []);
   useEffect(() => {
     try { localStorage.setItem('rf_chat_voice', speakBack ? '1' : '0'); } catch { /* private mode */ }
@@ -362,7 +376,11 @@ export default function Insights() {
       }
 
       const { answer } = await store.api('/ai/ask', {
-        method: 'POST', body: JSON.stringify({ question: q, summary: store.buildSummary(120) }),
+        method: 'POST',
+        body: JSON.stringify({
+          question: q, summary: store.buildSummary(120),
+          today: new Date().toISOString().slice(0, 10),
+        }),
       });
       // The answer always replaces the trailing pending bubble, so its index
       // is captured here rather than read back out of a state updater.
@@ -388,7 +406,7 @@ export default function Insights() {
 
   return (
     <section className="view">
-      <header className="view-head">
+      <header className="view-head" ref={headRef}>
         <div>
           <h2><Sparkles size={19} strokeWidth={2} /> AI Insights</h2>
           <p className="sub">Analysis grounded in your actual entries</p>

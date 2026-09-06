@@ -119,15 +119,36 @@ export function speak(text, voice) {
   if (!speechOutSupported()) return;
   const clean = speakableText(text);
   if (!clean) return;
-  window.speechSynthesis.cancel(); // never let two answers overlap
+  const synth = window.speechSynthesis;
+
   const u = new SpeechSynthesisUtterance(clean);
   if (voice) { u.voice = voice; u.lang = voice.lang; }
   u.rate = 1.02;
   u.pitch = 1.05;
-  window.speechSynthesis.speak(u);
+
+  // cancel() then speak() in the same tick is a long-standing browser race:
+  // Chrome regularly swallows the new utterance and nothing is heard. Only
+  // cancel when something is actually playing, and let the cancel settle
+  // before queuing the replacement.
+  const busy = synth.speaking || synth.pending;
+  if (busy) synth.cancel();
+  // cancel() can also leave the engine paused, which silently blocks every
+  // later utterance — this is why muting once could stop per-message playback
+  // working at all.
+  if (synth.paused) synth.resume();
+
+  const start = () => {
+    if (synth.paused) synth.resume();
+    synth.speak(u);
+  };
+  if (busy) setTimeout(start, 60); else start();
   return u;
 }
 
 export function stopSpeaking() {
-  if (speechOutSupported()) window.speechSynthesis.cancel();
+  if (!speechOutSupported()) return;
+  window.speechSynthesis.cancel();
+  // Leaving the engine paused after a cancel makes every later speak() a
+  // no-op, so playback is unpaused straight away.
+  if (window.speechSynthesis.paused) window.speechSynthesis.resume();
 }

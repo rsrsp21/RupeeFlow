@@ -31,7 +31,7 @@ async function sqlBackedAnswer(userId, question, summary) {
 
   let plan;
   try {
-    plan = await writeSqlForQuestion(question, SQL_SCHEMA_NOTE, categoryList);
+    plan = await writeSqlForQuestion(question, SQL_SCHEMA_NOTE, categoryList, today);
   } catch { return null; }
   if (!plan?.need_sql || !plan.sql) return null;
 
@@ -53,7 +53,9 @@ export async function POST(request) {
   try {
     const userId = await requireUser(request);
     if (!userId) throw new HttpError('Unauthorized', 401);
-    const { question, summary } = await request.json().catch(() => ({}));
+    // The client's own date — the server is UTC, which is a day behind for an
+    // IST user through the first five and a half hours of every day.
+    const { question, summary, today } = await request.json().catch(() => ({}));
     if (!question) throw new HttpError('Question required');
 
     const viaSql = await sqlBackedAnswer(userId, question, summary);
