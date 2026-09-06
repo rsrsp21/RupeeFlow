@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   monthOverMonth, categoryDeltas, projectMonthEnd, weekdayPattern,
-  priceDrift, missingRecurring, outliers, monthlyTrend, spanSummary, categoryBreakdown,
+  priceDrift, missingRecurring, outliers, monthlyTrend, spanSummary, categoryBreakdown, categoryHistory,
 } from '../src/lib/analytics.mjs';
 import { normalizeNote } from '../src/lib/noteMatch.js';
 
@@ -273,4 +273,45 @@ test('breakdown is ranked by spend, biggest first', () => {
   ];
   const b = categoryBreakdown(txs, at(2026, 9, 1), at(2026, 9, 30));
   assert.deepEqual(b.rows.map((r) => r.category), ['Rent', 'Fuel', 'Coffee']);
+});
+
+test('budget history separates a monthly habit from a one-off', () => {
+  // Both total the same over six months. A blended total cannot tell them
+  // apart, but only one of them is a budget.
+  const txs = [
+    ...[3, 4, 5, 6, 7, 8].map((m) => tx({ amount: R(1000), category: 'Groceries', occurred_at: at(2026, m, 6) })),
+    tx({ amount: R(6000), category: 'Travel', occurred_at: at(2026, 5, 20) }),
+  ];
+  const h = categoryHistory(txs, NOW, 6);
+  const groceries = h.find((c) => c.category === 'Groceries');
+  const travel = h.find((c) => c.category === 'Travel');
+  assert.equal(groceries.months_active, 6);
+  assert.equal(groceries.every_month, true, 'seen every month = a fixed commitment');
+  assert.equal(travel.months_active, 1, 'one month in six is occasional, not monthly');
+  assert.equal(travel.every_month, false);
+});
+
+test('budget history anchors on the median, so one spike cannot raise a budget', () => {
+  // Five months at 6,000 and one festival month at 18,000. The mean is
+  // dragged to 8,000; budgeting on that would permanently overshoot.
+  const txs = [
+    ...[3, 4, 5, 6, 7].map((m) => tx({ amount: R(6000), category: 'Groceries', occurred_at: at(2026, m, 6) })),
+    tx({ amount: R(18000), category: 'Groceries', occurred_at: at(2026, 8, 6) }),
+  ];
+  const [g] = categoryHistory(txs, NOW, 6);
+  assert.equal(g.median_rupees, 6000);
+  assert.equal(g.mean_rupees, 8000, 'the mean is the misleading one');
+  assert.equal(g.volatility, 'high', 'and the swing is flagged rather than hidden');
+});
+
+test('budget history excludes the current part-month', () => {
+  // Counting a part-month would drag every average down and make the
+  // suggested budgets quietly too tight.
+  const txs = [
+    ...[3, 4, 5, 6, 7, 8].map((m) => tx({ amount: R(5000), category: 'Rent', occurred_at: at(2026, m, 2) })),
+    tx({ amount: R(200), category: 'Rent', occurred_at: at(2026, 9, 2) }),
+  ];
+  const [r] = categoryHistory(txs, NOW, 6);
+  assert.equal(r.median_rupees, 5000);
+  assert.equal(r.by_month.some((m) => m.month === '2026-09'), false);
 });

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Plus, Sparkles, Check, RefreshCw, Target, TrendingUp, X, Pencil } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
+import { categoryHistory } from '@/lib/analytics.mjs';
 import { rupees, monthKey, CATEGORIES } from '@/lib/client/constants';
 import { DAY_MS, startOfMonth } from '@/lib/client/period';
 import { useUI } from './App';
@@ -43,8 +44,16 @@ export default function BudgetsPanel() {
   async function suggest() {
     setLoadingSuggest(true);
     try {
+      // A blended 120-day total per category cannot tell "3,000 every month"
+      // apart from "9,000 once and nothing since" — they average the same,
+      // but only the first is a budget. Send the real monthly series so the
+      // suggestion is based on what actually recurs.
       const out = await store.api('/ai/budget-suggest', {
-        method: 'POST', body: JSON.stringify({ summary: store.buildSummary(120) }),
+        method: 'POST',
+        body: JSON.stringify({
+          summary: store.buildSummary(120),
+          history: categoryHistory(store.live(), Date.now(), 6),
+        }),
       });
       const clean = sanitizeSuggestions(out, store.customCategories.map((c) => c.name));
       if (!clean) throw new Error('response had no usable budget suggestions');
