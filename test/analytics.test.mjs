@@ -165,3 +165,23 @@ test('outliers report the sample their "typical" was measured over', () => {
   assert.equal(o.windowDays, 90);
   assert.equal(o.times, 9);
 });
+
+test('a past month is analysed at its own end, not at today', () => {
+  // The Insights month picker anchors to the last instant of the chosen
+  // month. Anchoring to "now" instead would fold later entries into a
+  // finished month and compare it against the wrong window.
+  const txs = [
+    tx({ amount: R(5000), category: 'Shopping', occurred_at: at(2026, 8, 14) }),
+    tx({ amount: R(3000), category: 'Shopping', occurred_at: at(2026, 7, 14) }),
+    // September spending must not appear in an August view.
+    tx({ amount: R(9000), category: 'Shopping', occurred_at: at(2026, 9, 4) }),
+  ];
+  const endOfAugust = new Date(2026, 8, 1).getTime() - 1;
+  const aug = monthOverMonth(txs, endOfAugust);
+  assert.equal(aug.current, R(5000), 'August total excludes September');
+  assert.equal(aug.previous, R(3000), 'compared against July');
+  assert.equal(aug.daysCompared, 31, 'a finished month is compared whole');
+
+  // And a completed month has no meaningful pace left to project.
+  assert.equal(projectMonthEnd(txs, endOfAugust).spent, R(5000));
+});

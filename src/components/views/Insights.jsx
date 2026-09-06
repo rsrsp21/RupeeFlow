@@ -49,6 +49,10 @@ export default function Insights() {
   const [weekly, setWeekly] = useState(() => loadDaily('rf_ai_weekly') || '');
   const [loadingWeekly, setLoadingWeekly] = useState(false);
   const [chat, setChat] = useState(() => loadDaily('rf_ai_chat') || []);
+  // Which month the local analysis is about. '' means the current month, and
+  // stays the default so the screen still opens on "now" — looking back is a
+  // deliberate act, not something you land in.
+  const [month, setMonth] = useState('');
   const [input, setInput] = useState('');
   const [asking, setAsking] = useState(false);
 
@@ -91,9 +95,31 @@ export default function Insights() {
   // Deterministic analysis, computed from the ledger with no API call — so
   // the screen is useful the moment it opens rather than after a round trip,
   // and every claim here is checkable against the user's own entries.
+  // Months the user actually has entries in, newest first — no point offering
+  // a month with nothing in it.
+  const monthOptions = (() => {
+    const seen = new Map();
+    for (const t of store.live()) {
+      const d = new Date(Number(t.occurred_at));
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!seen.has(key)) seen.set(key, d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }));
+    }
+    return [...seen.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  })();
+
   const local = (() => {
     const txs = store.live();
-    const now = Date.now();
+    // Analysing a past month means anchoring to the END of it, not to today:
+    // every one of these functions measures backwards from the instant given,
+    // so passing "now" would compare that month against the wrong windows and
+    // silently include entries made after it. The last millisecond of the
+    // chosen month is the honest anchor. The current month still uses the real
+    // clock, so a part-month stays a part-month.
+    const now = (() => {
+      if (!month) return Date.now();
+      const [y, m] = month.split('-').map(Number);
+      return Math.min(new Date(y, m, 1).getTime() - 1, Date.now());
+    })();
     return {
       mom: monthOverMonth(txs, now),
       cats: categoryDeltas(txs, now),
@@ -103,6 +129,8 @@ export default function Insights() {
       missing: missingRecurring(txs, normalizeNote, now),
       spikes: outliers(txs, now),
       trend: monthlyTrend(txs, now, 6),
+      now,
+      isPast: Boolean(month),
     };
   })();
 
@@ -118,6 +146,9 @@ export default function Insights() {
       setCoach({
         ...out,
         cards: (out?.cards || []).filter((c) => c && (String(c.title || '').trim() || String(c.detail || '').trim())),
+        // Stamped so a score computed before today's entries can say so
+        // instead of quietly presenting itself as current.
+        txCount: store.live().length,
       });
     } catch (e) { store.toast('Analysis failed: ' + e.message); }
     setLoadingCoach(false);
@@ -241,9 +272,27 @@ export default function Insights() {
           {/* ── this month vs last, on a fair window ── */}
           <div className="card">
             <div className="card-head">
-              <h3><LineChart size={13} style={{ verticalAlign: '-2px' }} /> This month so far</h3>
-              <span className="muted small">vs first {local.mom.daysCompared} days last month</span>
+              <h3>
+                <LineChart size={13} style={{ verticalAlign: '-2px' }} />
+                {' '}{local.isPast ? monthOptions.find(([k]) => k === month)?.[1] : 'This month so far'}
+              </h3>
+              {monthOptions.length > 1 && (
+                <select className="month-pick" value={month} onChange={(e) => setMonth(e.target.value)}
+                  aria-label="Month to analyse">
+                  <option value="">This month</option>
+                  {/* The current month is already the default option, so it
+                      would otherwise appear twice. */}
+                  {monthOptions.filter(([k]) => k !== monthOptions[0][0] || month !== '').map(([k, label]) => (
+                    <option key={k} value={k}>{label}</option>
+                  ))}
+                </select>
+              )}
             </div>
+            <p className="muted small" style={{ marginBottom: 10 }}>
+              {local.isPast
+                ? `Full month · compared with the same ${local.mom.daysCompared} days of the month before`
+                : `Compared with the first ${local.mom.daysCompared} days of last month`}
+            </p>
             <div className="stat-row">
               <div className="stat">
                 <span className="stat-k">Spent</span>
@@ -254,7 +303,7 @@ export default function Insights() {
                   </span>
                 )}
               </div>
-              {local.projection.projected !== null && (
+              {!local.isPast && local.projection.projected !== null && (
                 <div className="stat">
                   <span className="stat-k">On pace for</span>
                   <b className="stat-v">{rupees(local.projection.projected)}</b>
@@ -293,7 +342,10 @@ export default function Insights() {
           {/* ── 6-month shape: whether things are actually improving ── */}
           {local.trend.some((m) => m.expense > 0 || m.income > 0) && (
             <div className="card">
-              <div className="card-head"><h3>Last 6 months</h3></div>
+              <div className="card-head">
+                <h3>Last 6 months</h3>
+                {local.isPast && <span className="muted small">up to {monthOptions.find(([k]) => k === month)?.[1]}</span>}
+              </div>
               <TrendBars buckets={local.trend.map((m) => ({ start: m.key, label: m.label, value: m.expense }))}
                 height={64} showValues />
               <div className="month-net-row">
@@ -310,7 +362,10 @@ export default function Insights() {
           {/* ── things worth acting on, found locally ── */}
           {(local.missing.length > 0 || local.spikes.length > 0 || local.drift.length > 0) && (
             <div className="card">
-              <div className="card-head"><h3>Worth a look</h3></div>
+              <div className="card-head">
+                <h3>Worth a look</h3>
+                {local.isPast && <span className="muted small">as of that month</span>}
+              </div>
               <div className="finding-list">
                 {local.missing.map((m) => (
                   <div className="finding" key={`m-${m.item}`}>
@@ -378,6 +433,14 @@ export default function Insights() {
 
             {!coach && !loadingCoach && (
               <p className="empty">Run an analysis to get a health score and personalised actions.</p>
+            )}
+            {coach && !loadingCoach && coach.txCount != null && coach.txCount !== store.live().length && (
+              // A cached score is kept until midnight, so entries added since
+              // are not in it. Saying so beats showing a stale number as fact.
+              <p className="muted small" style={{ marginBottom: 8 }}>
+                {Math.abs(store.live().length - coach.txCount)} newer{' '}
+                {Math.abs(store.live().length - coach.txCount) === 1 ? 'entry' : 'entries'} since this was run — refresh to include them.
+              </p>
             )}
             {loadingCoach && <div className="skeleton-block" />}
 
