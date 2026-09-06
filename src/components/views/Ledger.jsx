@@ -40,7 +40,7 @@ const LEDGER_ACCT_KEY = 'rf_ledger_account';
 
 export default function Ledger() {
   const store = useStore();
-  const { openExport, setEntryDate, setEntryAccount, setView } = useUI();
+  const { openExport, setEntryDate, setEntryAccount, setView, ledgerFilter, setLedgerFilter } = useUI();
   const [kind, setKind] = useState('day');
   const [start, setStart] = useState(() => periodStart('day'));
   const [q, setQ] = useState('');
@@ -101,10 +101,28 @@ export default function Ledger() {
     return () => setEntryAccount(null);
   }, [account, setEntryAccount]);
 
+  // A filter handed over from another screen (clicking a category in the
+  // Insights breakdown). Applied once and then cleared, so going back to
+  // Ledger later doesn't silently re-impose a filter the user never chose
+  // this time. The saved-account restore below is skipped on such an
+  // arrival — the incoming filter is an explicit instruction and should not
+  // be quietly narrowed further by a leftover account scope.
   useEffect(() => {
+    if (!ledgerFilter) return;
+    clearFilters();
+    if (ledgerFilter.category) setCat(ledgerFilter.category);
+    if (ledgerFilter.from) setDateFrom(ledgerFilter.from);
+    if (ledgerFilter.to) setDateTo(ledgerFilter.to);
+    if (ledgerFilter.type) setType(ledgerFilter.type);
+    setShowFilters(true); // so it's visible WHY the list is narrowed
+    setLedgerFilter(null);
+  }, [ledgerFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (ledgerFilter) return;
     const saved = localStorage.getItem(LEDGER_ACCT_KEY);
     if (saved) setAccount(saved);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // Drop the saved account if it's since been removed, rather than showing
   // a permanently empty ledger scoped to something that no longer exists.
   useEffect(() => {
