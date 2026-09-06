@@ -15,7 +15,7 @@ import TrendBars from '../charts/TrendBars';
 import CategoryIcon from '../CategoryIcon';
 import {
   monthOverMonth, categoryDeltas, projectMonthEnd, weekdayPattern,
-  priceDrift, missingRecurring, outliers, monthlyTrend, spanSummary,
+  priceDrift, missingRecurring, outliers, monthlyTrend, spanSummary, categoryBreakdown,
 } from '@/lib/analytics.mjs';
 import { normalizeNote } from '@/lib/noteMatch';
 
@@ -53,6 +53,9 @@ export default function Insights() {
   // stays the default so the screen still opens on "now" — looking back is a
   // deliberate act, not something you land in.
   const [month, setMonth] = useState('');
+  // The full category list can run long, so it is collapsed by default and
+  // expanded on demand rather than pushing everything else off the screen.
+  const [showAllCats, setShowAllCats] = useState(false);
   const [input, setInput] = useState('');
   const [asking, setAsking] = useState(false);
 
@@ -146,8 +149,26 @@ export default function Insights() {
         : 1);
     const span = coverMonths > 1 ? spanSummary(txs, now, coverMonths, Date.now()) : null;
 
+    // Full category breakdown over whatever window is selected. The span
+    // carries its own bounds; a single month derives them from the anchor.
+    const bounds = (() => {
+      if (span) {
+        const prevStart = new Date(new Date(span.start).getFullYear(),
+          new Date(span.start).getMonth() - span.months, 1).getTime();
+        return { start: span.start, end: span.end, prevStart, prevEnd: span.start - 1 };
+      }
+      const d = new Date(now);
+      const start = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+      const prevStart = new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime();
+      // A part-month is compared with the same elapsed days of the month
+      // before, matching monthOverMonth rather than contradicting it.
+      return { start, end: now, prevStart, prevEnd: prevStart + (now - start) };
+    })();
+    const breakdown = categoryBreakdown(txs, bounds.start, bounds.end, bounds.prevStart, bounds.prevEnd);
+
     return {
       span,
+      breakdown,
       coverMonths,
       mom: monthOverMonth(txs, now),
       cats: categoryDeltas(txs, now),
@@ -400,9 +421,18 @@ export default function Insights() {
               )}
             </div>
 
+            {/* Two different questions, so two sections. "What moved" answers
+                what CHANGED — the short list worth reacting to. "Where it
+                went" answers where the money actually goes, including steady
+                categories, which the delta list necessarily omits: a constant
+                Food & Dining is invisible there precisely because it is
+                consistent. */}
             {(local.span ? local.span.cats : local.cats).length > 0 && (
               <>
-                <div className="card-head" style={{ marginTop: 14 }}><h3>What moved</h3></div>
+                <div className="card-head" style={{ marginTop: 14 }}>
+                  <h3>What moved</h3>
+                  <span className="muted small">vs the period before</span>
+                </div>
                 <div className="delta-list">
                   {(local.span ? local.span.cats : local.cats).map((c) => (
                     <div className="delta-row" key={c.category}>
@@ -416,6 +446,41 @@ export default function Insights() {
                     </div>
                   ))}
                 </div>
+              </>
+            )}
+
+            {local.breakdown.rows.length > 0 && (
+              <>
+                <div className="card-head" style={{ marginTop: 14 }}>
+                  <h3>Where it went</h3>
+                  <span className="muted small">{rupees(local.breakdown.total)} total</span>
+                </div>
+                <div className="delta-list">
+                  {(showAllCats ? local.breakdown.rows : local.breakdown.rows.slice(0, 8)).map((c) => (
+                    <div className="delta-row" key={c.category}>
+                      <CategoryIcon category={c.category} size={14} />
+                      <span className="delta-name">{c.category}</span>
+                      <span className="cat-share">{c.share}%</span>
+                      <span className="delta-amt">{rupees(c.amount)}</span>
+                      {c.delta !== 0 ? (
+                        <span className={`delta-chip ${c.delta > 0 ? 'up' : 'down'}`}>
+                          {c.delta > 0 ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
+                          {c.isNew ? 'new' : `${Math.abs(c.pct)}%`}
+                        </span>
+                      ) : (
+                        // Flat is information too — an empty gap would read as
+                        // missing data rather than "unchanged".
+                        <span className="delta-chip flat">—</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {local.breakdown.rows.length > 8 && (
+                  <button className="btn ghost sm" style={{ marginTop: 8 }}
+                    onClick={() => setShowAllCats((v) => !v)}>
+                    {showAllCats ? 'Show top 8' : `Show all ${local.breakdown.rows.length} categories`}
+                  </button>
+                )}
               </>
             )}
           </div>

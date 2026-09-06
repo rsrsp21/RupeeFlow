@@ -332,3 +332,42 @@ export function spanSummary(txs, endTs, months, now = Date.now()) {
     topCategory: spentCats[0] || null,
   };
 }
+
+// Every category with spending in a window, ranked, with each one's share of
+// the total and its movement against the preceding equal window.
+//
+// "What moved" deliberately lists only categories that CHANGED, which means a
+// steady category disappears from it entirely — a constant Food & Dining is
+// invisible precisely because it is consistent. That is the wrong answer to
+// "where does my money go", so this returns the complete picture instead: all
+// categories, what each cost, what share of spending it is, and how it moved.
+//
+// Works for any window, so one function serves a month, a quarter, a year.
+export function categoryBreakdown(txs, start, end, prevStart, prevEnd) {
+  const cur = {}, prev = {};
+  let total = 0;
+  for (const t of txs) {
+    if (t.type !== 'expense') continue;
+    const ts = Number(t.occurred_at);
+    if (ts >= start && ts <= end) {
+      cur[t.category] = (cur[t.category] || 0) + t.amount;
+      total += t.amount;
+    } else if (prevStart != null && ts >= prevStart && ts <= prevEnd) {
+      prev[t.category] = (prev[t.category] || 0) + t.amount;
+    }
+  }
+  const rows = Object.entries(cur)
+    .map(([category, amount]) => {
+      const previous = prev[category] || 0;
+      return {
+        category, amount, previous,
+        // Share of THIS window's spending, so the column sums to 100%.
+        share: total > 0 ? Math.round((amount / total) * 1000) / 10 : 0,
+        delta: amount - previous,
+        pct: previous > 0 ? Math.round(((amount - previous) / previous) * 1000) / 10 : null,
+        isNew: previous === 0 && amount > 0,
+      };
+    })
+    .sort((a, b) => b.amount - a.amount);
+  return { rows, total };
+}
