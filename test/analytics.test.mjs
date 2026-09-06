@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   monthOverMonth, categoryDeltas, projectMonthEnd, weekdayPattern,
-  priceDrift, missingRecurring, outliers, monthlyTrend, spanSummary, categoryBreakdown, categoryHistory,
+  priceDrift, missingRecurring, outliers, monthlyTrend, spanSummary, categoryBreakdown, categoryHistory, accountSpending, cardHealth,
 } from '../src/lib/analytics.mjs';
 import { normalizeNote } from '../src/lib/noteMatch.js';
 
@@ -314,4 +314,61 @@ test('budget history excludes the current part-month', () => {
   const [r] = categoryHistory(txs, NOW, 6);
   assert.equal(r.median_rupees, 5000);
   assert.equal(r.by_month.some((m) => m.month === '2026-09'), false);
+});
+
+const ACCTS = [
+  { name: 'HDFC', type: 'Bank', limit_amount: 0 },
+  { name: 'Amex', type: 'Credit Card', limit_amount: R(200000) },
+  { name: 'ICICI Card', type: 'Credit Card', limit_amount: R(50000) },
+];
+
+test('account spending ignores transfers between your own accounts', () => {
+  // Paying a card from a bank account is not spending. Counting it would
+  // make every account that funds another look wildly expensive, and would
+  // double-count the original purchase.
+  const txs = [
+    tx({ amount: R(20000), account: 'HDFC', occurred_at: at(2026, 9, 2) }),
+    { type: 'transfer', amount: R(50000), account: 'HDFC', to_account: 'Amex',
+      category: 'Other', note: '', occurred_at: at(2026, 9, 8) },
+  ];
+  const rows = accountSpending(txs, ACCTS, at(2026, 9, 1), NOW, at(2026, 8, 1), at(2026, 8, 10));
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].amount, R(20000));
+});
+
+test('account spending shares are of the window and identify cards', () => {
+  const txs = [
+    tx({ amount: R(7500), account: 'HDFC', occurred_at: at(2026, 9, 2) }),
+    tx({ amount: R(2500), account: 'Amex', occurred_at: at(2026, 9, 4) }),
+  ];
+  const rows = accountSpending(txs, ACCTS, at(2026, 9, 1), NOW);
+  assert.equal(rows[0].share, 75);
+  assert.equal(rows[0].isCard, false);
+  assert.equal(rows[1].share, 25);
+  assert.equal(rows[1].isCard, true, 'a card is flagged so it can be shown differently');
+});
+
+test('card health flips the sign on what is owed and bands utilisation', () => {
+  // A card balance is negative when money is owed; reporting a negative
+  // "owed" figure would be nonsense.
+  const balances = { Amex: R(-42000), 'ICICI Card': R(-38000) };
+  // Sorted by amount owed, so Amex (42,000) precedes ICICI (38,000) —
+  // utilisation is the riskier signal, but the debt is the bigger number.
+  const [amex, icici] = cardHealth(ACCTS, balances, [], NOW);
+  assert.equal(amex.account, 'Amex', 'biggest debt first');
+  assert.equal(icici.account, 'ICICI Card');
+  assert.equal(icici.owed, R(38000));
+  assert.equal(icici.utilPct, 76);
+  assert.equal(icici.status, 'high');
+  assert.equal(icici.available, R(12000));
+  assert.equal(amex.utilPct, 21);
+  assert.equal(amex.status, 'ok');
+});
+
+test('a card with no limit set reports unknown rather than guessing', () => {
+  const accts = [{ name: 'NoLimit', type: 'Credit Card', limit_amount: 0 }];
+  const [c] = cardHealth(accts, { NoLimit: R(-5000) }, [], NOW);
+  assert.equal(c.owed, R(5000));
+  assert.equal(c.utilPct, null);
+  assert.equal(c.status, 'unknown');
 });

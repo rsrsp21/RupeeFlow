@@ -442,3 +442,85 @@ export function categoryHistory(txs, now = Date.now(), months = 6) {
   }
   return out.sort((a, b) => b.median_rupees - a.median_rupees);
 }
+
+// Spending per account over a window, against the equal window before it.
+//
+// Every other view here slices by category or item, which answers "what did I
+// buy" but never "which card or account is this coming out of". That matters
+// for a credit card in particular: card spend is money already committed but
+// not yet paid, and it is the easiest kind to lose track of.
+//
+// `accounts` is the user's account list ({name, type, limit_amount}) so a card
+// can be reported against its limit. Transfers are excluded throughout — moving
+// money between your own accounts is not spending, and counting it would make
+// every account that funds another look wildly expensive.
+export function accountSpending(txs, accounts, start, end, prevStart, prevEnd) {
+  const meta = new Map((accounts || []).map((a) => [a.name, a]));
+  const cur = new Map(), prev = new Map();
+  const bump = (m, k, amt) => m.set(k, (m.get(k) || 0) + amt);
+
+  for (const t of txs) {
+    if (t.type !== 'expense' || !t.account) continue;
+    const ts = Number(t.occurred_at);
+    if (ts >= start && ts <= end) bump(cur, t.account, t.amount);
+    else if (prevStart != null && ts >= prevStart && ts <= prevEnd) bump(prev, t.account, t.amount);
+  }
+
+  let total = 0;
+  for (const v of cur.values()) total += v;
+
+  return [...cur.entries()]
+    .map(([name, amount]) => {
+      const a = meta.get(name);
+      const previous = prev.get(name) || 0;
+      const isCard = a?.type === 'Credit Card';
+      return {
+        account: name,
+        type: a?.type || 'Other',
+        isCard,
+        amount,
+        share: total > 0 ? Math.round((amount / total) * 1000) / 10 : 0,
+        previous,
+        delta: amount - previous,
+        pct: previous > 0 ? Math.round(((amount - previous) / previous) * 1000) / 10 : null,
+        // Only meaningful for a card with a stated limit — how much of the
+        // limit this window's spending alone used up.
+        limit: isCard && a.limit_amount > 0 ? a.limit_amount : null,
+        limitPct: isCard && a.limit_amount > 0
+          ? Math.round((amount / a.limit_amount) * 100) : null,
+      };
+    })
+    .sort((a, b) => b.amount - a.amount);
+}
+
+// Credit-card position now: what is owed, how much of the limit that uses, and
+// whether the balance is trending the wrong way. `balances` is the app's
+// accountBalances() map — a card's balance is negative when money is owed, so
+// the sign is flipped here rather than in three different callers.
+export function cardHealth(accounts, balances, txs, now = Date.now()) {
+  const out = [];
+  for (const a of accounts || []) {
+    if (a.type !== 'Credit Card') continue;
+    const owed = Math.max(0, -(balances[a.name] || 0));
+    const limit = a.limit_amount > 0 ? a.limit_amount : null;
+    // Spending on this card over the last 30 days, so a rising balance can be
+    // explained by fresh spending rather than left as a mystery.
+    const since30 = now - 30 * DAY;
+    let recent = 0;
+    for (const t of txs) {
+      if (t.type !== 'expense' || t.account !== a.name) continue;
+      if (Number(t.occurred_at) >= since30) recent += t.amount;
+    }
+    const utilPct = limit ? Math.round((owed / limit) * 100) : null;
+    out.push({
+      account: a.name, owed, limit, utilPct, recent30: recent,
+      available: limit ? Math.max(0, limit - owed) : null,
+      // 30% is the conventional threshold where utilisation starts to be read
+      // as a signal by lenders; past 70% it is a real risk of overrunning.
+      status: utilPct === null ? 'unknown'
+        : utilPct >= 70 ? 'high'
+        : utilPct >= 30 ? 'watch' : 'ok',
+    });
+  }
+  return out.sort((a, b) => b.owed - a.owed);
+}

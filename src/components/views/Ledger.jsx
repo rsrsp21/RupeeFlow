@@ -111,6 +111,7 @@ export default function Ledger() {
     if (!ledgerFilter) return;
     clearFilters();
     if (ledgerFilter.category) setCat(ledgerFilter.category);
+    if (ledgerFilter.account) changeAccount(ledgerFilter.account);
     if (ledgerFilter.from) setDateFrom(ledgerFilter.from);
     if (ledgerFilter.to) setDateTo(ledgerFilter.to);
     if (ledgerFilter.type) setType(ledgerFilter.type);
