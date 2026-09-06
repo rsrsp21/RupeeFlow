@@ -1051,7 +1051,10 @@ select {
    the header slides over this rather than the two fighting — no need to know
    the header's height, which varies by screen. */
 .insights-controls {
-  position: sticky; top: 0; z-index: 14;
+  /* Sticks BELOW the header, not under it: --head-h is the header's measured
+     height (set in Insights.jsx, since it varies with the subtitle and font
+     scaling). Both sticking at top:0 made these slide behind it. */
+  position: sticky; top: var(--head-h, 62px); z-index: 14;
   background: var(--bg); padding-top: 2px;
 }
 .period-row {

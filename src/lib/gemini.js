@@ -239,13 +239,16 @@ A budget the user breaches every month is worse than none — prefer achievable 
 // Kept separate from answering so the query can be validated and run before
 // any prose is written — the model never gets to narrate over rows it didn't
 // actually receive.
-export function writeSqlForQuestion(question, schemaNote, categoryList = '') {
+export function writeSqlForQuestion(question, schemaNote, categoryList = '', today = '') {
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(today) ? today : new Date().toISOString().slice(0, 10);
   return gemini([{
     text: `You translate a personal-finance question into ONE SQLite SELECT query.
+Today's date is ${day}. Resolve every relative or named date against THAT date — a bare "August" means the most recent August before it, not a year from your training data. Prefer writing the literal value ('2026-08') over strftime('now'), so the query does not depend on the server clock.
 ${schemaNote}
 Question: "${question}"
 Return ONLY JSON: {"sql":"SELECT ...","need_sql":true} — or {"need_sql":false} if the question is about balances, net worth, holdings, budgets or savings rate, which live outside this table and are already summarised elsewhere.
-Rules: a single SELECT only; no semicolons, comments, CTEs or other statements. Never reference user_id or any table other than tx. Add ORDER BY and a small LIMIT when listing. For a named month with no year, use the most recent occurrence of that month in the data.
+Rules: a single SELECT only; no semicolons, comments, CTEs or other statements. Never reference user_id or any table other than tx. Add ORDER BY and a small LIMIT when listing.
+Dates: "month" is a 'YYYY-MM' string and "day" is 'YYYY-MM-DD' — compare them in that exact form. Never compare a month against an English name: month = 'November' matches nothing and silently returns an empty result. Resolve any spoken month to its number against today's date, so "last month" and "August" both become something like month = '2026-08'. For a named month with no year, use its most recent past occurrence.
 Getting the MATCH right is the part most often got wrong, and it matters for every kind of question, not just one.
 A bare word is a SUBSTRING, so LIKE '%word%' silently catches longer, different things: '%chicken%' also matches "chicken biryani", '%uber%' also matches "uber eats", '%book%' also matches "bookshelf" and "booking fee", '%gym%' also matches "gym bag". Counting those together produces a confident, wrong total.
 So before writing the query, decide what the user actually meant:
