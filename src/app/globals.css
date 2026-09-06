@@ -1041,6 +1041,57 @@ select {
 .empty-state h4 { font-size: .95rem; font-weight: 600; }
 .empty-state p { font-size: .8rem; color: var(--muted); line-height: 1.5; max-width: 380px; margin-bottom: 6px; }
 
+/* Insights tabs — nine stacked cards was a long scroll to reach anything
+   specific, so they are grouped by the question each one answers. */
+.period-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.period-row .month-pick { max-width: none; flex: 1; }
+.tab-bar {
+  display: flex; gap: 4px; margin-bottom: var(--stack);
+  background: var(--surface-2); padding: 3px; border-radius: 10px;
+}
+.tab-btn {
+  flex: 1; font: inherit; font-size: .8rem; font-weight: 550;
+  padding: 7px 10px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--muted); cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.on { background: var(--surface); color: var(--text); font-weight: 650; box-shadow: 0 1px 2px rgb(0 0 0 / .06); }
+
+/* Ask-anything, reachable from every tab. Sits above the bottom nav on
+   mobile, which is why the offset is not a round number. */
+.chat-fab {
+  /* Sits left of the existing add-entry FAB (.fab-cluster, right: 28px)
+     rather than on top of it. */
+  position: fixed; right: 96px; bottom: 28px; z-index: 40;
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 11px 16px; border: 0; border-radius: 999px;
+  font: inherit; font-size: .82rem; font-weight: 600;
+  /* Same treatment as .btn.primary — the app inverts rather than using a
+     saturated accent for solid buttons. */
+  background: var(--text); color: var(--bg);
+  box-shadow: 0 6px 20px rgb(0 0 0 / .18); cursor: pointer;
+}
+.chat-fab:hover { filter: brightness(1.06); }
+.chat-sheet-wrap {
+  position: fixed; inset: 0; z-index: 60; display: flex;
+  align-items: flex-end; justify-content: center;
+  background: rgb(0 0 0 / .45); padding: 0;
+}
+.chat-sheet {
+  width: 100%; max-width: 620px; max-height: 86vh; overflow-y: auto;
+  background: var(--surface); border-radius: 16px 16px 0 0;
+  padding: 16px; border: 1px solid var(--line); border-bottom: 0;
+}
+@media (min-width: 700px) {
+  .chat-sheet-wrap { align-items: center; padding: 24px; }
+  .chat-sheet { border-radius: 16px; border-bottom: 1px solid var(--line); }
+}
+@media (max-width: 760px) {
+  /* Clear of the bottom nav and the centred add FAB. */
+  .chat-fab { right: auto; left: 16px; bottom: calc(74px + env(safe-area-inset-bottom)); }
+}
+
 /* Month picker on the Insights analysis card — sits in the card head beside
    the title, so it reads as scoping that card rather than the whole screen. */
 .month-pick {
