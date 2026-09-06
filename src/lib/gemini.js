@@ -155,7 +155,7 @@ color is a single hex color that suits the category (used as a themed background
 // out what the unfamiliar fields mean is cheaper than hoping the model infers
 // them, and it stops the classic mistake of reading a transfer into savings
 // as money spent.
-const DATA_NOTES = `Reading the data: all amounts are rupees. "net_worth_rupees" splits into spendable (cash in accounts), invested (savings/investment holdings), owed_to_you (money the user fronted for someone else and expects back — a real asset, but NOT cash they can spend until it is repaid, so never suggest spending it or count it as available) and card_dues (credit card debt, a liability). total = spendable + invested + owed_to_you - card_dues. Money moved into a holding is NOT spending — it leaves the spendable balance but stays the user's money, so never call investing an expense or a loss. "savings_rate_pct" is the share of this month's income that went into holdings. "recurring_commitments" are notes seen across two or more months, so treat those as fixed obligations rather than things to casually cut. A holding's "valued_days_ago" is how stale its stated value is — if it is null the user has never valued it, and above about 30 days say the figure may be out of date instead of quoting it as current fact. "utilisation_pct" on a credit card is how much of its limit is used. Pay usually arrives at the END of a month, so "month_income_rupees" being 0 in the first days of a new month does NOT mean the user has no income — check "income_last_30d_rupees" and "last_income" before saying anything about earnings, and never tell them they earned nothing when last_income shows a recent credit. "savings_rate_pct" is measured against that trailing 30-day income for the same reason. "groups" are user-defined labels tying several entries across different categories/accounts to one event or trip (e.g. "Goa Trip", "Wedding") — their total_rupees is the LIFETIME total for that label across the user's whole history, not scoped to this data window, so it's the right figure whenever the user asks what something "cost in total" or "cost altogether".`;
+const DATA_NOTES = `Reading the data: all amounts are rupees. "net_worth_rupees" splits into spendable (cash in accounts), invested (savings/investment holdings), owed_to_you (money the user fronted for someone else and expects back — a real asset, but NOT cash they can spend until it is repaid, so never suggest spending it or count it as available) and card_dues (credit card debt, a liability). total = spendable + invested + owed_to_you - card_dues. Money moved into a holding is NOT spending — it leaves the spendable balance but stays the user's money, so never call investing an expense or a loss. "savings_rate_pct" is the share of the last 30 days' income that went into holdings, measured over that same trailing window on BOTH sides. "recurring_commitments" are notes seen across two or more months, so treat those as fixed obligations rather than things to casually cut. A holding's "valued_days_ago" is how stale its stated value is — if it is null the user has never valued it, and above about 30 days say the figure may be out of date instead of quoting it as current fact. "utilisation_pct" on a credit card is how much of its limit is used. Pay usually arrives at the END of a month, so "month_income_rupees" being 0 in the first days of a new month does NOT mean the user has no income — check "income_last_30d_rupees" and "last_income" before saying anything about earnings, and never tell them they earned nothing when last_income shows a recent credit. "savings_rate_pct" is measured against that trailing 30-day income for the same reason. The same trap applies to saving: money is usually moved to savings the day pay arrives, so a salary on the 31st is typically saved on the 31st too. In the first days of a month "month_invested_rupees" can therefore be 0 while the user has in fact just saved — check "invested_last_30d_rupees" before commenting on saving, and NEVER tell them they have saved nothing this month when that figure is positive. Say "you saved ₹X since your last payday" rather than pinning it to a calendar month. "groups" are user-defined labels tying several entries across different categories/accounts to one event or trip (e.g. "Goa Trip", "Wedding") — their total_rupees is the LIFETIME total for that label across the user's whole history, not scoped to this data window, so it's the right figure whenever the user asks what something "cost in total" or "cost altogether". "items" is per-item spending taken from the notes on the user's own entries, deduped so quantity phrasing ("chicken 1kg", "chicken 500g") counts as one item: "total_rupees" is that item's total over the covered window and "by_month_rupees" splits it by calendar month (YYYY-MM). Use it to answer questions about a specific thing the user bought, including for a named month — read that month's key out of by_month_rupees rather than saying item-level detail is unavailable. It holds the top items only, so if an item the user names is absent say you have no entry for it, not that it cost nothing. "covers_from"/"covers_to" bound the window these item and category figures cover — if a question falls outside it, say the window doesn't reach that far instead of answering 0.`;
 
 export function weeklyInsights(summary) {
   return gemini([{
@@ -192,12 +192,37 @@ Suggest budgets for the 5–7 categories they actually spend on. Base them on re
   }], { temperature: 0.3 });
 }
 
+// Step one of the two-step ask: turn the question into a SQL query, or decline.
+// Kept separate from answering so the query can be validated and run before
+// any prose is written — the model never gets to narrate over rows it didn't
+// actually receive.
+export function writeSqlForQuestion(question, schemaNote) {
+  return gemini([{
+    text: `You translate a personal-finance question into ONE SQLite SELECT query.
+${schemaNote}
+Question: "${question}"
+Return ONLY JSON: {"sql":"SELECT ...","need_sql":true} — or {"need_sql":false} if the question is about balances, net worth, holdings, budgets or savings rate, which live outside this table and are already summarised elsewhere.
+Rules: a single SELECT only; no semicolons, comments, CTEs or other statements. Never reference user_id or any table other than tx. Always aggregate (SUM/COUNT/AVG/GROUP BY) rather than dumping rows, and prefer grouping by month/category/note so the answer has context. Add ORDER BY and a small LIMIT when listing. For an item question match on lower(note) LIKE '%item%'. For a named month with no year, use the most recent occurrence of that month in the data.`,
+  }], { asJson: true, temperature: 0.1 });
+}
+
+// Step two: answer from the rows the query actually returned.
+export function answerFromRows(question, rows, summary) {
+  return gemini([{
+    text: `You are RupeeFlow's finance assistant. All amounts in ₹.
+The user asked: "${question}"
+This query result is the authoritative answer to it (JSON rows): ${JSON.stringify(rows)}
+Wider context if useful: ${JSON.stringify(summary || {})}
+Answer the question directly from the rows. If the rows are empty, say there are no matching entries — do NOT say the data cannot answer it, and never report an empty result as ₹0 spent. Under 100 words, specific numbers, **bold** key ₹ figures, short "- " bullets if listing more than two items. Do not mention SQL, queries, databases or how the answer was computed.`,
+  }], { asJson: false, temperature: 0.3 });
+}
+
 export function askQuestion(question, summary) {
   return gemini([{
     text: `You are RupeeFlow's finance assistant. Answer using ONLY this user's data (amounts in ₹, JSON):
 ${JSON.stringify(summary || {})}
 ${DATA_NOTES}
 Question: "${question}"
-You can answer questions about balances, net worth, individual accounts, credit card dues, investment holdings and their gains, savings rate, spending, and named groups/trips/events (their lifetime totals, in "groups") — all of that is in the data above, so use it rather than saying you cannot. Answer in under 100 words with specific numbers. **Bold** key ₹ figures, and use a short bullet list ("- ") if listing more than two items. If a holding's value is stale (valued_days_ago is large or null), say so rather than presenting it as current. Only if the data genuinely doesn't contain the answer, say so briefly.`,
+You can answer questions about balances, net worth, individual accounts, credit card dues, investment holdings and their gains, savings rate, spending, named groups/trips/events (their lifetime totals, in "groups"), and what specific items cost — including within a named month, via "items" and its by_month_rupees breakdown — all of that is in the data above, so use it rather than saying you cannot. Answer in under 100 words with specific numbers. **Bold** key ₹ figures, and use a short bullet list ("- ") if listing more than two items. If a holding's value is stale (valued_days_ago is large or null), say so rather than presenting it as current. Only if the data genuinely doesn't contain the answer, say so briefly.`,
   }], { asJson: false, temperature: 0.4 });
 }
