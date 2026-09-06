@@ -1082,6 +1082,29 @@ select {
   background: var(--text); color: var(--bg); cursor: pointer;
 }
 .chat-fab:hover { filter: brightness(1.06); }
+/* A sheen that travels left to right, so the button reads as the "live" thing
+   on the screen without animating position or size. */
+.chat-fab { position: relative; overflow: hidden; isolation: isolate; }
+.chat-fab::after {
+  content: ''; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(100deg,
+    transparent 20%,
+    color-mix(in srgb, var(--bg) 38%, transparent) 42%,
+    color-mix(in srgb, var(--bg) 55%, transparent) 50%,
+    color-mix(in srgb, var(--bg) 38%, transparent) 58%,
+    transparent 80%);
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  animation: fab-sheen 3.4s ease-in-out infinite;
+}
+@keyframes fab-sheen {
+  0%   { background-position: 160% 0; }
+  /* Long tail so it sweeps, pauses, sweeps — a continuous shimmer is
+     distracting on a screen people read. */
+  55%, 100% { background-position: -60% 0; }
+}
+/* Respect a user who has asked for less movement. */
+@media (prefers-reduced-motion: reduce) { .chat-fab::after { animation: none; } }
 .chat-sheet-wrap {
   position: fixed; inset: 0; z-index: 60; display: flex;
   align-items: flex-end; justify-content: center;
