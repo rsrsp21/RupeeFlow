@@ -9,7 +9,7 @@ import AmountInput from '../AmountInput';
 import { CATEGORIES, rupees, toPaise } from '@/lib/client/constants';
 import { normalizeGroup } from '@/lib/noteMatch';
 import {
-  PERIODS, DAY_MS, periodStart, periodEnd, shiftPeriod, periodLabel, bucketsFor, startOfDay,
+  PERIODS, DAY_MS, periodStart, periodEnd, shiftPeriod, periodLabel, bucketsFor, startOfDay, startOfWeek,
 } from '@/lib/client/period';
 import TxItem from '../TxItem';
 import TrendBars from '../charts/TrendBars';
@@ -249,17 +249,31 @@ export default function Ledger() {
   const currentNet = useMemo(() => netUpto(Infinity).net,
     [store, store.txs, store.accounts, account]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // trend buckets over the period (expenses) — skipped for "Day": occurred_at's
-  // time-of-day is often just whenever the entry was logged, not the real time,
-  // so an hour-by-hour breakdown there would be misleading.
+  // trend buckets over the period (expenses).
+  //
+  // "Day" doesn't bucket by hour — occurred_at's time-of-day is often just
+  // whenever the entry was logged, not when the money was actually spent, so
+  // an hour-by-hour breakdown would be inventing detail. It shows the
+  // surrounding week by day instead, with the open day marked: real totals,
+  // and they answer "is today unusual?" which a single day's bar cannot.
   const buckets = useMemo(() => {
-    if (allTime || overridingTimeline || kind === 'day') return [];
+    if (allTime || overridingTimeline) return [];
+    if (kind === 'day') {
+      const wkStart = startOfWeek(start);
+      const all = store.live();
+      return bucketsFor('week', wkStart).map((b) => ({
+        ...b,
+        value: all.filter((t) => t.type === 'expense' && t.occurred_at >= b.start && t.occurred_at < b.end)
+          .reduce((s, t) => s + t.amount, 0),
+        active: b.start === start,
+      }));
+    }
     return bucketsFor(kind, start).map((b) => ({
       ...b,
       value: periodTx.filter((t) => t.type === 'expense' && t.occurred_at >= b.start && t.occurred_at < b.end)
         .reduce((s, t) => s + t.amount, 0),
     }));
-  }, [kind, start, periodTx, allTime]);
+  }, [kind, start, periodTx, allTime, overridingTimeline, store, store.txs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // group by day
   const groups = useMemo(() => {
@@ -353,8 +367,11 @@ export default function Ledger() {
           )}
         </div>
 
-        {!allTime && !overridingTimeline && kind !== 'day' && buckets.some((b) => b.value > 0) && (
-          <div className="period-trend"><TrendBars buckets={buckets} height={52} /></div>
+        {!allTime && !overridingTimeline && buckets.some((b) => b.value > 0) && (
+          <div className="period-trend">
+            <TrendBars buckets={buckets} height={52} />
+            {kind === 'day' && <p className="muted small trend-note">This week · the highlighted bar is the day shown above</p>}
+          </div>
         )}
 
         {biggest && (

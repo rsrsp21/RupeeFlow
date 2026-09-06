@@ -2,7 +2,7 @@
 // AI hub — health score/coach cards, weekly narrative, and ask-anything chat.
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Sparkles, TrendingDown, AlertTriangle, Trophy, Eye, CreditCard, PiggyBank, Wallet, Timer, RefreshCw, RotateCcw, Send, Gauge, ScrollText, Tag } from 'lucide-react';
+import { Sparkles, TrendingDown, AlertTriangle, Trophy, Eye, CreditCard, PiggyBank, Wallet, Timer, RefreshCw, RotateCcw, Send, Gauge, ScrollText, Tag, TrendingUp, CalendarClock, Receipt, ArrowUpRight, ArrowDownRight, LineChart } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees } from '@/lib/client/constants';
 import { loadDaily, saveDaily, clearDaily } from '@/lib/client/dailyCache';
@@ -11,6 +11,13 @@ import Markdown from '../Markdown';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
 import MoneyLink from '../MoneyLink';
+import TrendBars from '../charts/TrendBars';
+import CategoryIcon from '../CategoryIcon';
+import {
+  monthOverMonth, categoryDeltas, projectMonthEnd, weekdayPattern,
+  priceDrift, missingRecurring, outliers, monthlyTrend,
+} from '@/lib/analytics.mjs';
+import { normalizeNote } from '@/lib/noteMatch';
 
 const KIND_META = {
   save: { icon: TrendingDown, tone: 'save', label: 'Save' },
@@ -26,6 +33,10 @@ const CHIPS = [
   'How am I doing against my budget?',
   'Compare this month with last month',
   'How much can I realistically save?',
+  // The assistant can query individual entries now, so the suggestions
+  // should show that off rather than staying at category level.
+  'What did I spend on chicken last month?',
+  'Which shop do I buy from most often?',
 ];
 
 export default function Insights() {
@@ -68,6 +79,24 @@ export default function Insights() {
       rate: s2.savings_rate_pct, stale,
       lastIncome: s2.last_income,
       groups: s2.groups || [],
+    };
+  })();
+
+  // Deterministic analysis, computed from the ledger with no API call — so
+  // the screen is useful the moment it opens rather than after a round trip,
+  // and every claim here is checkable against the user's own entries.
+  const local = (() => {
+    const txs = store.live();
+    const now = Date.now();
+    return {
+      mom: monthOverMonth(txs, now),
+      cats: categoryDeltas(txs, now),
+      projection: projectMonthEnd(txs, now),
+      weekday: weekdayPattern(txs, now),
+      drift: priceDrift(txs, normalizeNote, now),
+      missing: missingRecurring(txs, normalizeNote, now),
+      spikes: outliers(txs, now),
+      trend: monthlyTrend(txs, now, 6),
     };
   })();
 
@@ -199,6 +228,118 @@ export default function Insights() {
               </p>
             )}
           </div>
+
+          {/* ── this month vs last, on a fair window ── */}
+          <div className="card">
+            <div className="card-head">
+              <h3><LineChart size={13} style={{ verticalAlign: '-2px' }} /> This month so far</h3>
+              <span className="muted small">vs first {local.mom.daysCompared} days last month</span>
+            </div>
+            <div className="stat-row">
+              <div className="stat">
+                <span className="stat-k">Spent</span>
+                <b className="stat-v">{rupees(local.mom.current)}</b>
+                {local.mom.pct !== null && (
+                  <span className="stat-sub" style={{ color: local.mom.delta > 0 ? 'var(--red)' : 'var(--green)' }}>
+                    {local.mom.delta > 0 ? '▲' : '▼'} {Math.abs(local.mom.pct)}% vs {rupees(local.mom.previous)}
+                  </span>
+                )}
+              </div>
+              {local.projection.projected !== null && (
+                <div className="stat">
+                  <span className="stat-k">On pace for</span>
+                  <b className="stat-v">{rupees(local.projection.projected)}</b>
+                  <span className="stat-sub">by month end · {local.projection.daysLeft}d left</span>
+                </div>
+              )}
+              {local.weekday.peak && (
+                <div className="stat">
+                  <span className="stat-k">Priciest day</span>
+                  <b className="stat-v">{local.weekday.peak.name.slice(0, 3)}</b>
+                  <span className="stat-sub">{rupees(local.weekday.peak.avg)} on average</span>
+                </div>
+              )}
+            </div>
+
+            {local.cats.length > 0 && (
+              <>
+                <div className="card-head" style={{ marginTop: 14 }}><h3>What moved</h3></div>
+                <div className="delta-list">
+                  {local.cats.map((c) => (
+                    <div className="delta-row" key={c.category}>
+                      <CategoryIcon category={c.category} size={14} />
+                      <span className="delta-name">{c.category}</span>
+                      <span className="delta-amt">{rupees(c.current)}</span>
+                      <span className={`delta-chip ${c.delta > 0 ? 'up' : 'down'}`}>
+                        {c.delta > 0 ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
+                        {c.isNew ? 'new' : `${Math.abs(c.pct)}%`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* ── 6-month shape: whether things are actually improving ── */}
+          {local.trend.some((m) => m.expense > 0 || m.income > 0) && (
+            <div className="card">
+              <div className="card-head"><h3>Last 6 months</h3></div>
+              <TrendBars buckets={local.trend.map((m) => ({ start: m.key, label: m.label, value: m.expense }))}
+                height={64} showValues />
+              <div className="month-net-row">
+                {local.trend.map((m) => (
+                  <span key={m.key} className={m.net >= 0 ? 'pos' : 'neg'}>
+                    {m.net >= 0 ? '+' : '−'}{rupees(Math.abs(m.net))}
+                  </span>
+                ))}
+              </div>
+              <p className="muted small" style={{ marginTop: 6 }}>Bars are spending; the row beneath is what you kept.</p>
+            </div>
+          )}
+
+          {/* ── things worth acting on, found locally ── */}
+          {(local.missing.length > 0 || local.spikes.length > 0 || local.drift.length > 0) && (
+            <div className="card">
+              <div className="card-head"><h3>Worth a look</h3></div>
+              <div className="finding-list">
+                {local.missing.map((m) => (
+                  <div className="finding" key={`m-${m.item}`}>
+                    <CalendarClock size={14} className="finding-icon warn" />
+                    <div>
+                      <b>{m.item} hasn&apos;t been paid this month</b>
+                      <span className="muted small">
+                        Paid {m.monthsSeen} months running, typically {rupees(m.typical)} — last seen {m.daysSince} days ago.
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {local.spikes.map((o, i) => (
+                  <div className="finding" key={`s-${i}`}>
+                    <AlertTriangle size={14} className="finding-icon warn" />
+                    <div>
+                      <b>{o.note} — {o.times}x the usual {o.category}</b>
+                      <span className="muted small">
+                        {rupees(o.amount)} against a typical {rupees(o.median)}, {o.daysAgo} days ago.
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {local.drift.map((d) => (
+                  <div className="finding" key={`d-${d.item}`}>
+                    {d.pct > 0 ? <TrendingUp size={14} className="finding-icon warn" />
+                      : <TrendingDown size={14} className="finding-icon good" />}
+                    <div>
+                      <b>{d.item} is {Math.abs(d.pct)}% {d.pct > 0 ? 'dearer' : 'cheaper'} than it was</b>
+                      <span className="muted small">
+                        Averaging {rupees(d.after)}, up from {rupees(d.before)} earlier in the last 6 months.
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {health.groups.length > 0 && (
             <div className="card">

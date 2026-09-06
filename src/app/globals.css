@@ -1041,6 +1041,48 @@ select {
 .empty-state h4 { font-size: .95rem; font-weight: 600; }
 .empty-state p { font-size: .8rem; color: var(--muted); line-height: 1.5; max-width: 380px; margin-bottom: 6px; }
 
+/* Insights: locally-derived analysis blocks. Deliberately plain rows rather
+   than more cards — this sits above the AI section and shouldn't compete
+   with it for attention. */
+.delta-list { display: flex; flex-direction: column; gap: 2px; }
+.delta-row {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 2px; border-bottom: 1px solid var(--line);
+}
+.delta-row:last-child { border-bottom: 0; }
+.delta-name { flex: 1; min-width: 0; font-size: .82rem; font-weight: 550;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.delta-amt { font-size: .82rem; font-variant-numeric: tabular-nums; font-weight: 600; }
+.delta-chip {
+  display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0;
+  min-width: 54px; justify-content: center;
+  padding: 2px 7px; border-radius: 999px; font-size: .68rem; font-weight: 650;
+}
+.delta-chip.up { background: color-mix(in srgb, var(--red) 13%, transparent); color: var(--red); }
+.delta-chip.down { background: color-mix(in srgb, var(--green) 13%, transparent); color: var(--green); }
+
+.month-net-row {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; margin-top: 7px;
+  font-size: .62rem; font-variant-numeric: tabular-nums; text-align: center;
+}
+.month-net-row .pos { color: var(--green); }
+.month-net-row .neg { color: var(--red); }
+
+.finding-list { display: flex; flex-direction: column; gap: 11px; }
+.finding { display: flex; gap: 9px; align-items: flex-start; }
+.finding > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.finding b { font-size: .82rem; font-weight: 600; line-height: 1.35; }
+.finding .small { line-height: 1.45; }
+.finding-icon { flex-shrink: 0; margin-top: 2px; }
+.finding-icon.warn { color: #d97706; }
+.finding-icon.good { color: var(--green); }
+
+/* The Day view borrows the week chart, so one bar is "the day you're on" —
+   it has to be findable at a glance without redrawing the whole chart. */
+.trend-bar.active { background: var(--accent); }
+.trend-labels span.on { color: var(--accent-text); font-weight: 650; }
+.trend-note { margin-top: 6px; text-align: center; }
+
 .acct-strip-card { padding-bottom: 12px; }
 .acct-chips {
   display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px;
