@@ -1073,6 +1073,10 @@ select {
 /* Unchanged still gets a chip, so the column stays aligned and a flat
    category reads as "no change" rather than as missing data. */
 .delta-chip.flat { background: var(--surface-2); color: var(--muted); }
+/* Rows that drill through to the matching ledger entries. */
+.delta-row.tappable { cursor: pointer; border-radius: 7px; margin: 0 -6px; padding-left: 6px; padding-right: 6px; }
+.delta-row.tappable:hover { background: var(--surface-2); }
+.delta-row.tappable:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 /* Share of total, sized down so the rupee figure stays the row's anchor. */
 .cat-share {
   flex-shrink: 0; min-width: 38px; text-align: right;

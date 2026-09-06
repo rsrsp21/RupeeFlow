@@ -41,7 +41,7 @@ const CHIPS = [
 
 export default function Insights() {
   const store = useStore();
-  const { setView } = useUI();
+  const { setView, openLedgerWith } = useUI();
   // Cached until local midnight — switching views (or reopening the app)
   // shouldn't throw away an analysis that already cost an API call.
   const [coach, setCoach] = useState(() => loadDaily('rf_ai_coach'));
@@ -169,6 +169,7 @@ export default function Insights() {
     return {
       span,
       breakdown,
+      bounds,
       coverMonths,
       mom: monthOverMonth(txs, now),
       cats: categoryDeltas(txs, now),
@@ -184,6 +185,21 @@ export default function Insights() {
       isPast: Boolean(month),
     };
   })();
+
+  // Open Ledger showing exactly the entries behind a figure on this screen.
+  // Uses the same window the analysis used, so the total there matches the
+  // total here — a drill-down that disagreed with the number it came from
+  // would be worse than no drill-down.
+  const iso = (ts) => {
+    const d = new Date(ts);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const openCategory = (category) => openLedgerWith({
+    category,
+    from: iso(local.bounds.start),
+    to: iso(local.bounds.end),
+    type: 'expense', // these breakdowns are spending-only
+  });
 
   async function runCoach() {
     setLoadingCoach(true);
@@ -435,7 +451,10 @@ export default function Insights() {
                 </div>
                 <div className="delta-list">
                   {(local.span ? local.span.cats : local.cats).map((c) => (
-                    <div className="delta-row" key={c.category}>
+                    <div className="delta-row tappable" key={c.category} role="button" tabIndex={0}
+                      onClick={() => openCategory(c.category)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCategory(c.category); } }}
+                      title={`Show ${c.category} entries`}>
                       <CategoryIcon category={c.category} size={14} />
                       <span className="delta-name">{c.category}</span>
                       <span className="delta-amt">{rupees(c.current)}</span>
@@ -457,7 +476,10 @@ export default function Insights() {
                 </div>
                 <div className="delta-list">
                   {(showAllCats ? local.breakdown.rows : local.breakdown.rows.slice(0, 8)).map((c) => (
-                    <div className="delta-row" key={c.category}>
+                    <div className="delta-row tappable" key={c.category} role="button" tabIndex={0}
+                      onClick={() => openCategory(c.category)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCategory(c.category); } }}
+                      title={`Show ${c.category} entries`}>
                       <CategoryIcon category={c.category} size={14} />
                       <span className="delta-name">{c.category}</span>
                       <span className="cat-share">{c.share}%</span>

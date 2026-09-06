@@ -64,6 +64,11 @@ export default function App({ children }) {
   const [promptOpen, setPromptOpen] = useState(false);
   const [shareText, setShareText] = useState(null);
   const [budgetModal, setBudgetModal] = useState(null);
+  // A filter handed to Ledger by another screen — clicking a category in the
+  // Insights breakdown opens the matching entries rather than making the user
+  // rebuild the same filter by hand. Consumed and cleared on arrival, so it
+  // acts as a one-shot instruction rather than sticky state.
+  const [ledgerFilter, setLedgerFilter] = useState(null);
   const [exportOpen, setExportOpen] = useState(false);
   // Which account the export builder should open pre-scoped to, when it was
   // opened from a view that already has an account in hand (Ledger).
@@ -256,6 +261,11 @@ export default function App({ children }) {
     view, setView, openTx, openBudget,
     openExport: (acct = '') => { setExportAccount(acct); setExportOpen(true); },
     entryDate, setEntryDate, entryAccount, setEntryAccount,
+    ledgerFilter, setLedgerFilter,
+    // Jump to Ledger already filtered. `from`/`to` are ISO dates (YYYY-MM-DD),
+    // matching Ledger's own custom-range inputs, so one call covers a month, a
+    // quarter or a year without needing a period concept of its own.
+    openLedgerWith: (f) => { setLedgerFilter(f); setView('transactions'); },
   };
 
   const fabActions = [
