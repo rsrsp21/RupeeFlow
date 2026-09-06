@@ -1044,7 +1044,6 @@ select {
 /* Insights tabs — nine stacked cards was a long scroll to reach anything
    specific, so they are grouped by the question each one answers. */
 .period-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.period-row .month-pick { max-width: none; flex: 1; }
 .tab-bar {
   display: flex; gap: 4px; margin-bottom: var(--stack);
   background: var(--surface-2); padding: 3px; border-radius: 10px;
@@ -1063,10 +1062,10 @@ select {
 .chat-fab {
   /* Sits left of the existing add-entry FAB (.fab-cluster, right: 28px)
      rather than on top of it. */
-  position: fixed; right: 96px; bottom: 28px; z-index: 40;
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 11px 16px; border: 0; border-radius: 999px;
-  font: inherit; font-size: .82rem; font-weight: 600;
+  position: fixed; right: 96px; bottom: 26px; z-index: 40;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 20px; border: 0; border-radius: 999px;
+  font: inherit; font-size: .9rem; font-weight: 650;
   /* Same treatment as .btn.primary — the app inverts rather than using a
      saturated accent for solid buttons. */
   background: var(--text); color: var(--bg);
@@ -1078,6 +1077,19 @@ select {
   align-items: flex-end; justify-content: center;
   background: rgb(0 0 0 / .45); padding: 0;
 }
+/* Restart belongs beside Close, not adrift next to the title — they are both
+   "leave this conversation" controls. */
+/* One scrolling row instead of a wrapped block — the chips are a prompt,
+   not a menu to read top to bottom. */
+.chat-sheet .chips {
+  flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.chat-sheet .chips::-webkit-scrollbar { display: none; }
+.chat-sheet .chip { flex-shrink: 0; }
+.chat-sheet .card-head { gap: 6px; }
+.chat-sheet .card-head h3 { flex: 1; }
+.chat-sheet .card-head .btn.ghost.sm { margin-left: auto; }
 .chat-sheet {
   width: 100%; max-width: 620px; max-height: 86vh; overflow-y: auto;
   background: var(--surface); border-radius: 16px 16px 0 0;
@@ -1101,6 +1113,21 @@ select {
   color: var(--text); cursor: pointer; max-width: 46%;
 }
 .month-pick:hover { border-color: var(--line-strong); }
+/* Above the tabs the picker sizes to its own text — flex:1 stretched it the
+   full width, which looked broken beside a label as short as "This month".
+   Declared after the base rule because that rule's `background` shorthand
+   would otherwise reset the drawn caret below. */
+.period-row .month-pick {
+  flex: 0 1 auto; width: auto; max-width: 60%;
+  /* A native select loses its affordance once it stops filling the row, so
+     the caret is drawn in and space reserved for it. */
+  appearance: none; -webkit-appearance: none; padding-right: 26px;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 14px) 52%, calc(100% - 9px) 52%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
 
 /* Insights: locally-derived analysis blocks. Deliberately plain rows rather
    than more cards — this sits above the AI section and shouldn't compete
