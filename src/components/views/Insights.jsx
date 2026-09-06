@@ -13,9 +13,10 @@ import SettingsLink from '../SettingsLink';
 import MoneyLink from '../MoneyLink';
 import TrendBars from '../charts/TrendBars';
 import CategoryIcon from '../CategoryIcon';
+import AccountIcon from '../AccountIcon';
 import {
   monthOverMonth, categoryDeltas, projectMonthEnd, weekdayPattern,
-  priceDrift, missingRecurring, outliers, monthlyTrend, spanSummary, categoryBreakdown,
+  priceDrift, missingRecurring, outliers, monthlyTrend, spanSummary, categoryBreakdown, accountSpending, cardHealth,
 } from '@/lib/analytics.mjs';
 import { normalizeNote } from '@/lib/noteMatch';
 
@@ -165,10 +166,16 @@ export default function Insights() {
       return { start, end: now, prevStart, prevEnd: prevStart + (now - start) };
     })();
     const breakdown = categoryBreakdown(txs, bounds.start, bounds.end, bounds.prevStart, bounds.prevEnd);
+    // Which account or card the money actually left from — a dimension none of
+    // the category views can show.
+    const byAccount = accountSpending(txs, store.accounts, bounds.start, bounds.end, bounds.prevStart, bounds.prevEnd);
+    const cards = cardHealth(store.accounts, store.accountBalances(), txs, Date.now());
 
     return {
       span,
       breakdown,
+      byAccount,
+      cards,
       bounds,
       coverMonths,
       mom: monthOverMonth(txs, now),
@@ -194,6 +201,11 @@ export default function Insights() {
     const d = new Date(ts);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
+  const openAccount = (account) => openLedgerWith({
+    account,
+    from: iso(local.bounds.start),
+    to: iso(local.bounds.end),
+  });
   const openCategory = (category) => openLedgerWith({
     category,
     from: iso(local.bounds.start),
@@ -506,6 +518,71 @@ export default function Insights() {
               </>
             )}
           </div>
+
+          {/* ── where the money left from ── */}
+          {(local.byAccount.length > 0 || local.cards.length > 0) && (
+            <div className="card">
+              <div className="card-head">
+                <h3><CreditCard size={13} style={{ verticalAlign: '-2px' }} /> Accounts &amp; cards</h3>
+                <span className="muted small">same period</span>
+              </div>
+
+              {local.byAccount.length > 0 && (
+                <div className="delta-list">
+                  {local.byAccount.map((a) => (
+                    <div className="delta-row tappable" key={a.account} role="button" tabIndex={0}
+                      onClick={() => openAccount(a.account)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAccount(a.account); } }}
+                      title={`Show ${a.account} entries`}>
+                      <AccountIcon type={a.type} size={13} />
+                      <span className="delta-name">{a.account}</span>
+                      <span className="cat-share">{a.share}%</span>
+                      <span className="delta-amt">{rupees(a.amount)}</span>
+                      {a.delta !== 0 && a.pct !== null ? (
+                        <span className={`delta-chip ${a.delta > 0 ? 'up' : 'down'}`}>
+                          {a.delta > 0 ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
+                          {Math.abs(a.pct)}%
+                        </span>
+                      ) : <span className="delta-chip flat">{a.previous === 0 ? 'new' : '—'}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Cards get their own block: what is owed is a position today,
+                  not spending within the selected window, so mixing the two
+                  into one row would conflate different things. */}
+              {local.cards.length > 0 && (
+                <div className="card-sub">
+                  {local.cards.map((c) => (
+                    <div className="card-health" key={c.account}>
+                      <div className="card-health-top">
+                        <span className="delta-name">{c.account}</span>
+                        <b>{rupees(c.owed)} owed</b>
+                      </div>
+                      {c.limit ? (
+                        <>
+                          <div className="util-bar">
+                            <span className={`util-fill ${c.status}`}
+                              style={{ width: `${Math.min(100, c.utilPct)}%` }} />
+                          </div>
+                          <span className="muted small">
+                            {c.utilPct}% of {rupees(c.limit)} · {rupees(c.available)} available
+                            {c.recent30 > 0 && ` · ${rupees(c.recent30)} spent in 30 days`}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="muted small">
+                          No limit set — add one to track utilisation
+                          {c.recent30 > 0 && ` · ${rupees(c.recent30)} spent in 30 days`}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── 6-month shape: whether things are actually improving ── */}
           {local.trend.some((m) => m.expense > 0 || m.income > 0) && (
