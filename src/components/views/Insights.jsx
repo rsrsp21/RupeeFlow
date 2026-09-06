@@ -1,8 +1,8 @@
 'use client';
 // AI hub — health score/coach cards, weekly narrative, and ask-anything chat.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Sparkles, TrendingDown, AlertTriangle, Trophy, Eye, CreditCard, PiggyBank, Wallet, Timer, RefreshCw, RotateCcw, Send, Gauge, ScrollText, Tag, TrendingUp, CalendarClock, Receipt, ArrowUpRight, ArrowDownRight, LineChart } from 'lucide-react';
+import { Sparkles, TrendingDown, AlertTriangle, Trophy, Eye, CreditCard, PiggyBank, Wallet, Timer, RefreshCw, RotateCcw, Send, Gauge, ScrollText, Tag, TrendingUp, CalendarClock, Receipt, ArrowUpRight, ArrowDownRight, LineChart, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { rupees } from '@/lib/client/constants';
 import { loadDaily, saveDaily, clearDaily } from '@/lib/client/dailyCache';
@@ -19,6 +19,10 @@ import {
   priceDrift, missingRecurring, outliers, monthlyTrend, spanSummary, categoryBreakdown, accountSpending, cardHealth,
 } from '@/lib/analytics.mjs';
 import { normalizeNote } from '@/lib/noteMatch';
+import {
+  listen, stopListening, speak, stopSpeaking, pickVoice, onVoicesReady,
+  speechInSupported, speechOutSupported,
+} from '@/lib/client/speech';
 
 const KIND_META = {
   save: { icon: TrendingDown, tone: 'save', label: 'Save' },
@@ -64,6 +68,22 @@ export default function Insights() {
   // Chat is the thing people reach for most, so it opens over the screen from
   // anywhere here rather than living at the bottom of one tab.
   const [chatOpen, setChatOpen] = useState(false);
+  // Voice in and out for the chat. `speakBack` is remembered, so someone who
+  // wants answers read aloud does not have to re-enable it every question.
+  const [listening, setListening] = useState(false);
+  const [speakBack, setSpeakBack] = useState(() => {
+    try { return localStorage.getItem('rf_chat_voice') === '1'; } catch { return false; }
+  });
+  const voiceRef = useRef(null);
+  useEffect(() => onVoicesReady((v) => { voiceRef.current = v; }), []);
+  useEffect(() => {
+    try { localStorage.setItem('rf_chat_voice', speakBack ? '1' : '0'); } catch { /* private mode */ }
+  }, [speakBack]);
+  // Nothing should keep talking or listening after the sheet is closed.
+  useEffect(() => {
+    if (chatOpen) return;
+    stopListening(); stopSpeaking(); setListening(false);
+  }, [chatOpen]);
   const [input, setInput] = useState('');
   const [asking, setAsking] = useState(false);
 
@@ -261,6 +281,22 @@ export default function Insights() {
     store.toast('Chat cleared');
   }
 
+  // Dictation fills the input as you speak and sends on the final result, so
+  // a spoken question needs no second tap to submit.
+  function toggleMic() {
+    if (listening) { stopListening(); setListening(false); return; }
+    stopSpeaking(); // don't transcribe our own playback
+    setListening(true);
+    listen({
+      onResult: (text, isFinal) => {
+        setInput(text);
+        if (isFinal && text) { setInput(''); ask(text); }
+      },
+      onEnd: () => setListening(false),
+      onError: (e) => { setListening(false); store.toast(e.message); },
+    });
+  }
+
   async function ask(q) {
     if (asking) return;
     setAsking(true);
@@ -270,6 +306,7 @@ export default function Insights() {
         method: 'POST', body: JSON.stringify({ question: q, summary: store.buildSummary(120) }),
       });
       setChat((c) => c.map((m, i) => (i === c.length - 1 ? { who: 'ai', text: answer } : m)));
+      if (speakBack) speak(answer, voiceRef.current);
     } catch (e) {
       setChat((c) => c.map((m, i) => (i === c.length - 1 ? { who: 'ai', text: 'Could not reach AI: ' + e.message } : m)));
     }
@@ -805,6 +842,13 @@ export default function Insights() {
                   <RotateCcw size={13} /> Restart
                 </button>
               )}
+              {speechOutSupported() && (
+                <button className={`icon-btn ${speakBack ? '' : 'muted-btn'}`}
+                  onClick={() => { if (speakBack) stopSpeaking(); setSpeakBack((v) => !v); }}
+                  title={speakBack ? 'Answers are read aloud — tap to mute' : 'Read answers aloud'}>
+                  {speakBack ? <Volume2 size={15} /> : <VolumeX size={15} />}
+                </button>
+              )}
               <button className="icon-btn" onClick={() => setChatOpen(false)} title="Close">✕</button>
             </div>
             {chat.length > 0 && (
@@ -819,7 +863,15 @@ export default function Insights() {
               </div>
             )}
             <form className="ask-row" onSubmit={(e) => { e.preventDefault(); const v = input.trim(); if (v) { ask(v); setInput(''); } }}>
-              <input placeholder="Ask about your spending…" value={input} onChange={(e) => setInput(e.target.value)} />
+              <input placeholder={listening ? 'Listening…' : 'Ask about your spending…'}
+                value={input} onChange={(e) => setInput(e.target.value)} />
+              {speechInSupported() && (
+                <button type="button" className={`btn ghost mic-btn ${listening ? 'on' : ''}`}
+                  onClick={toggleMic} disabled={asking}
+                  title={listening ? 'Stop listening' : 'Ask by voice'}>
+                  {listening ? <MicOff size={15} /> : <Mic size={15} />}
+                </button>
+              )}
               <button className="btn primary" type="submit" disabled={asking}><Send size={15} /></button>
             </form>
             <div className="chips">
