@@ -28,16 +28,15 @@ const KIND_META = {
   debt: { icon: CreditCard, tone: 'risk', label: 'Debt' },
 };
 
+// Short labels, full question. Seven long chips wrapped to four or five rows
+// in the sheet and read as clutter; the label is what fits on a chip, the
+// question is what the assistant is actually asked.
 const CHIPS = [
-  'Where did I spend the most this month?',
-  'Which expenses look unnecessary?',
-  'How am I doing against my budget?',
-  'Compare this month with last month',
-  'How much can I realistically save?',
-  // The assistant can query individual entries now, so the suggestions
-  // should show that off rather than staying at category level.
-  'What did I spend on chicken last month?',
-  'Which shop do I buy from most often?',
+  ['Top spending', 'Where did I spend the most this month?'],
+  ['Vs last month', 'Compare this month with last month'],
+  ['Budget', 'How am I doing against my budget?'],
+  ['Cut back', 'Which expenses look unnecessary?'],
+  ['Can I save?', 'How much can I realistically save?'],
 ];
 
 export default function Insights() {
@@ -824,7 +823,9 @@ export default function Insights() {
               <button className="btn primary" type="submit" disabled={asking}><Send size={15} /></button>
             </form>
             <div className="chips">
-              {CHIPS.map((c) => <button key={c} className="chip" onClick={() => ask(c)}>{c}</button>)}
+              {CHIPS.map(([label, q]) => (
+                <button key={label} className="chip" title={q} onClick={() => ask(q)}>{label}</button>
+              ))}
             </div>
           </motion.div>
           </div>

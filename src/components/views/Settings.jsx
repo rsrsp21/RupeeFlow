@@ -57,7 +57,7 @@ export default function Settings() {
           {counts} entries available. Choose format, timeline, filters and columns in the export builder.
         </p>
         <div className="acct-add" style={{ marginTop: 0 }}>
-          <button className="btn ghost" onClick={openExport}><Download size={14} /> Open export builder</button>
+          <button className="btn ghost" onClick={() => openExport()}><Download size={14} /> Open export builder</button>
           <RestoreButton />
         </div>
       </div>

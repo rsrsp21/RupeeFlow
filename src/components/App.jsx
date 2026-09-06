@@ -259,7 +259,10 @@ export default function App({ children }) {
 
   const ui = {
     view, setView, openTx, openBudget,
-    openExport: (acct = '') => { setExportAccount(acct); setExportOpen(true); },
+    // Guarded because this is passed straight to onClick in places, which
+    // hands it a click event as the first argument — that rendered as
+    // "[object Object]" in the export dialog's scope line.
+    openExport: (acct) => { setExportAccount(typeof acct === 'string' ? acct : ''); setExportOpen(true); },
     entryDate, setEntryDate, entryAccount, setEntryAccount,
     ledgerFilter, setLedgerFilter,
     // Jump to Ledger already filtered. `from`/`to` are ISO dates (YYYY-MM-DD),

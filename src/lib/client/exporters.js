@@ -57,8 +57,11 @@ export function formatRangeLabel(opts) {
 export function rangeFileTag(opts) {
   // An account-scoped export sits next to the all-accounts one in the
   // downloads folder, so the name has to say which is which.
-  const slug = opts.account
-    ? `${opts.account.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-`
+  // Coerced rather than trusted: a non-string here would land in the
+  // downloaded file's NAME, where it is both ugly and hard to trace back.
+  const acct = typeof opts.account === 'string' ? opts.account : '';
+  const slug = acct
+    ? `${acct.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-`
     : '';
   if (opts.range === 'all' && opts.customFrom == null && opts.customTo == null) return `${slug}all-time`;
   const { from, to } = resolveRange(opts);
@@ -74,7 +77,9 @@ export function selectRows(all, opts) {
   if (opts.category) rows = rows.filter((t) => t.category === opts.category);
   // Both legs, so a statement for one account still shows the transfers that
   // moved money out of it — matching how Ledger scopes to an account.
-  if (opts.account) rows = rows.filter((t) => t.account === opts.account || t.to_account === opts.account);
+  if (typeof opts.account === 'string' && opts.account) {
+    rows = rows.filter((t) => t.account === opts.account || t.to_account === opts.account);
+  }
   return rows.sort((a, b) => a.occurred_at - b.occurred_at);
 }
 
@@ -148,7 +153,8 @@ export async function toPDF(rows, opts, meta) {
 
   doc.setFontSize(18); doc.text('RupeeFlow', 14, 18);
   doc.setFontSize(10); doc.setTextColor(120);
-  const headLine = [rangeLabel, opts.account || '', meta.name || '', `generated ${new Date().toLocaleDateString('en-IN')}`]
+  const headLine = [rangeLabel, typeof opts.account === 'string' ? opts.account : '',
+    meta.name || '', `generated ${new Date().toLocaleDateString('en-IN')}`]
     .filter(Boolean).join('  ·  ');
   doc.text(headLine, 14, 25);
 
