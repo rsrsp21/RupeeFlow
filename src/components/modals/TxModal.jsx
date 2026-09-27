@@ -51,7 +51,9 @@ export default function TxModal({ state, onClose }) {
   // don't belong to one, so a permanent field would be noise for the common
   // case.
   const [groupOpen, setGroupOpen] = useState(!!(existing?.project || pre.project));
-  const [category, setCategory] = useState(existing?.category || pre.category || 'Food & Dining');
+  const [category, setCategory] = useState(
+    existing?.category || pre.category
+    || ((pre.type || 'expense') === 'transfer' ? '' : 'Food & Dining'));
   const [account, setAccount] = useState(existing?.account || pre.account || store.accounts[0]?.name || '');
   // Defaulting to a literal 'Bank' used to invent a destination that wasn't
   // in the user's account list at all, which silently made transfers vanish
@@ -68,6 +70,12 @@ export default function TxModal({ state, onClose }) {
   // Both tabs move money between places rather than spending or earning it,
   // so neither wants a category picker.
   const isMove = type === 'transfer' || type === 'invest' || type === 'withdraw';
+  // A plain transfer can carry a category — a card bill, a rent payout, money
+  // sent home. It is NOT spending and every analytics function filters on
+  // type === 'expense', so this cannot leak into spending totals; it is a
+  // label for finding the entry again. Invest/withdraw are excluded: what
+  // they are is already the holding they move to or from.
+  const canCategorize = !isMove || type === 'transfer';
   const [date, setDate] = useState(() => {
     const d = new Date(Number(existing?.occurred_at ?? pre.occurred_at ?? Date.now()));
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -194,7 +202,9 @@ export default function TxModal({ state, onClose }) {
       // invest is stored as a transfer — see the comment where `type` is set up
       type: type === 'invest' || type === 'withdraw' ? 'transfer' : type,
       amount: paise,
-      category: isMove ? 'Other' : category,
+      // A transfer keeps whatever the user picked (possibly none); invest and
+      // withdraw are defined by their holding, so they stay neutral.
+      category: type === 'invest' || type === 'withdraw' ? 'Other' : (category || 'Other'),
       note: note.trim(),
       account: source, to_account: destination,
       project: group.trim(),
@@ -301,15 +311,18 @@ export default function TxModal({ state, onClose }) {
               <Sparkles size={13} className={aiBusy ? 'spin' : ''} /> Auto-categorize with AI
             </button>
           )}
-          {!isMove && !addingCategory && (
+          {canCategorize && !addingCategory && (
             <div className="new-cat-row">
               <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                {/* Optional on a transfer — most don't want one, and an
+                    imposed default would be a label the user never chose. */}
+                {type === 'transfer' && <option value="">No category</option>}
                 {[...Object.keys(CATEGORIES), ...store.customCategories.map((c) => c.name)].map((c) => <option key={c}>{c}</option>)}
               </select>
               <button type="button" className="btn ghost sm" onClick={() => setAddingCategory(true)}>+ Custom</button>
             </div>
           )}
-          {!isMove && addingCategory && (
+          {canCategorize && addingCategory && (
             <div className="new-cat-row">
               <input autoFocus placeholder="Name your category (e.g. Pets, Hobbies)" maxLength={60}
                 value={newCatName} onChange={(e) => setNewCatName(e.target.value)}
