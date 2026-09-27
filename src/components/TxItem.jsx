@@ -31,7 +31,9 @@ export default function TxItem({ t, index = 0 }) {
     >
       <CategoryIcon category={t.category} transfer={t.type === 'transfer'} />
       <div className="tx-body">
-        <div className="tx-note">{t.note || t.category}</div>
+        {/* An uncategorised entry now has an empty category, so a note-less
+            one would render a blank line — say what it is instead. */}
+        <div className="tx-note">{t.note || t.category || 'Uncategorised'}</div>
         <div className="tx-meta">
           <span>{date}</span>
           <span>·</span>
@@ -39,13 +41,14 @@ export default function TxItem({ t, index = 0 }) {
             <span className="tx-acct">
               {outOfHolding ? <HoldingIcon kind={outOfHolding} size={11} /> : <AccountIcon type={accountType(t.account)} size={11} />} {t.account} → {intoHolding ? <HoldingIcon kind={intoHolding} size={11} /> : <AccountIcon type={accountType(t.to_account)} size={11} />} {t.to_account}
             </span>
-          ) : <span>{t.category}</span>}
+          ) : t.category ? <span>{t.category}</span> : null}
           {/* A transfer can carry a category as a label (a card bill, rent
               paid out, money sent home). Rendered as plain text exactly like
               an expense's category — a bordered chip made it louder than the
               category on a real expense, which is backwards. Shown only when
-              one was actually chosen: 'Other' is what every uncategorised
-              transfer carries and would be noise on every row. */}
+              one was actually chosen. Uncategorised now stores as empty, but
+              entries saved before that change still carry 'Other', so both
+              are treated as "none" rather than shown on every row. */}
           {t.type === 'transfer' && t.category && t.category !== 'Other' && (
             <span>{t.category}</span>
           )}

@@ -26,11 +26,11 @@ export async function resolveCategory(store, name) {
 // already has is useful; inventing one from a passing phrase is clutter.
 function matchExistingCategory(store, name) {
   const clean = String(name || '').trim();
-  if (!clean) return 'Other';
+  if (!clean) return '';
   if (CATEGORIES[clean]) return clean;
   const hit = store.customCategories.find((c) => c.name.toLowerCase() === clean.toLowerCase())
     || Object.keys(CATEGORIES).find((c) => c.toLowerCase() === clean.toLowerCase());
-  return typeof hit === 'string' ? hit : (hit?.name || 'Other');
+  return typeof hit === 'string' ? hit : (hit?.name || '');
 }
 
 // Gemini returns type "invest" with a destination holding. Same reasoning as
@@ -144,7 +144,8 @@ export async function applyParsedTransactions(store, out, source, { fallbackDate
       // category on a transfer is a label, and casually saying "card bill"
       // should not quietly add a new category to the user's list the way it
       // legitimately does for a spending entry.
-      category: holding ? 'Other'
+      // Uncategorised stores as empty, not 'Other' — see TxModal for why.
+      category: holding ? ''
         : type === 'transfer' ? matchExistingCategory(store, e.category)
         : await resolveCategory(store, e.category),
       note: String(e.note || '').slice(0, 200),

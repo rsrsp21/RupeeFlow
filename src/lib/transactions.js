@@ -12,7 +12,10 @@ export function sanitizeTx(t) {
     id: String(t.id || '').slice(0, 64),
     type: ['expense', 'income', 'transfer'].includes(t.type) ? t.type : 'expense',
     amount: Math.max(0, Math.round(Number(t.amount) || 0)), // integer paise
-    category: String(t.category || 'Other').slice(0, 60),
+    // NOT defaulted to 'Other': uncategorised is stored as an empty string,
+    // and coercing it here would rewrite every unlabelled entry on sync,
+    // making "uncategorised" unfindable again.
+    category: String(t.category ?? '').slice(0, 60),
     note: String(t.note || '').slice(0, 500),
     project: String(t.project || '').slice(0, 60),
     account: String(t.account || 'Cash').slice(0, 60),
