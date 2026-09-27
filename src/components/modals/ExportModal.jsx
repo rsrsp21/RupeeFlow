@@ -61,12 +61,8 @@ export default function ExportModal({ onClose, initialAccount = '' }) {
   const [group, setGroup] = useState([]);
   // Transfers are mostly uncategorised, so an export of them is a wall of
   // "Other". This keeps only the ones deliberately labelled.
-  // '' = every entry, 'labelled' = only categorised, 'unlabelled' = only the
-  // ones still missing a category (the half that finds work to do).
-  const [labelState, setLabelState] = useState('');
   const groupOptions = store.groupNames();
-  const activeFilters = type.length + category.length + account.length + group.length
-    + (labelState ? 1 : 0);
+  const activeFilters = type.length + category.length + account.length + group.length;
   // One toggle helper for all four, so adding a filter is one line.
   const toggle = (setter) => (v) =>
     setter((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
@@ -81,7 +77,6 @@ export default function ExportModal({ onClose, initialAccount = '' }) {
     range, type, category, account, group, groupBy, columns: cols, includeSummary, includeTransactions,
     // selectRows needs this to tell a SIP from an account-to-account move;
     // only the store knows which names are holdings.
-    labelState,
     isHoldingName: store.isHoldingName,
     // Lets selectRows keep IOU movements out of "Transfers only" — only the
     // store knows which accounts are IOUs.
@@ -90,7 +85,7 @@ export default function ExportModal({ onClose, initialAccount = '' }) {
     customTo: range === 'custom' && customTo ? new Date(`${customTo}T00:00:00`).getTime() + 86400000 : undefined,
   };
   const rows = useMemo(() => selectRows(store.live(), opts),
-    [store.txs, range, type, category, account, group, labelState, customFrom, customTo]); // eslint-disable-line
+    [store.txs, range, type, category, account, group, customFrom, customTo]); // eslint-disable-line
   const totals = store.totals(rows);
 
   const toggleCol = (c) =>
@@ -229,19 +224,9 @@ export default function ExportModal({ onClose, initialAccount = '' }) {
                 options={groupOptions.map((g) => [g, g])} />
             )}
 
-            <span className="filter-label" style={{ marginTop: 6 }}>Categorised</span>
-            <div className="pill-grid">
-              {[['', 'All entries'], ['labelled', 'Only categorised'], ['unlabelled', 'Only uncategorised']]
-                .map(([k, text]) => (
-                  <button key={k || 'all'} type="button"
-                    className={`pill-btn ${labelState === k ? 'on' : ''}`}
-                    onClick={() => setLabelState(k)}>{text}</button>
-                ))}
-            </div>
-
             {activeFilters > 0 && (
               <button type="button" className="btn ghost sm" style={{ marginTop: 10 }}
-                onClick={() => { setType([]); setCategory([]); setAccount([]); setGroup([]); setLabelState(''); }}>
+                onClick={() => { setType([]); setCategory([]); setAccount([]); setGroup([]); }}>
                 Clear {activeFilters} {activeFilters === 1 ? 'filter' : 'filters'}
               </button>
             )}
