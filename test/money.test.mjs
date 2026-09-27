@@ -349,3 +349,21 @@ test('a contribution before a valuation is still absorbed by it', () => {
   const txs = [tx({ type: 'transfer', amount: R(14280), account: 'ICICI', to_account: 'H', occurred_at: D(22) })];
   assert.equal(computeHoldingBalances(holdings, txs).H, R(14623.42), 'not 28,903.42');
 });
+
+test('a category on a transfer is a label, never spending', () => {
+  // Card bills, rent payouts and money sent home are worth labelling, but a
+  // transfer is not spending: the money was already counted when the card was
+  // used. Letting a categorised transfer into the totals would double-count
+  // every rupee on the statement.
+  const D = (d) => new Date(2026, 8, d, 12).getTime();
+  const txs = [
+    tx({ type: 'expense', amount: R(2000), category: 'Shopping', account: 'ICICI MasterCard', occurred_at: D(5) }),
+    tx({
+      type: 'transfer', amount: R(2349.04), category: 'Bills & Utilities',
+      note: 'MasterCard ICICI Credit Card Bill',
+      account: 'SBI Bank', to_account: 'ICICI MasterCard', occurred_at: D(15),
+    }),
+  ];
+  const { exp } = computeTotals(txs);
+  assert.equal(exp, R(2000), 'the bill is not spending, however it is labelled');
+});
