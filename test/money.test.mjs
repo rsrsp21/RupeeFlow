@@ -258,3 +258,65 @@ test('withdrawing a holding in full empties it and keeps net worth flat', () => 
   // Cashing out is not income — the money was already the user's.
   assert.equal(after.total, before.total, 'net worth does not move on a withdrawal');
 });
+
+test('a partial withdrawal takes its share of the cost basis with it', () => {
+  // 14,280 in, worth 14,623.42 (+2.4%). Taking out half the VALUE must take
+  // half the BASIS too. Subtracting the withdrawal's face value instead left
+  // the whole gain attached to a shrunken basis and reported 4.9% on the
+  // remainder — flattering the investment purely because the denominator got
+  // smaller, when nothing about it had changed.
+  const t0 = 2_000_000_000_000;
+  const holdings = [{
+    name: 'NSE IPO', kind: 'Stocks',
+    valued_at: t0 - 3600000, current_value: R(14623.42), opening_balance: 0,
+  }];
+  const invested = tx({ type: 'transfer', amount: R(14280), account: 'ICICI', to_account: 'NSE IPO', occurred_at: t0 - 5 * 86400000 });
+  const half = tx({ type: 'transfer', amount: R(7311.71), account: 'NSE IPO', to_account: 'ICICI', occurred_at: t0 });
+
+  const put = computeHoldingContributed(holdings, [invested, half])['NSE IPO'];
+  const bal = computeHoldingBalances(holdings, [invested, half])['NSE IPO'];
+  assert.equal(put, R(7140), 'half the basis leaves with half the value');
+  assert.equal(bal, R(7311.71));
+  // The percentage is what the user reads, and it must not move.
+  assert.equal(Math.round(((bal - put) / put) * 1000) / 10, 2.4);
+});
+
+test('a full withdrawal still lands exactly on zero', () => {
+  const t0 = 2_000_000_000_000;
+  const holdings = [{ name: 'H', valued_at: t0 - 3600000, current_value: R(14623.42), opening_balance: 0 }];
+  const txs = [
+    tx({ type: 'transfer', amount: R(14280), account: 'ICICI', to_account: 'H', occurred_at: t0 - 5 * 86400000 }),
+    tx({ type: 'transfer', amount: R(14623.42), account: 'H', to_account: 'ICICI', occurred_at: t0 }),
+  ];
+  assert.equal(computeHoldingContributed(holdings, txs).H, 0);
+  assert.equal(computeHoldingBalances(holdings, txs).H, 0);
+});
+
+test('apportioning does not flatter a loss-making holding either', () => {
+  // Down 20%. Withdrawing part of it must still read -20%, not less.
+  const t0 = 2_000_000_000_000, D = 86400000;
+  const holdings = [{ name: 'L', valued_at: t0 + D, current_value: R(800), opening_balance: 0 }];
+  const txs = [
+    tx({ type: 'transfer', amount: R(1000), account: 'B', to_account: 'L', occurred_at: t0 }),
+    tx({ type: 'transfer', amount: R(400), account: 'L', to_account: 'B', occurred_at: t0 + 2 * D }),
+  ];
+  const put = computeHoldingContributed(holdings, txs).L;
+  const bal = computeHoldingBalances(holdings, txs).L;
+  assert.equal(put, R(500));
+  assert.equal(Math.round(((bal - put) / put) * 100), -20);
+});
+
+test('basis is order-independent and never goes negative', () => {
+  // Sync delivers entries in whatever order it likes, so the result cannot
+  // depend on the order they arrive in.
+  const t0 = 2_000_000_000_000, D = 86400000;
+  const holdings = [{ name: 'H', valued_at: 0, current_value: 0, opening_balance: 0 }];
+  const put = tx({ type: 'transfer', amount: R(1000), account: 'B', to_account: 'H', occurred_at: t0 });
+  const take = tx({ type: 'transfer', amount: R(500), account: 'H', to_account: 'B', occurred_at: t0 + D });
+  assert.equal(computeHoldingContributed(holdings, [put, take]).H,
+    computeHoldingContributed(holdings, [take, put]).H);
+
+  // Withdrawing more than it holds empties it rather than going negative.
+  const over = tx({ type: 'transfer', amount: R(9999), account: 'H', to_account: 'B', occurred_at: t0 + D });
+  assert.equal(computeHoldingContributed(holdings, [put, over]).H, 0);
+});

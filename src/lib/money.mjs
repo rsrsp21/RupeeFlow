@@ -111,17 +111,64 @@ export function computeHoldingBalances(holdings, live) {
   return map;
 }
 
-/** Cost basis per holding — everything put in, minus everything taken out. */
+/**
+ * Cost basis per holding — what the user actually put in and still has in.
+ *
+ * A contribution adds its full amount. A withdrawal removes the SHARE of the
+ * basis it represents, not its face value: taking out half of what a holding
+ * is worth takes out half the basis with it, so half the profit is realised
+ * and the rest stays with the remainder.
+ *
+ * Subtracting the face value instead made a partial exit look like a better
+ * investment than it was — the whole gain stayed attached to a shrunken basis,
+ * so withdrawing half of a 2.4% gainer reported 4.9% on what was left, purely
+ * because the denominator got smaller. Nothing about the investment had
+ * changed. A full exit is the same calculation and still lands exactly on
+ * zero, since the share withdrawn is then the whole of it.
+ *
+ * Entries are walked in time order because apportioning needs the value at
+ * the moment of each withdrawal; processing out of order would divide by a
+ * value the holding had not reached yet.
+ */
 export function computeHoldingContributed(holdings, live) {
-  const map = {};
-  for (const h of holdings) map[h.name] = num(h.opening_balance);
-  for (const t of live) {
-    if (t.type !== 'transfer') continue;
-    const amt = num(t.amount);
-    if (has(map, t.to_account)) map[t.to_account] += amt;
-    if (has(map, t.account)) map[t.account] -= amt;
+  const basis = {};
+  const value = {};
+  const since = {};
+  for (const h of holdings) {
+    const valued = num(h.valued_at);
+    basis[h.name] = num(h.opening_balance);
+    // Mirrors computeHoldingBalances: a stated valuation supersedes the flows
+    // that came before it, so only later ones move the running value.
+    value[h.name] = valued > 0 ? num(h.current_value) : num(h.opening_balance);
+    since[h.name] = valued;
   }
-  return map;
+
+  const ordered = live
+    .filter((t) => t.type === 'transfer')
+    .slice()
+    .sort((a, b) => num(a.occurred_at) - num(b.occurred_at));
+
+  for (const t of ordered) {
+    const amt = num(t.amount);
+    const at = num(t.occurred_at);
+
+    if (has(basis, t.to_account)) {
+      basis[t.to_account] += amt;
+      if (at > since[t.to_account]) value[t.to_account] += amt;
+    }
+
+    if (has(basis, t.account)) {
+      const name = t.account;
+      const before = value[name];
+      // Share of the holding being taken out. Guarded because a withdrawal
+      // recorded against a holding with no value yet (or more than it holds)
+      // would otherwise divide by zero or remove more basis than exists.
+      const share = before > 0 ? Math.min(1, amt / before) : 1;
+      basis[name] = Math.max(0, Math.round(basis[name] * (1 - share)));
+      if (at > since[name]) value[name] -= amt;
+    }
+  }
+  return basis;
 }
 
 /**
