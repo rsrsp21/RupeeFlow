@@ -21,6 +21,9 @@ export default function ExportModal({ onClose, initialAccount = '' }) {
   const [type, setType] = useState('');
   const [category, setCategory] = useState('');
   const [account, setAccount] = useState(initialAccount);
+  const [group, setGroup] = useState('');
+  const groupOptions = store.groupNames();
+  const activeFilters = [type, category, account, group].filter(Boolean).length;
   const [groupBy, setGroupBy] = useState('category');
   const [cols, setCols] = useState(DEFAULT_COLS);
   const [includeSummary, setIncludeSummary] = useState(true);
@@ -29,12 +32,15 @@ export default function ExportModal({ onClose, initialAccount = '' }) {
   const [busy, setBusy] = useState(false);
 
   const opts = {
-    range, type, category, account, groupBy, columns: cols, includeSummary, includeTransactions,
+    range, type, category, account, group, groupBy, columns: cols, includeSummary, includeTransactions,
+    // selectRows needs this to tell a SIP from an account-to-account move;
+    // only the store knows which names are holdings.
+    isHoldingName: store.isHoldingName,
     customFrom: range === 'custom' && customFrom ? new Date(`${customFrom}T00:00:00`).getTime() : undefined,
     customTo: range === 'custom' && customTo ? new Date(`${customTo}T00:00:00`).getTime() + 86400000 : undefined,
   };
   const rows = useMemo(() => selectRows(store.live(), opts),
-    [store.txs, range, type, category, account, customFrom, customTo]); // eslint-disable-line
+    [store.txs, range, type, category, account, group, customFrom, customTo]); // eslint-disable-line
   const totals = store.totals(rows);
 
   const toggleCol = (c) =>
@@ -50,7 +56,7 @@ export default function ExportModal({ onClose, initialAccount = '' }) {
         const csv = includeSummary && !includeTransactions
           ? ['Group,Entries,Spent (INR),Received (INR)',
              ...summarize(rows, groupBy).map((g) => `${JSON.stringify(g.key)},${g.count},${(g.expense / 100).toFixed(2)},${(g.income / 100).toFixed(2)}`)].join('\n')
-          : toCSV(rows, cols);
+          : toCSV(rows, cols, { rangeLabel: formatRangeLabel(opts), account });
         download(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }), `rupeeflow-${tag}.csv`);
       } else if (format === 'json') {
         // A bare array of transactions can't rebuild balances — opening
@@ -151,23 +157,56 @@ export default function ExportModal({ onClose, initialAccount = '' }) {
 
           <div className="field">
             <span className="field-label">Filters</span>
-            <div className="form-row">
-              <select value={type} onChange={(e) => setType(e.target.value)}>
-                <option value="">All types</option><option value="expense">Expenses only</option>
-                <option value="income">Income only</option><option value="transfer">Transfers only</option>
-              </select>
-              <select value={category} onChange={(e) => setCategory(e.target.value)}>
-                <option value="">All categories</option>
-                {[...Object.keys(CATEGORIES), ...store.customCategories.map((c) => c.name)].map((c) => <option key={c}>{c}</option>)}
-              </select>
-            </div>
-            {store.accounts.length > 0 && (
-              <div className="form-row" style={{ marginTop: 8 }}>
-                <select value={account} onChange={(e) => setAccount(e.target.value)}>
-                  <option value="">All accounts</option>
-                  {store.accounts.map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
+            {/* Each filter is one choice, and they combine — pick a type AND a
+                category AND an account to narrow further. Labelled because a
+                row of bare dropdowns gave no clue what each one narrowed. */}
+            <div className="form-row labelled">
+              <label>
+                <span>Type</span>
+                <select value={type} onChange={(e) => setType(e.target.value)}>
+                  <option value="">All types</option>
+                  <option value="expense">Expenses only</option>
+                  <option value="income">Income only</option>
+                  <option value="transfer">Transfers only</option>
+                  {/* Holding moves are stored as transfers; selectRows splits
+                      them by which end is a holding. */}
+                  <option value="invest">Invested / saved</option>
+                  <option value="withdraw">Withdrawn from savings</option>
                 </select>
-              </div>
+              </label>
+              <label>
+                <span>Category</span>
+                <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                  <option value="">All categories</option>
+                  {[...Object.keys(CATEGORIES), ...store.customCategories.map((c) => c.name)].map((c) => <option key={c}>{c}</option>)}
+                </select>
+              </label>
+            </div>
+            <div className="form-row labelled" style={{ marginTop: 8 }}>
+              {store.accounts.length > 0 && (
+                <label>
+                  <span>Account</span>
+                  <select value={account} onChange={(e) => setAccount(e.target.value)}>
+                    <option value="">All accounts</option>
+                    {store.accounts.map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
+                  </select>
+                </label>
+              )}
+              {groupOptions.length > 0 && (
+                <label>
+                  <span>Group / trip</span>
+                  <select value={group} onChange={(e) => setGroup(e.target.value)}>
+                    <option value="">All groups</option>
+                    {groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </label>
+              )}
+            </div>
+            {activeFilters > 0 && (
+              <button type="button" className="btn ghost sm" style={{ marginTop: 8 }}
+                onClick={() => { setType(''); setCategory(''); setAccount(''); setGroup(''); }}>
+                Clear {activeFilters} {activeFilters === 1 ? 'filter' : 'filters'}
+              </button>
             )}
           </div>
 
