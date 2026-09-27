@@ -73,8 +73,24 @@ export function rangeFileTag(opts) {
 export function selectRows(all, opts) {
   const { from, to } = resolveRange(opts);
   let rows = all.filter((t) => t.occurred_at >= from && t.occurred_at < to);
-  if (opts.type) rows = rows.filter((t) => t.type === opts.type);
+  // "invest" and "withdraw" are not stored types — the table only allows
+  // expense/income/transfer, and a holding move IS a transfer. Split them the
+  // same way Ledger does: by which END of the transfer is a holding. Without
+  // this, picking "Invest" matched nothing at all, and "Transfers only"
+  // swept every SIP in with ordinary account-to-account moves.
+  const isHolding = typeof opts.isHoldingName === 'function' ? opts.isHoldingName : () => false;
+  if (opts.type === 'invest') {
+    rows = rows.filter((t) => t.type === 'transfer' && isHolding(t.to_account));
+  } else if (opts.type === 'withdraw') {
+    rows = rows.filter((t) => t.type === 'transfer' && isHolding(t.account));
+  } else if (opts.type === 'transfer') {
+    rows = rows.filter((t) => t.type === 'transfer'
+      && !isHolding(t.to_account) && !isHolding(t.account));
+  } else if (opts.type) {
+    rows = rows.filter((t) => t.type === opts.type);
+  }
   if (opts.category) rows = rows.filter((t) => t.category === opts.category);
+  if (opts.group) rows = rows.filter((t) => (t.project || '') === opts.group);
   // Both legs, so a statement for one account still shows the transfers that
   // moved money out of it — matching how Ledger scopes to an account.
   if (typeof opts.account === 'string' && opts.account) {
@@ -88,11 +104,57 @@ const esc = (v) => {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
-export function toCSV(rows, cols) {
-  const ordered = orderForOutput(cols);
-  const head = ordered.map((c) => COLUMNS[c].label).join(',');
-  const body = rows.map((t) => ordered.map((c) => esc(COLUMNS[c].get(t))).join(','));
-  return [head, ...body].join('\n');
+export function toCSV(rows, cols, opts = {}) {
+  // The locale date column is dropped: an ISO one is emitted first and sorts
+  // correctly everywhere, whereas "22/9/2026" is text to a spreadsheet and
+  // is read as a US date by some of them.
+  const ordered = orderForOutput(cols.filter((c) => c !== 'date'));
+  // Deliberately NOT grouped under date headers the way the PDF is. A
+  // spreadsheet's value is that every row stands alone: banner rows break
+  // sorting, filtering and pivot tables, which is the whole reason someone
+  // picks CSV over the PDF.
+  //
+  // What it gains instead is columns a spreadsheet can compute with: an ISO
+  // date that sorts correctly in every locale, the amount split into signed
+  // money plus separate in/out columns so SUM() needs no formula, and the
+  // month as its own field to pivot on.
+  const head = [
+    'Date (ISO)', 'Day', 'Month',
+    ...ordered.map((c) => COLUMNS[c].label),
+    'Signed amount', 'Money in', 'Money out',
+  ];
+
+  const body = rows.map((t) => {
+    const d = new Date(Number(t.occurred_at));
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const rupees = t.amount / 100;
+    // A transfer is neither in nor out overall — it moves between the user's
+    // own places — so it stays out of both columns rather than inflating one.
+    const isIn = t.type === 'income';
+    const isOut = t.type === 'expense';
+    return [
+      iso,
+      d.toLocaleDateString('en-IN', { weekday: 'short' }),
+      iso.slice(0, 7),
+      ...ordered.map((c) => COLUMNS[c].get(t)),
+      (isOut ? -rupees : rupees).toFixed(2),
+      isIn ? rupees.toFixed(2) : '',
+      isOut ? rupees.toFixed(2) : '',
+    ].map(esc).join(',');
+  });
+
+  // A title block above the header, so a file opened months later says what
+  // it covers instead of being an anonymous grid of numbers.
+  const title = [
+    'RupeeFlow export',
+    opts.rangeLabel ? `Period,${esc(opts.rangeLabel)}` : '',
+    opts.account ? `Account,${esc(opts.account)}` : '',
+    `Entries,${rows.length}`,
+    `Generated,${esc(new Date().toLocaleString('en-IN'))}`,
+    '',
+  ].filter((l) => l !== '');
+
+  return [...title, head.map(esc).join(','), ...body].join('\n');
 }
 
 // Summary tables used by both PDF and the "summary only" CSV mode
@@ -151,27 +213,57 @@ export async function toPDF(rows, opts, meta) {
   // and the label says what it measures.
   const moved = rows.filter((t) => t.type === 'transfer').reduce((s, t) => s + t.amount, 0);
 
-  doc.setFontSize(18); doc.text('RupeeFlow', 14, 18);
-  doc.setFontSize(10); doc.setTextColor(120);
-  const headLine = [rangeLabel, typeof opts.account === 'string' ? opts.account : '',
-    meta.name || '', `generated ${new Date().toLocaleDateString('en-IN')}`]
-    .filter(Boolean).join('  ·  ');
-  doc.text(headLine, 14, 25);
-
   // fixed 2 decimals throughout so a column of amounts lines up digit-under-
   // digit once right-aligned in a monospace font (e.g. 120.00 under 50.08)
   const inr = (paise) => (paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  doc.setTextColor(20); doc.setFontSize(11);
-  doc.text(`Income  Rs ${inr(inc)}`, 14, 36);
-  doc.text(`Expenses  Rs ${inr(exp)}`, 74, 36);
-  doc.text(`In - Out  Rs ${inr(inc - exp)}`, 144, 36);
+  const pageW = doc.internal.pageSize.getWidth();
+  const M = 14;                       // page margin
+  const INK = [24, 24, 27];
+  const MUTED = [113, 113, 122];
+  const RULE = [228, 228, 231];
 
-  let y = 44;
+  // ── masthead ──────────────────────────────────────────────────────────
+  // A solid band rather than plain text: the first thing anyone sees when
+  // this lands in an inbox, and it has to say what the document IS before
+  // any number appears.
+  doc.setFillColor(...INK);
+  doc.rect(0, 0, pageW, 30, 'F');
+  doc.setTextColor(255); doc.setFontSize(17); doc.setFont(undefined, 'bold');
+  doc.text('RupeeFlow', M, 13);
+  doc.setFont(undefined, 'normal'); doc.setFontSize(9); doc.setTextColor(200);
+  doc.text('Statement of account', M, 20);
+  const stamp = [typeof opts.account === 'string' ? opts.account : '', meta.name || '']
+    .filter(Boolean).join('  ·  ');
+  doc.setFontSize(9); doc.setTextColor(255);
+  doc.text(rangeLabel, pageW - M, 13, { align: 'right' });
+  doc.setTextColor(200); doc.setFontSize(8);
+  if (stamp) doc.text(stamp, pageW - M, 19, { align: 'right' });
+  doc.text(`Generated ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`,
+    pageW - M, 25, { align: 'right' });
+
+  // ── headline figures ──────────────────────────────────────────────────
+  // Three cards instead of a run-on line, so the numbers that matter are
+  // findable at arm's length rather than read word by word.
+  const cardW = (pageW - M * 2 - 8) / 3;
+  const card = (i, label, value, tone) => {
+    const x = M + i * (cardW + 4);
+    doc.setFillColor(250, 250, 250);
+    doc.roundedRect(x, 36, cardW, 20, 2, 2, 'F');
+    doc.setFontSize(7.5); doc.setTextColor(...MUTED);
+    doc.text(label.toUpperCase(), x + 5, 43);
+    doc.setFontSize(12); doc.setTextColor(...(tone || INK));
+    doc.text(`Rs ${value}`, x + 5, 51);
+  };
+  card(0, 'Received', inr(inc), [22, 130, 70]);
+  card(1, 'Spent', inr(exp), [185, 40, 40]);
+  card(2, 'In minus out', inr(inc - exp), inc - exp >= 0 ? [22, 130, 70] : [185, 40, 40]);
+
+  let y = 63;
   if (moved > 0) {
-    doc.setFontSize(9); doc.setTextColor(120);
-    doc.text(`Transferred / invested in this period: Rs ${inr(moved)} (not counted as spending)`, 14, y);
-    doc.setTextColor(20);
+    doc.setFontSize(8.5); doc.setTextColor(...MUTED);
+    doc.text(`Transferred / invested this period: Rs ${inr(moved)} — moved, not spent.`, M, y);
+    doc.setTextColor(...INK);
     y += 8;
   }
 
@@ -224,25 +316,81 @@ export async function toPDF(rows, opts, meta) {
   }
 
   if (opts.includeTransactions) {
-    const cols = orderForOutput(opts.columns.filter((c) => c !== 'to_account' || rows.some((t) => t.to_account)));
+    // The date column is dropped and becomes a banner row per day instead.
+    // Repeating "27 Sep 2026" down forty rows is forty copies of one fact:
+    // it crowds out the note, and the eye has to re-read each line to find
+    // where one day ends and the next begins. A day header states it once
+    // and carries that day's total, which the flat table could not show.
+    const cols = orderForOutput(opts.columns
+      .filter((c) => c !== 'date')
+      .filter((c) => c !== 'to_account' || rows.some((t) => t.to_account)));
     const amtIdx = cols.indexOf('amount');
+    const span = cols.length || 1;
+
+    const byDay = new Map();
+    for (const t of rows) {
+      const k = new Date(Number(t.occurred_at)).toDateString();
+      if (!byDay.has(k)) byDay.set(k, []);
+      byDay.get(k).push(t);
+    }
+
+    const body = [];
+    const dayRows = new Set();      // row indexes to style as headers
+    for (const [key, list] of byDay) {
+      const d = new Date(key);
+      const spent = list.filter((t) => t.type === 'expense').reduce((a, t) => a + t.amount, 0);
+      const got = list.filter((t) => t.type === 'income').reduce((a, t) => a + t.amount, 0);
+      const parts = [];
+      if (spent) parts.push(`- Rs ${inr(spent)}`);
+      if (got) parts.push(`+ Rs ${inr(got)}`);
+      const label = `${d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`
+        + `   (${list.length} ${list.length === 1 ? 'entry' : 'entries'}${parts.length ? ` · ${parts.join('  ')}` : ''})`;
+      dayRows.add(body.length);
+      // One cell spanning the table, so the header reads as a divider rather
+      // than as a row with empty columns after it.
+      body.push([{ content: label, colSpan: span, styles: {
+        fillColor: [241, 241, 245], textColor: INK, fontStyle: 'bold', fontSize: 8, cellPadding: 2.5,
+      } }]);
+      for (const t of list) body.push(cols.map((c) => COLUMNS[c].get(t)));
+    }
+
     doc.autoTable({
       startY: y,
       head: [cols.map((c) => COLUMNS[c].label)],
-      body: rows.map((t) => cols.map((c) => COLUMNS[c].get(t))),
-      theme: 'grid',
-      headStyles: { fillColor: [23, 23, 26], fontSize: 8 },
-      styles: { fontSize: 7.5, cellPadding: 2 },
-      columnStyles: amtIdx >= 0 ? { [amtIdx]: { halign: 'right', font: 'courier' } } : {},
+      body,
+      theme: 'plain',
+      headStyles: { fillColor: INK, textColor: 255, fontSize: 8, cellPadding: 2.5 },
+      styles: { fontSize: 8, cellPadding: 2.5, textColor: INK, lineColor: RULE, lineWidth: { bottom: 0.1 } },
+      alternateRowStyles: { fillColor: [252, 252, 253] },
+      columnStyles: amtIdx >= 0 ? { [amtIdx]: { halign: 'right', font: 'courier', fontStyle: 'bold' } } : {},
+      margin: { left: M, right: M },
+      // A day header must not be the last thing on a page, orphaned from the
+      // entries it introduces.
+      rowPageBreak: 'avoid',
+      didParseCell: (d) => {
+        if (d.section === 'body' && dayRows.has(d.row.index)) d.cell.styles.lineWidth = 0;
+      },
     });
   }
 
   if (opts.aiSummary) {
     doc.addPage();
-    doc.setFontSize(13); doc.setTextColor(20);
-    doc.text('AI summary', 14, 20);
+    doc.setFontSize(13); doc.setTextColor(...INK);
+    doc.text('Summary', M, 20);
+    doc.setDrawColor(...RULE); doc.line(M, 23, pageW - M, 23);
     doc.setFontSize(10); doc.setTextColor(60);
-    doc.text(doc.splitTextToSize(opts.aiSummary, 180), 14, 30);
+    doc.text(doc.splitTextToSize(opts.aiSummary, pageW - M * 2), M, 32);
+  }
+
+  // Numbered only now that every page exists — running this before the
+  // summary page was added left that page unnumbered and the counts wrong.
+  const pages = doc.internal.getNumberOfPages();
+  const footY = doc.internal.pageSize.getHeight() - 8;
+  for (let i = 1; i <= pages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8); doc.setTextColor(...MUTED);
+    doc.text('RupeeFlow', M, footY);
+    doc.text(`Page ${i} of ${pages}`, pageW - M, footY, { align: 'right' });
   }
 
   doc.save(`rupeeflow-${rangeFileTag(opts)}.pdf`);
