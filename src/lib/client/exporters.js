@@ -129,9 +129,9 @@ export function selectRows(all, opts) {
   // carry 'Other' instead, so both count as unlabelled — otherwise every old
   // transfer would read as deliberately categorised.
   //
-  // Both directions are offered: "labelled" for a clean export of the entries
-  // worth reading, "unlabelled" to find the ones still needing a category —
-  // which is the more useful half, and was missing.
+  // Not surfaced in the export dialog — picking specific categories already
+  // covers what people actually want there, and a third control for it was
+  // clutter. Kept because the logic is trivial and callers may want it.
   const labelled = (t) => Boolean(t.category) && t.category !== 'Other';
   if (opts.labelState === 'labelled') rows = rows.filter(labelled);
   else if (opts.labelState === 'unlabelled') rows = rows.filter((t) => !labelled(t));
