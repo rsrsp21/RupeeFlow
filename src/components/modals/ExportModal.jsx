@@ -2,49 +2,16 @@
 // Export builder — pick format, timeline, filters, grouping and columns.
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, FileSpreadsheet, Braces, Check, Sparkles, ChevronDown } from 'lucide-react';
+import { FileText, FileSpreadsheet, Braces, Check, Sparkles } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { CATEGORIES, rupees } from '@/lib/client/constants';
 import {
   RANGES, COLUMNS, selectRows, toCSV, toPDF, summarize, download, formatRangeLabel, rangeFileTag,
 } from '@/lib/client/exporters';
 import { backdropMotion, panelMotion } from './TxModal';
+import FilterRow from '../FilterRow';
 
 const DEFAULT_COLS = ['date', 'type', 'category', 'note', 'account', 'amount'];
-
-// One filter dimension: a summary line that expands into a checkbox list.
-// Kept out of the main component because all four behave identically, and
-// four inline copies of this markup was most of what made the dialog long.
-function FilterRow({ label, options, values, onToggle, onClear }) {
-  const [open, setOpen] = useState(false);
-  const summary = values.length === 0 ? `All ${label.toLowerCase()}`
-    : values.length <= 2 ? values.join(', ')
-    : `${values.length} selected`;
-  return (
-    <div className={`filter-row ${open ? 'open' : ''}`}>
-      <button type="button" className="filter-head" onClick={() => setOpen((v) => !v)}>
-        <span className="filter-name">{label}</span>
-        <span className={`filter-summary ${values.length ? 'on' : ''}`}>{summary}</span>
-        <ChevronDown size={14} className="filter-chevron" />
-      </button>
-      {open && (
-        <div className="filter-opts">
-          {options.map(([value, text]) => (
-            <label key={value} className="filter-opt">
-              <input type="checkbox" checked={values.includes(value)} onChange={() => onToggle(value)} />
-              <span>{text}</span>
-            </label>
-          ))}
-          {values.length > 0 && (
-            <button type="button" className="btn ghost sm filter-clear" onClick={onClear}>
-              Clear
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function ExportModal({ onClose, initialAccount = '' }) {
   const store = useStore();
