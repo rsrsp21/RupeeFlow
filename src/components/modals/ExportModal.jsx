@@ -59,8 +59,12 @@ export default function ExportModal({ onClose, initialAccount = '' }) {
   const [category, setCategory] = useState([]);
   const [account, setAccount] = useState(initialAccount ? [initialAccount] : []);
   const [group, setGroup] = useState([]);
+  // Transfers are mostly uncategorised, so an export of them is a wall of
+  // "Other". This keeps only the ones deliberately labelled.
+  const [labelledOnly, setLabelledOnly] = useState(false);
   const groupOptions = store.groupNames();
-  const activeFilters = type.length + category.length + account.length + group.length;
+  const activeFilters = type.length + category.length + account.length + group.length
+    + (labelledOnly ? 1 : 0);
   // One toggle helper for all four, so adding a filter is one line.
   const toggle = (setter) => (v) =>
     setter((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
@@ -75,12 +79,16 @@ export default function ExportModal({ onClose, initialAccount = '' }) {
     range, type, category, account, group, groupBy, columns: cols, includeSummary, includeTransactions,
     // selectRows needs this to tell a SIP from an account-to-account move;
     // only the store knows which names are holdings.
+    labelledOnly,
     isHoldingName: store.isHoldingName,
+    // Lets selectRows keep IOU movements out of "Transfers only" — only the
+    // store knows which accounts are IOUs.
+    accountType: store.accountType,
     customFrom: range === 'custom' && customFrom ? new Date(`${customFrom}T00:00:00`).getTime() : undefined,
     customTo: range === 'custom' && customTo ? new Date(`${customTo}T00:00:00`).getTime() + 86400000 : undefined,
   };
   const rows = useMemo(() => selectRows(store.live(), opts),
-    [store.txs, range, type, category, account, group, customFrom, customTo]); // eslint-disable-line
+    [store.txs, range, type, category, account, group, labelledOnly, customFrom, customTo]); // eslint-disable-line
   const totals = store.totals(rows);
 
   const toggleCol = (c) =>
@@ -205,7 +213,9 @@ export default function ExportModal({ onClose, initialAccount = '' }) {
                 "all of them", so the common case needs no taps at all. */}
             <FilterRow label="Type" values={type} onToggle={toggle(setType)} onClear={() => setType([])}
               options={[['expense', 'Expenses'], ['income', 'Income'], ['transfer', 'Transfers'],
-                ['invest', 'Invested / saved'], ['withdraw', 'Withdrawn from savings']]} />
+                ['invest', 'Invested / saved'], ['withdraw', 'Withdrawn from savings'],
+                ...(store.accounts.some((a) => a.type === 'IOU')
+                  ? [['lent', 'Lent / owed'], ['repaid', 'Repaid / settled']] : [])]} />
             <FilterRow label="Category" values={category} onToggle={toggle(setCategory)} onClear={() => setCategory([])}
               options={[...Object.keys(CATEGORIES), ...store.customCategories.map((c) => c.name)].map((c) => [c, c])} />
             {store.accounts.length > 0 && (
@@ -217,9 +227,15 @@ export default function ExportModal({ onClose, initialAccount = '' }) {
                 options={groupOptions.map((g) => [g, g])} />
             )}
 
+            <label className="row-setting compact" style={{ marginTop: 4 }}>
+              <span>Only entries with a category</span>
+              <input type="checkbox" className="switch" checked={labelledOnly}
+                onChange={(e) => setLabelledOnly(e.target.checked)} />
+            </label>
+
             {activeFilters > 0 && (
               <button type="button" className="btn ghost sm" style={{ marginTop: 10 }}
-                onClick={() => { setType([]); setCategory([]); setAccount([]); setGroup([]); }}>
+                onClick={() => { setType([]); setCategory([]); setAccount([]); setGroup([]); setLabelledOnly(false); }}>
                 Clear {activeFilters} {activeFilters === 1 ? 'filter' : 'filters'}
               </button>
             )}
