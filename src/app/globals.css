@@ -1375,6 +1375,9 @@ select {
 .filter-opt input { flex-shrink: 0; width: 15px; height: 15px; accent-color: var(--accent); }
 .filter-opt span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .filter-clear { grid-column: 1 / -1; justify-self: start; margin-top: 4px; }
+/* In the Ledger the rows sit inside a grid of ordinary labelled controls, so
+   they span it rather than being squeezed into one cell. */
+.filter-multi { grid-column: 1 / -1; }
 
 /* labelled form rows */
 .form-row.labelled { align-items: flex-end; }

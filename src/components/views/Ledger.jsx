@@ -13,6 +13,7 @@ import {
 } from '@/lib/client/period';
 import TxItem from '../TxItem';
 import TrendBars from '../charts/TrendBars';
+import FilterRow from '../FilterRow';
 import AccountsSummary from '../AccountsSummary';
 import SyncBadge from '../SyncBadge';
 import SettingsLink from '../SettingsLink';
@@ -44,9 +45,13 @@ export default function Ledger() {
   const [kind, setKind] = useState('day');
   const [start, setStart] = useState(() => periodStart('day'));
   const [q, setQ] = useState('');
-  const [type, setType] = useState('');
-  const [cat, setCat] = useState('');
-  const [group, setGroup] = useState('');
+  // Arrays: several types/categories/groups can be on at once, matching the
+  // export builder. `account` stays single below — it doubles as the account
+  // chip selection at the top of this screen and scopes the running balance,
+  // both of which mean exactly one account.
+  const [type, setType] = useState([]);
+  const [cat, setCat] = useState([]);
+  const [group, setGroup] = useState([]);
   const [account, setAccount] = useState('');
   const [minAmt, setMinAmt] = useState('');
   const [maxAmt, setMaxAmt] = useState('');
@@ -54,6 +59,9 @@ export default function Ledger() {
   const [dateTo, setDateTo] = useState('');
   const [sort, setSort] = useState('recent');
   const [showFilters, setShowFilters] = useState(false);
+  // Shared toggle for the multi-select rows.
+  const pick = (setter) => (v) =>
+    setter((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
   const [allTime, setAllTime] = useState(false);
 
   // A search or a custom date range both mean "ignore the Day/Week/Month/
@@ -65,7 +73,7 @@ export default function Ledger() {
   // A group can span any number of days (a multi-day trip), so confining it
   // to whatever period tab happens to be selected would silently hide most
   // of it — same reasoning as search overriding the tabs.
-  const groupActive = Boolean(group);
+  const groupActive = group.length > 0;
   const overridingTimeline = searching || hasCustomRange || groupActive;
 
   const end = periodEnd(kind, start);
@@ -110,11 +118,12 @@ export default function Ledger() {
   useEffect(() => {
     if (!ledgerFilter) return;
     clearFilters();
-    if (ledgerFilter.category) setCat(ledgerFilter.category);
+    // Arrives from Insights as a single value; the state holds arrays.
+    if (ledgerFilter.category) setCat([ledgerFilter.category]);
     if (ledgerFilter.account) changeAccount(ledgerFilter.account);
     if (ledgerFilter.from) setDateFrom(ledgerFilter.from);
     if (ledgerFilter.to) setDateTo(ledgerFilter.to);
-    if (ledgerFilter.type) setType(ledgerFilter.type);
+    if (ledgerFilter.type) setType([ledgerFilter.type]);
     setShowFilters(true); // so it's visible WHY the list is narrowed
     setLedgerFilter(null);
   }, [ledgerFilter]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -143,11 +152,12 @@ export default function Ledger() {
     setAllTime(false);
   }
 
-  const extraFilters = [type, cat, group, account, minAmt, maxAmt].filter(Boolean).length + (hasCustomRange ? 1 : 0);
+  const extraFilters = type.length + cat.length + group.length
+    + [account, minAmt, maxAmt].filter(Boolean).length + (hasCustomRange ? 1 : 0);
   const activeFilters = extraFilters + (q ? 1 : 0);
 
   function clearFilters() {
-    setQ(''); setType(''); setCat(''); setGroup(''); changeAccount(''); setMinAmt(''); setMaxAmt(''); setDateFrom(''); setDateTo('');
+    setQ(''); setType([]); setCat([]); setGroup([]); changeAccount(''); setMinAmt(''); setMaxAmt(''); setDateFrom(''); setDateTo('');
   }
 
   // period slice (or all time, or a custom range, or unscoped while searching)
@@ -171,16 +181,28 @@ export default function Ledger() {
     // SIP and FD deposit in with ordinary account-to-account moves, with no way
     // to see either on its own. Split them back apart the same way TxItem
     // labels them: by whether an end of the transfer is a holding.
-    if (type === 'invest') {
-      l = l.filter((t) => t.type === 'transfer' && store.isHoldingName(t.to_account));
-    } else if (type === 'withdraw') {
-      l = l.filter((t) => t.type === 'transfer' && store.isHoldingName(t.account));
-    } else if (type === 'transfer') {
-      l = l.filter((t) => t.type === 'transfer'
-        && !store.isHoldingName(t.to_account) && !store.isHoldingName(t.account));
-    } else if (type) l = l.filter((t) => t.type === type);
-    if (cat) l = l.filter((t) => t.category === cat);
-    if (group) { const gKey = normalizeGroup(group); l = l.filter((t) => normalizeGroup(t.project) === gKey); }
+    // Lending is settled with transfers too, so without splitting those out
+    // every "X owes me" entry sat among the card bills. Same rule the export
+    // uses: by which END of the transfer is the special account.
+    const isIOU = (n) => store.accountType(n) === 'IOU';
+    const matchesType = (t, kind) => {
+      if (kind === 'invest') return t.type === 'transfer' && store.isHoldingName(t.to_account);
+      if (kind === 'withdraw') return t.type === 'transfer' && store.isHoldingName(t.account);
+      if (kind === 'lent') return t.type === 'transfer' && isIOU(t.to_account);
+      if (kind === 'repaid') return t.type === 'transfer' && isIOU(t.account);
+      if (kind === 'transfer') {
+        return t.type === 'transfer'
+          && !store.isHoldingName(t.to_account) && !store.isHoldingName(t.account)
+          && !isIOU(t.to_account) && !isIOU(t.account);
+      }
+      return t.type === kind;
+    };
+    if (type.length) l = l.filter((t) => type.some((k) => matchesType(t, k)));
+    if (cat.length) { const want = new Set(cat); l = l.filter((t) => want.has(t.category || '')); }
+    if (group.length) {
+      const want = new Set(group.map(normalizeGroup));
+      l = l.filter((t) => want.has(normalizeGroup(t.project)));
+    }
     if (account) l = l.filter((t) => t.account === account || t.to_account === account);
     const lo = toPaise(minAmt), hi = toPaise(maxAmt);
     if (Number.isFinite(lo)) l = l.filter((t) => t.amount >= lo);
@@ -449,35 +471,28 @@ export default function Ledger() {
               initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}>
               <div className="filter-grid">
-                <label><span>Type</span>
-                  <select value={type} onChange={(e) => setType(e.target.value)}>
-                    <option value="">Any</option><option value="expense">Expense</option>
-                    <option value="income">Income</option>
-                    <option value="transfer">Transfer (between accounts)</option>
-                    <option value="invest">Invest / Save</option>
-                    <option value="withdraw">Withdraw from savings</option>
-                  </select>
-                </label>
-                <label><span>Category</span>
-                  <select value={cat} onChange={(e) => setCat(e.target.value)}>
-                    <option value="">Any</option>
-                    {[...Object.keys(CATEGORIES), ...store.customCategories.map((c) => c.name)].map((c) => <option key={c}>{c}</option>)}
-                  </select>
-                </label>
+                <div className="filter-multi">
+                  <FilterRow label="Type" values={type} onToggle={pick(setType)} onClear={() => setType([])}
+                    options={[['expense', 'Expense'], ['income', 'Income'],
+                      ['transfer', 'Transfer (between accounts)'],
+                      ['invest', 'Invest / Save'], ['withdraw', 'Withdraw from savings'],
+                      ...(store.accounts.some((a) => a.type === 'IOU')
+                        ? [['lent', 'Lent / owed'], ['repaid', 'Repaid / settled']] : [])]} />
+                  <FilterRow label="Category" values={cat} onToggle={pick(setCat)} onClear={() => setCat([])}
+                    options={[['', 'Uncategorised'],
+                      ...[...Object.keys(CATEGORIES), ...store.customCategories.map((c) => c.name)]
+                        .map((c) => [c, c])]} />
+                  {store.groupNames().length > 0 && (
+                    <FilterRow label="Group" values={group} onToggle={pick(setGroup)} onClear={() => setGroup([])}
+                      options={store.groupNames().map((g) => [g, g])} />
+                  )}
+                </div>
                 <label><span>Account</span>
                   <select value={account} onChange={(e) => changeAccount(e.target.value)}>
                     <option value="">Any</option>
                     {store.accounts.map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
                   </select>
                 </label>
-                {store.groupNames().length > 0 && (
-                  <label><span>Group</span>
-                    <select value={group} onChange={(e) => setGroup(e.target.value)}>
-                      <option value="">Any</option>
-                      {store.groupNames().map((g) => <option key={g} value={g}>{g}</option>)}
-                    </select>
-                  </label>
-                )}
                 <label><span>Min ₹</span>
                   <AmountInput placeholder="0" value={minAmt} onChange={setMinAmt} />
                 </label>
