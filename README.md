@@ -149,6 +149,33 @@ A minimalist, offline-first budget and expense tracker built for busy profession
 
 Tables auto-create on the app's first request, so there's no migration step.
 
+### Clearing "Other" off old transfers
+
+Uncategorised used to be saved as the category `Other`, which is also a real
+category someone can pick — so an unlabelled transfer and a deliberate "Other"
+were indistinguishable, and "show me what still needs a category" could not
+work. New entries store an empty category instead.
+
+Existing transfers keep `Other` and are read as uncategorised everywhere, so
+this is optional tidying rather than a required migration:
+
+```sql
+UPDATE transactions
+   SET category = '', updated_at = CAST(strftime('%s','now') AS INTEGER) * 1000, rev = rev + 1
+ WHERE type = 'transfer' AND category = 'Other' AND deleted = 0;
+```
+
+```bash
+npx wrangler d1 execute rupeeflow-db --remote --command "UPDATE transactions SET category = '', updated_at = CAST(strftime('%s','now') AS INTEGER) * 1000, rev = rev + 1 WHERE type = 'transfer' AND category = 'Other' AND deleted = 0;"
+```
+
+Scoped to transfers on purpose. On an expense or income, `Other` may well have
+been chosen deliberately — balance adjustments write it on purpose — and
+clearing those would destroy a distinction that cannot be recovered.
+
+`updated_at` is bumped so the change syncs to every device; without it the
+rows look unchanged and each device keeps its old copy.
+
 ### Clearing out deleted entries
 
 A deletion is a soft delete: the row stays with `deleted = 1`. That is not a
