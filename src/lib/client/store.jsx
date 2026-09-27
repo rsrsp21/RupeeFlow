@@ -492,7 +492,13 @@ export function StoreProvider({ children }) {
   const inMonth = (t, mk = monthKey()) => monthKey(new Date(Number(t.occurred_at))) === mk;
   const catSpend = (mk = monthKey()) => {
     const map = {};
-    for (const t of live()) if (t.type === 'expense' && inMonth(t, mk)) map[t.category] = (map[t.category] || 0) + t.amount;
+    // '(uncategorised)' rather than '' — an empty key renders as a blank
+    // slice label on the dashboard donut.
+    for (const t of live()) {
+      if (t.type !== 'expense' || !inMonth(t, mk)) continue;
+      const cat = t.category || '(uncategorised)';
+      map[cat] = (map[cat] || 0) + t.amount;
+    }
     return map;
   };
   const effectiveBudget = (category, mk) => {

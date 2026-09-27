@@ -59,8 +59,10 @@ export function categoryDeltas(txs, now = Date.now(), limit = 5) {
   for (const t of txs) {
     if (!isExpense(t)) continue;
     const at = Number(t.occurred_at);
-    if (at >= thisStart && at <= now) a[t.category] = (a[t.category] || 0) + t.amount;
-    else if (at >= prevStart && at < prevCut) b[t.category] = (b[t.category] || 0) + t.amount;
+    // An entry with no category would key on '' and render as a blank row.
+    const cat = t.category || '(uncategorised)';
+    if (at >= thisStart && at <= now) a[cat] = (a[cat] || 0) + t.amount;
+    else if (at >= prevStart && at < prevCut) b[cat] = (b[cat] || 0) + t.amount;
   }
   return [...new Set([...Object.keys(a), ...Object.keys(b)])]
     .map((category) => {
@@ -202,7 +204,7 @@ export function outliers(txs, now = Date.now(), days = 90, limit = 5) {
     if (!isExpense(t)) continue;
     const at = Number(t.occurred_at);
     if (at < cut || at > now) continue;
-    (byCat[t.category] ||= []).push(t);
+    (byCat[t.category || '(uncategorised)'] ||= []).push(t);
   }
   const out = [];
   for (const [category, list] of Object.entries(byCat)) {
@@ -283,12 +285,12 @@ export function spanSummary(txs, endTs, months, now = Date.now()) {
       if (t.type === 'income') income += t.amount;
       else if (t.type === 'expense') {
         expense += t.amount; count++;
-        byCat[t.category] = (byCat[t.category] || 0) + t.amount;
+        byCat[t.category || '(uncategorised)'] = (byCat[t.category || '(uncategorised)'] || 0) + t.amount;
       } else if (t.type === 'transfer') invested += t.amount;
     } else if (ts >= prevStart && ts <= prevEnd) {
       if (t.type === 'expense') {
         prevExpense += t.amount;
-        prevByCat[t.category] = (prevByCat[t.category] || 0) + t.amount;
+        prevByCat[t.category || '(uncategorised)'] = (prevByCat[t.category || '(uncategorised)'] || 0) + t.amount;
       }
     }
   }
@@ -349,11 +351,12 @@ export function categoryBreakdown(txs, start, end, prevStart, prevEnd) {
   for (const t of txs) {
     if (t.type !== 'expense') continue;
     const ts = Number(t.occurred_at);
+    const cat = t.category || '(uncategorised)';
     if (ts >= start && ts <= end) {
-      cur[t.category] = (cur[t.category] || 0) + t.amount;
+      cur[cat] = (cur[cat] || 0) + t.amount;
       total += t.amount;
     } else if (prevStart != null && ts >= prevStart && ts <= prevEnd) {
-      prev[t.category] = (prev[t.category] || 0) + t.amount;
+      prev[cat] = (prev[cat] || 0) + t.amount;
     }
   }
   const rows = Object.entries(cur)

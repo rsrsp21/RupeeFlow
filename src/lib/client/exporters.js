@@ -219,7 +219,9 @@ export function toCSV(rows, cols, opts = {}) {
 export function summarize(rows, groupBy) {
   const map = new Map();
   const keyOf = (t) => {
-    if (groupBy === 'category') return t.category;
+    // An uncategorised entry has an empty category, which rendered as a blank
+    // row label — a line of numbers with nothing saying what they were.
+    if (groupBy === 'category') return t.category || '(uncategorised)';
     if (groupBy === 'account') return t.account;
     if (groupBy === 'group') return t.project || '(no group)';
     if (groupBy === 'month') return new Date(Number(t.occurred_at)).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
@@ -228,13 +230,23 @@ export function summarize(rows, groupBy) {
   };
   for (const t of rows) {
     const k = keyOf(t);
-    if (!map.has(k)) map.set(k, { key: k, expense: 0, income: 0, count: 0 });
+    if (!map.has(k)) map.set(k, { key: k, expense: 0, income: 0, moved: 0, count: 0 });
     const g = map.get(k);
     if (t.type === 'expense') g.expense += t.amount;
     else if (t.type === 'income') g.income += t.amount;
+    // Transfers were counted in the entry total but added to neither column,
+    // so a row of six card bills read "6 entries" beside amounts that had
+    // nothing to do with them. They get their own column: a transfer is not
+    // spending, so folding it into "Spent" would double-count money already
+    // recorded when the card was used.
+    else if (t.type === 'transfer') g.moved += t.amount;
     g.count++;
   }
-  return [...map.values()].sort((a, b) => b.expense - a.expense);
+  // Ranked by total activity rather than spending alone — a transfer-only
+  // category has no expense at all and would otherwise sort to the bottom
+  // however large it is.
+  return [...map.values()].sort((a, b) =>
+    (b.expense + b.income + b.moved) - (a.expense + a.income + a.moved));
 }
 
 export function download(blob, name) {
@@ -361,16 +373,24 @@ export async function toPDF(rows, opts, meta) {
   }
   if (opts.includeSummary) {
     const groups = summarize(rows, opts.groupBy || 'category');
+    const anyMoved = groups.some((g) => g.moved > 0);
     doc.autoTable({
       startY: y,
+      // The Moved column only appears when there is something in it, so an
+      // expenses-only summary is not padded with a column of zeroes.
       head: [[opts.groupBy === 'month' ? 'Month' : opts.groupBy === 'day' ? 'Day'
         : opts.groupBy === 'account' ? 'Account' : opts.groupBy === 'group' ? 'Group' : 'Category',
-        'Entries', 'Spent (Rs)', 'Received (Rs)']],
-      body: groups.map((g) => [g.key, g.count, inr(g.expense), inr(g.income)]),
+        'Entries', 'Spent (Rs)', 'Received (Rs)', ...(anyMoved ? ['Moved (Rs)'] : [])]],
+      body: groups.map((g) => [g.key, g.count, inr(g.expense), inr(g.income),
+        ...(anyMoved ? [inr(g.moved)] : [])]),
       theme: 'striped',
       headStyles: { fillColor: [23, 23, 26], fontSize: 9 },
       styles: { fontSize: 9, cellPadding: 3 },
-      columnStyles: { 2: { halign: 'right', font: 'courier' }, 3: { halign: 'right', font: 'courier' } },
+      columnStyles: {
+        2: { halign: 'right', font: 'courier' },
+        3: { halign: 'right', font: 'courier' },
+        4: { halign: 'right', font: 'courier' },
+      },
     });
     y = doc.lastAutoTable.finalY + 10;
   }
