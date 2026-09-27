@@ -79,8 +79,9 @@ export default function TxModal({ state, onClose }) {
   // On a transfer the picker starts collapsed behind a button — most
   // transfers want no category, so a permanent dropdown is noise for the
   // common case. Open straight away when the entry already carries one, the
-  // same way the group field behaves. 'Other' is the pre-change default for
-  // transfers, so it does not count as a real category here.
+  // same way the group field behaves. Entries saved before uncategorised
+  // became an empty string still carry 'Other', so that is treated as "none"
+  // here too rather than opening the picker on every old transfer.
   const [catOpen, setCatOpen] = useState(
     Boolean(existing?.category && existing.category !== 'Other' && existing.type === 'transfer'));
   const [date, setDate] = useState(() => {
@@ -229,9 +230,12 @@ export default function TxModal({ state, onClose }) {
       // invest is stored as a transfer — see the comment where `type` is set up
       type: type === 'invest' || type === 'withdraw' ? 'transfer' : type,
       amount: paise,
-      // A transfer keeps whatever the user picked (possibly none); invest and
-      // withdraw are defined by their holding, so they stay neutral.
-      category: type === 'invest' || type === 'withdraw' ? 'Other' : (category || 'Other'),
+      // Uncategorised is stored as an empty string, not 'Other'. 'Other' is a
+      // real category someone may pick deliberately, and defaulting to it made
+      // the two indistinguishable — so "uncategorised" could never be found,
+      // and every unlabelled transfer looked like a deliberate choice.
+      // Invest and withdraw are defined by their holding and carry none.
+      category: type === 'invest' || type === 'withdraw' ? '' : (category || ''),
       note: note.trim(),
       account: source, to_account: destination,
       project: group.trim(),

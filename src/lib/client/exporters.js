@@ -125,8 +125,9 @@ export function selectRows(all, opts) {
     const want = new Set(cats);
     rows = rows.filter((t) => want.has(t.category));
   }
-  // 'Other' is what every uncategorised transfer carries by default, so it
-  // counts as unlabelled rather than as a category someone chose.
+  // Uncategorised stores as an empty string. Entries saved before that change
+  // carry 'Other' instead, so both count as unlabelled — otherwise every old
+  // transfer would read as deliberately categorised.
   //
   // Both directions are offered: "labelled" for a clean export of the entries
   // worth reading, "unlabelled" to find the ones still needing a category —

@@ -594,7 +594,7 @@ export function StoreProvider({ children }) {
   const removeCustomCategory = useCallback(async (name) => {
     const affected = Object.values(txsRef.current).filter((t) => !t.deleted && t.category === name);
     for (const t of affected) {
-      await saveTx({ ...t, category: 'Other', updated_at: Date.now(), rev: (t.rev || 0) + 1 });
+      await saveTx({ ...t, category: '', updated_at: Date.now(), rev: (t.rev || 0) + 1 });
     }
     for (const b of budgets.filter((x) => x.category === name)) {
       deleteBudget(b.month, b.category);
@@ -793,7 +793,7 @@ export function StoreProvider({ children }) {
       if (local && (Number(local.updated_at) || 0) >= incomingAt) { counts.skipped++; continue; }
       await saveTx({
         id, type: t.type, amount,
-        category: String(t.category || 'Other'),
+        category: String(t.category ?? ''),
         note: String(t.note || ''),
         account: String(t.account || ''),
         to_account: String(t.to_account || ''),
