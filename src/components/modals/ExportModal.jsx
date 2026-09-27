@@ -2,7 +2,7 @@
 // Export builder — pick format, timeline, filters, grouping and columns.
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, FileSpreadsheet, Braces, Check, Sparkles } from 'lucide-react';
+import { FileText, FileSpreadsheet, Braces, Check, Sparkles, ChevronDown } from 'lucide-react';
 import { useStore } from '@/lib/client/store';
 import { CATEGORIES, rupees } from '@/lib/client/constants';
 import {
@@ -12,18 +12,58 @@ import { backdropMotion, panelMotion } from './TxModal';
 
 const DEFAULT_COLS = ['date', 'type', 'category', 'note', 'account', 'amount'];
 
+// One filter dimension: a summary line that expands into a checkbox list.
+// Kept out of the main component because all four behave identically, and
+// four inline copies of this markup was most of what made the dialog long.
+function FilterRow({ label, options, values, onToggle, onClear }) {
+  const [open, setOpen] = useState(false);
+  const summary = values.length === 0 ? `All ${label.toLowerCase()}`
+    : values.length <= 2 ? values.join(', ')
+    : `${values.length} selected`;
+  return (
+    <div className={`filter-row ${open ? 'open' : ''}`}>
+      <button type="button" className="filter-head" onClick={() => setOpen((v) => !v)}>
+        <span className="filter-name">{label}</span>
+        <span className={`filter-summary ${values.length ? 'on' : ''}`}>{summary}</span>
+        <ChevronDown size={14} className="filter-chevron" />
+      </button>
+      {open && (
+        <div className="filter-opts">
+          {options.map(([value, text]) => (
+            <label key={value} className="filter-opt">
+              <input type="checkbox" checked={values.includes(value)} onChange={() => onToggle(value)} />
+              <span>{text}</span>
+            </label>
+          ))}
+          {values.length > 0 && (
+            <button type="button" className="btn ghost sm filter-clear" onClick={onClear}>
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ExportModal({ onClose, initialAccount = '' }) {
   const store = useStore();
   const [format, setFormat] = useState('pdf');
   const [range, setRange] = useState('month');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
-  const [type, setType] = useState('');
-  const [category, setCategory] = useState('');
-  const [account, setAccount] = useState(initialAccount);
-  const [group, setGroup] = useState('');
+  // Arrays, not strings: each filter takes several values. Rendered as
+  // toggleable chips rather than <select multiple>, which on a phone needs a
+  // long-press on Android and renders as an odd scrolling list on iOS.
+  const [type, setType] = useState([]);
+  const [category, setCategory] = useState([]);
+  const [account, setAccount] = useState(initialAccount ? [initialAccount] : []);
+  const [group, setGroup] = useState([]);
   const groupOptions = store.groupNames();
-  const activeFilters = [type, category, account, group].filter(Boolean).length;
+  const activeFilters = type.length + category.length + account.length + group.length;
+  // One toggle helper for all four, so adding a filter is one line.
+  const toggle = (setter) => (v) =>
+    setter((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
   const [groupBy, setGroupBy] = useState('category');
   const [cols, setCols] = useState(DEFAULT_COLS);
   const [includeSummary, setIncludeSummary] = useState(true);
@@ -151,60 +191,35 @@ export default function ExportModal({ onClose, initialAccount = '' }) {
               </div>
             )}
             <p className="muted small" style={{ marginTop: 8 }}>
-              Exporting: {formatRangeLabel(opts)}{account ? ` · ${account}` : ''}
+              Exporting: {formatRangeLabel(opts)}
+              {account.length ? ` · ${account.length <= 2 ? account.join(', ') : `${account.length} accounts`}` : ''}
             </p>
           </div>
 
           <div className="field">
             <span className="field-label">Filters</span>
-            {/* Each filter is one choice, and they combine — pick a type AND a
-                category AND an account to narrow further. Labelled because a
-                row of bare dropdowns gave no clue what each one narrowed. */}
-            <div className="form-row labelled">
-              <label>
-                <span>Type</span>
-                <select value={type} onChange={(e) => setType(e.target.value)}>
-                  <option value="">All types</option>
-                  <option value="expense">Expenses only</option>
-                  <option value="income">Income only</option>
-                  <option value="transfer">Transfers only</option>
-                  {/* Holding moves are stored as transfers; selectRows splits
-                      them by which end is a holding. */}
-                  <option value="invest">Invested / saved</option>
-                  <option value="withdraw">Withdrawn from savings</option>
-                </select>
-              </label>
-              <label>
-                <span>Category</span>
-                <select value={category} onChange={(e) => setCategory(e.target.value)}>
-                  <option value="">All categories</option>
-                  {[...Object.keys(CATEGORIES), ...store.customCategories.map((c) => c.name)].map((c) => <option key={c}>{c}</option>)}
-                </select>
-              </label>
-            </div>
-            <div className="form-row labelled" style={{ marginTop: 8 }}>
-              {store.accounts.length > 0 && (
-                <label>
-                  <span>Account</span>
-                  <select value={account} onChange={(e) => setAccount(e.target.value)}>
-                    <option value="">All accounts</option>
-                    {store.accounts.map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
-                  </select>
-                </label>
-              )}
-              {groupOptions.length > 0 && (
-                <label>
-                  <span>Group / trip</span>
-                  <select value={group} onChange={(e) => setGroup(e.target.value)}>
-                    <option value="">All groups</option>
-                    {groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
-                  </select>
-                </label>
-              )}
-            </div>
+            {/* Collapsed rows, not a chip wall: with twenty-odd categories and
+                a handful of accounts, laying every option out at once buries
+                the rest of the dialog. Each row shows what is selected and
+                opens a checkbox list only when tapped. Nothing selected means
+                "all of them", so the common case needs no taps at all. */}
+            <FilterRow label="Type" values={type} onToggle={toggle(setType)} onClear={() => setType([])}
+              options={[['expense', 'Expenses'], ['income', 'Income'], ['transfer', 'Transfers'],
+                ['invest', 'Invested / saved'], ['withdraw', 'Withdrawn from savings']]} />
+            <FilterRow label="Category" values={category} onToggle={toggle(setCategory)} onClear={() => setCategory([])}
+              options={[...Object.keys(CATEGORIES), ...store.customCategories.map((c) => c.name)].map((c) => [c, c])} />
+            {store.accounts.length > 0 && (
+              <FilterRow label="Account" values={account} onToggle={toggle(setAccount)} onClear={() => setAccount([])}
+                options={store.accounts.map((a) => [a.name, a.name])} />
+            )}
+            {groupOptions.length > 0 && (
+              <FilterRow label="Group / trip" values={group} onToggle={toggle(setGroup)} onClear={() => setGroup([])}
+                options={groupOptions.map((g) => [g, g])} />
+            )}
+
             {activeFilters > 0 && (
-              <button type="button" className="btn ghost sm" style={{ marginTop: 8 }}
-                onClick={() => { setType(''); setCategory(''); setAccount(''); setGroup(''); }}>
+              <button type="button" className="btn ghost sm" style={{ marginTop: 10 }}
+                onClick={() => { setType([]); setCategory([]); setAccount([]); setGroup([]); }}>
                 Clear {activeFilters} {activeFilters === 1 ? 'filter' : 'filters'}
               </button>
             )}

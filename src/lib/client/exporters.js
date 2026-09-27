@@ -1,5 +1,6 @@
 // Export engine — CSV / PDF / JSON with configurable scope, grouping and columns.
 import { DAY_MS, startOfDay, startOfWeek, startOfMonth, startOfYear } from './period';
+import { normalizeGroup } from '../noteMatch';
 
 export const COLUMNS = {
   date: { label: 'Date', get: (t) => new Date(Number(t.occurred_at)).toLocaleDateString('en-IN') },
@@ -59,7 +60,11 @@ export function rangeFileTag(opts) {
   // downloads folder, so the name has to say which is which.
   // Coerced rather than trusted: a non-string here would land in the
   // downloaded file's NAME, where it is both ugly and hard to trace back.
-  const acct = typeof opts.account === 'string' ? opts.account : '';
+  // Only a single-account export names the account in the filename; several
+  // would make it unreadable, and none is the all-accounts case.
+  const picked = Array.isArray(opts.account) ? opts.account.filter(Boolean)
+    : (typeof opts.account === 'string' && opts.account ? [opts.account] : []);
+  const acct = picked.length === 1 ? picked[0] : '';
   const slug = acct
     ? `${acct.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-`
     : '';
@@ -79,22 +84,49 @@ export function selectRows(all, opts) {
   // this, picking "Invest" matched nothing at all, and "Transfers only"
   // swept every SIP in with ordinary account-to-account moves.
   const isHolding = typeof opts.isHoldingName === 'function' ? opts.isHoldingName : () => false;
-  if (opts.type === 'invest') {
-    rows = rows.filter((t) => t.type === 'transfer' && isHolding(t.to_account));
-  } else if (opts.type === 'withdraw') {
-    rows = rows.filter((t) => t.type === 'transfer' && isHolding(t.account));
-  } else if (opts.type === 'transfer') {
-    rows = rows.filter((t) => t.type === 'transfer'
-      && !isHolding(t.to_account) && !isHolding(t.account));
-  } else if (opts.type) {
-    rows = rows.filter((t) => t.type === opts.type);
+
+  // Every filter is multi-select: one export can cover several categories,
+  // accounts or trips at once, which is the common case ("groceries AND
+  // eating out", "both Goa trips"). A plain string is still accepted so an
+  // older caller — or a single pick — keeps working unchanged.
+  const many = (v) => (Array.isArray(v) ? v.filter(Boolean) : (v ? [v] : []));
+
+  // "invest" and "withdraw" are not stored types — the table only allows
+  // expense/income/transfer, and a holding move IS a transfer. Split them the
+  // same way Ledger does: by which END of the transfer is a holding. Without
+  // this, picking "Invest" matched nothing at all, and "Transfers only"
+  // swept every SIP in with ordinary account-to-account moves.
+  const matchesType = (t, kind) => {
+    if (kind === 'invest') return t.type === 'transfer' && isHolding(t.to_account);
+    if (kind === 'withdraw') return t.type === 'transfer' && isHolding(t.account);
+    if (kind === 'transfer') {
+      return t.type === 'transfer' && !isHolding(t.to_account) && !isHolding(t.account);
+    }
+    return t.type === kind;
+  };
+  const types = many(opts.type);
+  if (types.length) rows = rows.filter((t) => types.some((kind) => matchesType(t, kind)));
+
+  const cats = many(opts.category);
+  if (cats.length) {
+    const want = new Set(cats);
+    rows = rows.filter((t) => want.has(t.category));
   }
-  if (opts.category) rows = rows.filter((t) => t.category === opts.category);
-  if (opts.group) rows = rows.filter((t) => (t.project || '') === opts.group);
+
+  const groups = many(opts.group);
+  if (groups.length) {
+    // Matched on normalizeGroup so a casing difference can't hide a trip's
+    // entries — the same rule the group totals use.
+    const want = new Set(groups.map((g) => normalizeGroup(g)));
+    rows = rows.filter((t) => want.has(normalizeGroup(t.project || '')));
+  }
+
   // Both legs, so a statement for one account still shows the transfers that
   // moved money out of it — matching how Ledger scopes to an account.
-  if (typeof opts.account === 'string' && opts.account) {
-    rows = rows.filter((t) => t.account === opts.account || t.to_account === opts.account);
+  const accounts = many(opts.account);
+  if (accounts.length) {
+    const want = new Set(accounts);
+    rows = rows.filter((t) => want.has(t.account) || want.has(t.to_account));
   }
   return rows.sort((a, b) => a.occurred_at - b.occurred_at);
 }
@@ -148,7 +180,8 @@ export function toCSV(rows, cols, opts = {}) {
   const title = [
     'RupeeFlow export',
     opts.rangeLabel ? `Period,${esc(opts.rangeLabel)}` : '',
-    opts.account ? `Account,${esc(opts.account)}` : '',
+    (Array.isArray(opts.account) ? opts.account.length : opts.account)
+      ? `Account,${esc([].concat(opts.account).filter(Boolean).join('; '))}` : '',
     `Entries,${rows.length}`,
     `Generated,${esc(new Date().toLocaleString('en-IN'))}`,
     '',
@@ -233,8 +266,10 @@ export async function toPDF(rows, opts, meta) {
   doc.text('RupeeFlow', M, 13);
   doc.setFont(undefined, 'normal'); doc.setFontSize(9); doc.setTextColor(200);
   doc.text('Statement of account', M, 20);
-  const stamp = [typeof opts.account === 'string' ? opts.account : '', meta.name || '']
-    .filter(Boolean).join('  ·  ');
+  const picked = Array.isArray(opts.account) ? opts.account.filter(Boolean)
+    : (typeof opts.account === 'string' && opts.account ? [opts.account] : []);
+  const acctLabel = picked.length === 0 ? '' : picked.length <= 2 ? picked.join(', ') : `${picked.length} accounts`;
+  const stamp = [acctLabel, meta.name || ''].filter(Boolean).join('  ·  ');
   doc.setFontSize(9); doc.setTextColor(255);
   doc.text(rangeLabel, pageW - M, 13, { align: 'right' });
   doc.setTextColor(200); doc.setFontSize(8);
