@@ -230,16 +230,22 @@ export function summarize(rows, groupBy) {
   };
   for (const t of rows) {
     const k = keyOf(t);
-    if (!map.has(k)) map.set(k, { key: k, expense: 0, income: 0, moved: 0, count: 0 });
+    if (!map.has(k)) {
+      map.set(k, { key: k, expense: 0, income: 0, moved: 0, count: 0, spendCount: 0, movedCount: 0 });
+    }
     const g = map.get(k);
-    if (t.type === 'expense') g.expense += t.amount;
-    else if (t.type === 'income') g.income += t.amount;
+    // Counted per kind as well as overall: the summary splits spending from
+    // money moved into separate tables, and one category can appear in both
+    // (card bills moved, plus a genuine expense filed the same way). A single
+    // count would then overstate each table's row.
+    if (t.type === 'expense') { g.expense += t.amount; g.spendCount++; }
+    else if (t.type === 'income') { g.income += t.amount; g.spendCount++; }
     // Transfers were counted in the entry total but added to neither column,
     // so a row of six card bills read "6 entries" beside amounts that had
     // nothing to do with them. They get their own column: a transfer is not
     // spending, so folding it into "Spent" would double-count money already
     // recorded when the card was used.
-    else if (t.type === 'transfer') g.moved += t.amount;
+    else if (t.type === 'transfer') { g.moved += t.amount; g.movedCount++; }
     g.count++;
   }
   // Ranked by total activity rather than spending alone — a transfer-only
@@ -373,26 +379,59 @@ export async function toPDF(rows, opts, meta) {
   }
   if (opts.includeSummary) {
     const groups = summarize(rows, opts.groupBy || 'category');
-    const anyMoved = groups.some((g) => g.moved > 0);
-    doc.autoTable({
-      startY: y,
-      // The Moved column only appears when there is something in it, so an
-      // expenses-only summary is not padded with a column of zeroes.
-      head: [[opts.groupBy === 'month' ? 'Month' : opts.groupBy === 'day' ? 'Day'
-        : opts.groupBy === 'account' ? 'Account' : opts.groupBy === 'group' ? 'Group' : 'Category',
-        'Entries', 'Spent (Rs)', 'Received (Rs)', ...(anyMoved ? ['Moved (Rs)'] : [])]],
-      body: groups.map((g) => [g.key, g.count, inr(g.expense), inr(g.income),
-        ...(anyMoved ? [inr(g.moved)] : [])]),
-      theme: 'striped',
-      headStyles: { fillColor: [23, 23, 26], fontSize: 9 },
-      styles: { fontSize: 9, cellPadding: 3 },
-      columnStyles: {
-        2: { halign: 'right', font: 'courier' },
-        3: { halign: 'right', font: 'courier' },
-        4: { halign: 'right', font: 'courier' },
-      },
-    });
-    y = doc.lastAutoTable.finalY + 10;
+    const dimension = opts.groupBy === 'month' ? 'Month' : opts.groupBy === 'day' ? 'Day'
+      : opts.groupBy === 'account' ? 'Account' : opts.groupBy === 'group' ? 'Group' : 'Category';
+
+    // Two tables, not one with a mostly-empty Moved column. Spending and
+    // moving money are different questions — what a month cost versus what
+    // was shuffled between accounts — and a category can legitimately appear
+    // in both (card bills moved, plus a genuine expense filed the same way).
+    // Splitting keeps each table's totals meaningful on their own.
+    const spent = groups.filter((g) => g.expense > 0 || g.income > 0);
+    const moved = groups.filter((g) => g.moved > 0);
+
+    const table = (title, head, body, startAt) => {
+      doc.setFontSize(11); doc.setTextColor(...INK);
+      doc.text(title, M, startAt);
+      doc.autoTable({
+        startY: startAt + 3,
+        head: [head],
+        body,
+        theme: 'striped',
+        headStyles: { fillColor: INK, fontSize: 9 },
+        styles: { fontSize: 9, cellPadding: 3 },
+        columnStyles: {
+          2: { halign: 'right', font: 'courier' },
+          3: { halign: 'right', font: 'courier' },
+        },
+        margin: { left: M, right: M },
+      });
+      return doc.lastAutoTable.finalY + 10;
+    };
+
+    if (spent.length) {
+      const totExp = spent.reduce((a, g) => a + g.expense, 0);
+      const totInc = spent.reduce((a, g) => a + g.income, 0);
+      y = table('Spending and income', [dimension, 'Entries', 'Spent (Rs)', 'Received (Rs)'],
+        [...spent.map((g) => [g.key, g.spendCount, inr(g.expense), inr(g.income)]),
+          [{ content: 'Total', styles: { fontStyle: 'bold' } },
+            { content: spent.reduce((a, g) => a + g.spendCount, 0), styles: { fontStyle: 'bold' } },
+            { content: inr(totExp), styles: { fontStyle: 'bold' } },
+            { content: inr(totInc), styles: { fontStyle: 'bold' } }]], y);
+    }
+
+    if (moved.length) {
+      const totMoved = moved.reduce((a, g) => a + g.moved, 0);
+      y = table('Money moved between accounts', [dimension, 'Entries', 'Moved (Rs)', ''],
+        [...moved.map((g) => [g.key, g.movedCount, inr(g.moved), '']),
+          [{ content: 'Total', styles: { fontStyle: 'bold' } },
+            { content: moved.reduce((a, g) => a + g.movedCount, 0), styles: { fontStyle: 'bold' } },
+            { content: inr(totMoved), styles: { fontStyle: 'bold' } }, '']], y);
+      doc.setFontSize(8); doc.setTextColor(...MUTED);
+      doc.text('Card bills, transfers and savings moves — not spending.', M, y - 4);
+      doc.setTextColor(...INK);
+      y += 2;
+    }
   }
 
   if (opts.includeTransactions) {
