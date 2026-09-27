@@ -320,3 +320,32 @@ test('basis is order-independent and never goes negative', () => {
   const over = tx({ type: 'transfer', amount: R(9999), account: 'H', to_account: 'B', occurred_at: t0 + D });
   assert.equal(computeHoldingContributed(holdings, [put, over]).H, 0);
 });
+
+test('a withdrawal counts even when the valuation is dated after it', () => {
+  // Cashed out on the 25th, then valued on the 27th. Skipping withdrawals
+  // dated before the valuation (the way contributions are skipped) resurrected
+  // the entire balance: the app showed money already sitting in the user's
+  // bank, and called it pure profit because the basis had correctly gone to
+  // zero. A valuation supersedes price movement, not a withdrawal.
+  const D = (d) => new Date(2026, 8, d, 12).getTime();
+  const holdings = [{ name: 'NSE IPO', valued_at: D(27), current_value: R(14623.42), opening_balance: 0 }];
+  const txs = [
+    tx({ type: 'transfer', amount: R(14280), account: 'ICICI', to_account: 'NSE IPO', occurred_at: D(22) }),
+    tx({ type: 'transfer', amount: R(14623.42), account: 'NSE IPO', to_account: 'SBI', occurred_at: D(25) }),
+  ];
+  assert.equal(computeHoldingBalances(holdings, txs)['NSE IPO'], 0);
+  assert.equal(computeHoldingContributed(holdings, txs)['NSE IPO'], 0);
+
+  // And the answer must not depend on which side of the valuation it fell.
+  const earlier = [{ name: 'NSE IPO', valued_at: D(24), current_value: R(14623.42), opening_balance: 0 }];
+  assert.equal(computeHoldingBalances(earlier, txs)['NSE IPO'], 0);
+});
+
+test('a contribution before a valuation is still absorbed by it', () => {
+  // The rule this fix had to preserve: a valuation already accounts for money
+  // put in before it, so that contribution must not be added on top.
+  const D = (d) => new Date(2026, 8, d, 12).getTime();
+  const holdings = [{ name: 'H', valued_at: D(27), current_value: R(14623.42), opening_balance: 0 }];
+  const txs = [tx({ type: 'transfer', amount: R(14280), account: 'ICICI', to_account: 'H', occurred_at: D(22) })];
+  assert.equal(computeHoldingBalances(holdings, txs).H, R(14623.42), 'not 28,903.42');
+});
