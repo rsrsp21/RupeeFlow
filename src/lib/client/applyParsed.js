@@ -21,6 +21,18 @@ export async function resolveCategory(store, name) {
   }
 }
 
+// Like resolveCategory, but never creates. Used for transfers, where the
+// category is a label rather than a classification — matching one the user
+// already has is useful; inventing one from a passing phrase is clutter.
+function matchExistingCategory(store, name) {
+  const clean = String(name || '').trim();
+  if (!clean) return 'Other';
+  if (CATEGORIES[clean]) return clean;
+  const hit = store.customCategories.find((c) => c.name.toLowerCase() === clean.toLowerCase())
+    || Object.keys(CATEGORIES).find((c) => c.toLowerCase() === clean.toLowerCase());
+  return typeof hit === 'string' ? hit : (hit?.name || 'Other');
+}
+
 // Gemini returns type "invest" with a destination holding. Same reasoning as
 // resolveCategory: it's told to reuse an existing holding whenever one fits,
 // so a name it hasn't seen means none did — create it rather than silently
@@ -97,25 +109,51 @@ export async function applyParsedTransactions(store, out, source, { fallbackDate
     // An investment is stored as a transfer into a holding (the transactions
     // table only allows expense/income/transfer) — so it leaves the account
     // without ever counting as spending.
-    const holding = e.type === 'invest' ? await resolveHolding(store, e.destination) : '';
+    // Both invest and withdraw name a holding in `destination`; they differ
+    // only in which SIDE of the transfer it sits on.
+    const holding = e.type === 'invest' || e.type === 'withdraw'
+      ? await resolveHolding(store, e.destination) : '';
     const type = holding ? 'transfer'
       : ['expense', 'income', 'transfer'].includes(e.type) ? e.type
       : 'expense';
-    const parsedAccount = e.account ? store.accounts.find(a => a.name.toLowerCase() === e.account.toLowerCase())?.name : null;
+    const matchAccount = (name) => (name
+      ? store.accounts.find((a) => a.name.toLowerCase() === String(name).toLowerCase())?.name
+      : null);
+    const parsedAccount = matchAccount(e.account);
     const accountName = parsedAccount || fallbackAccount || store.accounts[0]?.name || 'Cash';
+    // A withdrawal comes OUT of the holding, so the holding is the source and
+    // the money lands in an account — the mirror of an investment.
+    const isWithdraw = e.type === 'withdraw' && holding;
+    const landsIn = matchAccount(e.to_account) || accountName;
+    const source = isWithdraw ? holding : accountName;
+    const destination = isWithdraw ? landsIn
+      : holding ? holding
+      : type === 'transfer' ? (matchAccount(e.to_account) || '')
+      : '';
 
     await store.saveTx({
       id: crypto.randomUUID(),
       type,
       amount,
-      category: holding ? 'Other' : await resolveCategory(store, e.category),
+      // A holding move is defined by its holding, so it needs no category. A
+      // plain transfer keeps one only when the user actually named it —
+      // resolveCategory turns an empty value into 'Other', which is exactly
+      // what an uncategorised transfer should carry.
+      // A holding move is defined by its holding, so it needs no category.
+      // A plain transfer may keep one, but only an EXISTING category: a
+      // category on a transfer is a label, and casually saying "card bill"
+      // should not quietly add a new category to the user's list the way it
+      // legitimately does for a spending entry.
+      category: holding ? 'Other'
+        : type === 'transfer' ? matchExistingCategory(store, e.category)
+        : await resolveCategory(store, e.category),
       note: String(e.note || '').slice(0, 200),
       // The user's own first account, not a hardcoded 'Cash' — someone whose
       // accounts are, say, "SBI"/"HDFC" was getting every voice/text entry
       // filed under a "Cash" account that doesn't exist for them. It stayed
       // invisible in the Accounts list while still counting toward the
       // overall net balance, which is money you can't see or manage.
-      account: accountName, to_account: holding,
+      account: source, to_account: destination,
       project: resolveGroup(store, e.group),
       occurred_at: occurred,
       created_at: Date.now(), updated_at: Date.now(), rev: 1, deleted: 0, source,
