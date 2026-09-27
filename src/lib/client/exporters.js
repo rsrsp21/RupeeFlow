@@ -96,11 +96,24 @@ export function selectRows(all, opts) {
   // same way Ledger does: by which END of the transfer is a holding. Without
   // this, picking "Invest" matched nothing at all, and "Transfers only"
   // swept every SIP in with ordinary account-to-account moves.
+  // An IOU account (money lent or borrowed) is settled the same way: its
+  // movements are transfers too, so without this every "X owes me" entry
+  // landed in "Transfers only" alongside the card bills the user actually
+  // wanted. Lending is its own kind of movement, not an ordinary move.
+  const isIOU = typeof opts.accountType === 'function'
+    ? (n) => opts.accountType(n) === 'IOU'
+    : () => false;
   const matchesType = (t, kind) => {
     if (kind === 'invest') return t.type === 'transfer' && isHolding(t.to_account);
     if (kind === 'withdraw') return t.type === 'transfer' && isHolding(t.account);
+    if (kind === 'lent') return t.type === 'transfer' && isIOU(t.to_account);
+    if (kind === 'repaid') return t.type === 'transfer' && isIOU(t.account);
     if (kind === 'transfer') {
-      return t.type === 'transfer' && !isHolding(t.to_account) && !isHolding(t.account);
+      // A plain transfer is one between two ordinary places: no holding and
+      // no IOU on either end.
+      return t.type === 'transfer'
+        && !isHolding(t.to_account) && !isHolding(t.account)
+        && !isIOU(t.to_account) && !isIOU(t.account);
     }
     return t.type === kind;
   };
@@ -112,6 +125,10 @@ export function selectRows(all, opts) {
     const want = new Set(cats);
     rows = rows.filter((t) => want.has(t.category));
   }
+  // "Only labelled" keeps entries the user actually categorised. 'Other' is
+  // what every uncategorised transfer carries by default, so it counts as
+  // unlabelled rather than as a category someone chose.
+  if (opts.labelledOnly) rows = rows.filter((t) => t.category && t.category !== 'Other');
 
   const groups = many(opts.group);
   if (groups.length) {
