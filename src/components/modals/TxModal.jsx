@@ -34,7 +34,9 @@ export default function TxModal({ state, onClose }) {
   // a separate tab purely so the form can offer the right destination list.
   const isHoldingName = store.isHoldingName;
   const openedAs = existing
-    ? (existing.type === 'transfer' && isHoldingName(existing.to_account) ? 'invest' : existing.type)
+    ? (existing.type === 'transfer' && isHoldingName(existing.to_account) ? 'invest'
+      : existing.type === 'transfer' && isHoldingName(existing.account) ? 'withdraw'
+      : existing.type)
     : (pre.type || 'expense');
 
   const [type, setType] = useState(openedAs);
@@ -56,10 +58,16 @@ export default function TxModal({ state, onClose }) {
   // from every total. Empty is honest — save() refuses to write without one.
   const [toAccount, setToAccount] = useState(existing?.to_account || '');
   const [holding, setHolding] = useState(
-    openedAs === 'invest' ? (existing?.to_account || '') : (store.realHoldings[0]?.name || ''));
+    openedAs === 'invest' ? (existing?.to_account || '')
+      : openedAs === 'withdraw' ? (existing?.account || '')
+      : (store.realHoldings[0]?.name || ''));
+  // Where a withdrawal lands. Separate from `account`, which for a withdrawal
+  // is the holding being drawn from rather than a spendable account.
+  const [intoAccount, setIntoAccount] = useState(
+    openedAs === 'withdraw' ? (existing?.to_account || '') : (store.accounts[0]?.name || ''));
   // Both tabs move money between places rather than spending or earning it,
   // so neither wants a category picker.
-  const isMove = type === 'transfer' || type === 'invest';
+  const isMove = type === 'transfer' || type === 'invest' || type === 'withdraw';
   const [date, setDate] = useState(() => {
     const d = new Date(Number(existing?.occurred_at ?? pre.occurred_at ?? Date.now()));
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -164,22 +172,31 @@ export default function TxModal({ state, onClose }) {
     e.preventDefault();
     const paise = toPaise(amount);
     if (!Number.isFinite(paise) || paise <= 0) return store.toast('Enter a valid amount');
-    if (!account) return store.toast('Pick an account');
+    // A withdrawal draws FROM the holding, so `account` is not used as the
+    // source for it — validate the holding and destination instead.
+    if (type !== 'withdraw' && !account) return store.toast('Pick an account');
     if (type === 'transfer' && !toAccount) return store.toast('Pick a destination account');
     if (type === 'transfer' && account === toAccount) return store.toast('Pick two different accounts');
     if (type === 'invest' && !holding) return store.toast('Pick where this is going');
-    const destination = type === 'invest' ? holding : type === 'transfer' ? toAccount : '';
+    if (type === 'withdraw' && !holding) return store.toast('Pick where this is coming from');
+    if (type === 'withdraw' && !intoAccount) return store.toast('Pick where the money lands');
+    // A withdrawal is the mirror of an investment: the same stored transfer,
+    // with the holding on the source side instead of the destination.
+    const source = type === 'withdraw' ? holding : account;
+    const destination = type === 'invest' ? holding
+      : type === 'withdraw' ? intoAccount
+      : type === 'transfer' ? toAccount : '';
     const base = existing ? new Date(Number(existing.occurred_at)) : new Date();
     const [y, m, d] = date.split('-').map(Number);
     const occurred = new Date(y, m - 1, d, base.getHours(), base.getMinutes()).getTime();
     const t = {
       id: existing?.id || crypto.randomUUID(),
       // invest is stored as a transfer — see the comment where `type` is set up
-      type: type === 'invest' ? 'transfer' : type,
+      type: type === 'invest' || type === 'withdraw' ? 'transfer' : type,
       amount: paise,
-      category: type === 'transfer' || type === 'invest' ? 'Other' : category,
+      category: isMove ? 'Other' : category,
       note: note.trim(),
-      account, to_account: destination,
+      account: source, to_account: destination,
       project: group.trim(),
       occurred_at: occurred,
       created_at: existing?.created_at || Date.now(),
@@ -226,7 +243,7 @@ export default function TxModal({ state, onClose }) {
         </div>
         <form onSubmit={save}>
           <div className="seg">
-            {['expense', 'income', 'transfer', 'invest'].map((t) => (
+            {['expense', 'income', 'transfer', 'invest', 'withdraw'].map((t) => (
               <button key={t} type="button" className={type === t ? 'on' : ''} onClick={() => setType(t)}>
                 {t === 'invest' ? 'Invest/Save' : t[0].toUpperCase() + t.slice(1)}
               </button>
@@ -307,13 +324,32 @@ export default function TxModal({ state, onClose }) {
             </div>
           )}
           <div className="form-row labelled">
-            <label>
-              <span>{isMove ? 'From account' : type === 'income' ? 'Into account' : 'Paid from'}</span>
-              <select value={account} onChange={(e) => setAccount(e.target.value)}>
-                <option value="" disabled>Select…</option>
-                {store.accounts.map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
-              </select>
-            </label>
+            {type === 'withdraw' ? (
+              <label>
+                <span>From</span>
+                <select value={holding} onChange={(e) => setHolding(e.target.value)}>
+                  <option value="" disabled>Select…</option>
+                  {store.realHoldings.map((h) => <option key={h.name} value={h.name}>{h.name}</option>)}
+                </select>
+              </label>
+            ) : (
+              <label>
+                <span>{isMove ? 'From account' : type === 'income' ? 'Into account' : 'Paid from'}</span>
+                <select value={account} onChange={(e) => setAccount(e.target.value)}>
+                  <option value="" disabled>Select…</option>
+                  {store.accounts.map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
+                </select>
+              </label>
+            )}
+            {type === 'withdraw' && (
+              <label>
+                <span>Into account</span>
+                <select value={intoAccount} onChange={(e) => setIntoAccount(e.target.value)}>
+                  <option value="" disabled>Select…</option>
+                  {store.accounts.map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
+                </select>
+              </label>
+            )}
             {type === 'transfer' && (
               <label>
                 <span>To account</span>
@@ -337,9 +373,10 @@ export default function TxModal({ state, onClose }) {
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </label>
           </div>
-          {type === 'invest' && !store.realHoldings.length && (
+          {(type === 'invest' || type === 'withdraw') && !store.realHoldings.length && (
             <p className="muted small">
-              No savings or investments set up yet — add one on the Savings screen first, then you can move money into it here.
+              No savings or investments set up yet — add one on the Savings screen first, then you can move money
+              {type === 'withdraw' ? ' out of it' : ' into it'} here.
             </p>
           )}
           <div className="btn-row">

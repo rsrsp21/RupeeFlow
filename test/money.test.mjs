@@ -234,3 +234,27 @@ test('net worth: an IOU is an asset but not spendable', () => {
   assert.equal(w.total, R(47000));
   assert.equal(w.total, w.spendable + w.invested + w.owed - w.dues);
 });
+
+test('withdrawing a holding in full empties it and keeps net worth flat', () => {
+  // The mirror of investing: a transfer with the holding on the SOURCE side.
+  // Until the entry form offered it, this could not be recorded at all.
+  const t0 = 2_000_000_000_000;
+  const accounts = [{ name: 'ICICI', type: 'Bank', opening_balance: R(50000) }];
+  const holdings = [{
+    name: 'NSE IPO', kind: 'Stocks',
+    valued_at: t0 - 3600000, current_value: R(14623.42), opening_balance: 0,
+  }];
+  const invested = tx({ type: 'transfer', amount: R(14280), account: 'ICICI', to_account: 'NSE IPO', occurred_at: t0 - 5 * 86400000 });
+  const withdrawn = tx({ type: 'transfer', amount: R(14623.42), account: 'NSE IPO', to_account: 'ICICI', occurred_at: t0 });
+
+  const before = computeNetWorth(accounts, holdings, [invested]);
+  assert.equal(computeHoldingBalances(holdings, [invested])['NSE IPO'], R(14623.42));
+
+  const after = computeNetWorth(accounts, holdings, [invested, withdrawn]);
+  assert.equal(computeHoldingBalances(holdings, [invested, withdrawn])['NSE IPO'], 0,
+    'taking out the full valued amount leaves nothing behind');
+  assert.equal(after.spendable, R(50343.42), 'the gain lands in the bank');
+  assert.equal(after.invested, 0);
+  // Cashing out is not income — the money was already the user's.
+  assert.equal(after.total, before.total, 'net worth does not move on a withdrawal');
+});
