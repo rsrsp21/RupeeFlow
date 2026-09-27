@@ -76,6 +76,13 @@ export default function TxModal({ state, onClose }) {
   // label for finding the entry again. Invest/withdraw are excluded: what
   // they are is already the holding they move to or from.
   const canCategorize = !isMove || type === 'transfer';
+  // On a transfer the picker starts collapsed behind a button — most
+  // transfers want no category, so a permanent dropdown is noise for the
+  // common case. Open straight away when the entry already carries one, the
+  // same way the group field behaves. 'Other' is the pre-change default for
+  // transfers, so it does not count as a real category here.
+  const [catOpen, setCatOpen] = useState(
+    Boolean(existing?.category && existing.category !== 'Other' && existing.type === 'transfer'));
   const [date, setDate] = useState(() => {
     const d = new Date(Number(existing?.occurred_at ?? pre.occurred_at ?? Date.now()));
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -311,7 +318,13 @@ export default function TxModal({ state, onClose }) {
               <Sparkles size={13} className={aiBusy ? 'spin' : ''} /> Auto-categorize with AI
             </button>
           )}
-          {canCategorize && !addingCategory && (
+          {type === 'transfer' && !catOpen && !addingCategory && (
+            <button type="button" className="btn ghost sm"
+              onClick={() => { setCatOpen(true); if (category === 'Other') setCategory(''); }}>
+              <Tag size={13} /> Add a category
+            </button>
+          )}
+          {canCategorize && (type !== 'transfer' || catOpen) && !addingCategory && (
             <div className="new-cat-row">
               <select value={category} onChange={(e) => setCategory(e.target.value)}>
                 {/* Optional on a transfer — most don't want one, and an

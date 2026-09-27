@@ -1346,6 +1346,14 @@ select {
   padding: 0 6px; border-radius: 4px;
 }
 
+/* A category shown on a transfer row. Same chip as the account route beside
+   it, so the two read as one line of metadata rather than competing. */
+.tx-cat {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: .67rem; color: var(--muted); border: 1px solid var(--line);
+  padding: 0 6px; border-radius: 4px;
+}
+
 /* labelled form rows */
 .form-row.labelled { align-items: flex-end; }
 .form-row.labelled label { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }

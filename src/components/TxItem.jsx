@@ -40,6 +40,14 @@ export default function TxItem({ t, index = 0 }) {
               {outOfHolding ? <HoldingIcon kind={outOfHolding} size={11} /> : <AccountIcon type={accountType(t.account)} size={11} />} {t.account} → {intoHolding ? <HoldingIcon kind={intoHolding} size={11} /> : <AccountIcon type={accountType(t.to_account)} size={11} />} {t.to_account}
             </span>
           ) : <span>{t.category}</span>}
+          {/* A transfer can carry a category as a label (a card bill, rent
+              paid out, money sent home). Shown the same way it is on an
+              expense so it is recognisable, but only when one was actually
+              chosen — 'Other' is the default every uncategorised transfer
+              carries and would be noise on every row. */}
+          {t.type === 'transfer' && t.category && t.category !== 'Other' && (
+            <span className="tx-cat"><CategoryIcon category={t.category} size={11} /> {t.category}</span>
+          )}
           {t.type !== 'transfer' && t.account && (
             <span className="tx-acct"><AccountIcon type={accountType(t.account)} size={11} /> {t.account}</span>
           )}
