@@ -105,9 +105,21 @@ export function computeHoldingBalances(holdings, live) {
     if (t.type !== 'transfer') continue;
     const amt = num(t.amount);
     const at = num(t.occurred_at);
+    // A contribution made BEFORE the valuation is already reflected in the
+    // stated figure, so only later ones are added on top.
     if (has(map, t.to_account) && at > since[t.to_account]) map[t.to_account] += amt;
-    if (has(map, t.account) && at > since[t.account]) map[t.account] -= amt;
+    // A withdrawal is different: money taken out is gone whenever the
+    // valuation happens to be dated. Skipping earlier ones the way
+    // contributions are skipped meant valuing a holding after cashing it out
+    // resurrected the whole balance — the app showed money the user had
+    // already moved to their bank, and counted it as pure profit because the
+    // basis had correctly gone to zero.
+    if (has(map, t.account)) map[t.account] -= amt;
   }
+  // A valuation that predates a withdrawal can leave this slightly negative
+  // (the stated value was lower than what was later taken out); a holding
+  // cannot hold less than nothing.
+  for (const name of Object.keys(map)) if (map[name] < 0) map[name] = 0;
   return map;
 }
 
