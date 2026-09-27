@@ -41,12 +41,13 @@ export default function TxItem({ t, index = 0 }) {
             </span>
           ) : <span>{t.category}</span>}
           {/* A transfer can carry a category as a label (a card bill, rent
-              paid out, money sent home). Shown the same way it is on an
-              expense so it is recognisable, but only when one was actually
-              chosen — 'Other' is the default every uncategorised transfer
-              carries and would be noise on every row. */}
+              paid out, money sent home). Rendered as plain text exactly like
+              an expense's category — a bordered chip made it louder than the
+              category on a real expense, which is backwards. Shown only when
+              one was actually chosen: 'Other' is what every uncategorised
+              transfer carries and would be noise on every row. */}
           {t.type === 'transfer' && t.category && t.category !== 'Other' && (
-            <span className="tx-cat"><CategoryIcon category={t.category} size={11} /> {t.category}</span>
+            <span>{t.category}</span>
           )}
           {t.type !== 'transfer' && t.account && (
             <span className="tx-acct"><AccountIcon type={accountType(t.account)} size={11} /> {t.account}</span>

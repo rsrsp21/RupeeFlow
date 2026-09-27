@@ -183,6 +183,26 @@ export default function TxModal({ state, onClose }) {
     setAiBusy(false);
   }
 
+  // Switching tabs has to move the category with it. The form opens on
+  // Expense, so `category` is seeded with a spending default — without this,
+  // tapping Transfer carried that default straight into a transfer the user
+  // never categorised, and "Food & Dining" appeared on a bank-to-bank move.
+  function switchType(next) {
+    setType(next);
+    if (next === 'transfer') {
+      // Collapse back to the button and drop the spending default; a real
+      // category on an entry being edited is kept.
+      if (!(existing?.category && existing.category !== 'Other')) {
+        setCategory('');
+        setCatOpen(false);
+      }
+    } else if ((next === 'expense' || next === 'income') && !category) {
+      // Coming back to a spending type from a transfer, where it was cleared —
+      // an empty category would otherwise save as 'Other' on a real expense.
+      setCategory('Food & Dining');
+    }
+  }
+
   async function save(e) {
     e.preventDefault();
     const paise = toPaise(amount);
@@ -261,7 +281,7 @@ export default function TxModal({ state, onClose }) {
         <form onSubmit={save}>
           <div className="seg">
             {['expense', 'income', 'transfer', 'invest', 'withdraw'].map((t) => (
-              <button key={t} type="button" className={type === t ? 'on' : ''} onClick={() => setType(t)}>
+              <button key={t} type="button" className={type === t ? 'on' : ''} onClick={() => switchType(t)}>
                 {t === 'invest' ? 'Invest/Save' : t[0].toUpperCase() + t.slice(1)}
               </button>
             ))}
@@ -333,6 +353,14 @@ export default function TxModal({ state, onClose }) {
                 {[...Object.keys(CATEGORIES), ...store.customCategories.map((c) => c.name)].map((c) => <option key={c}>{c}</option>)}
               </select>
               <button type="button" className="btn ghost sm" onClick={() => setAddingCategory(true)}>+ Custom</button>
+              {/* Opening the picker must be undoable — without this, one tap
+                  on "Add a category" left a dropdown with no way back. */}
+              {type === 'transfer' && (
+                <button type="button" className="icon-btn" title="No category"
+                  onClick={() => { setCategory(''); setCatOpen(false); }}>
+                  <X size={14} />
+                </button>
+              )}
             </div>
           )}
           {canCategorize && addingCategory && (
