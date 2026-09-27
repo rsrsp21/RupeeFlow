@@ -125,10 +125,17 @@ export function selectRows(all, opts) {
     const want = new Set(cats);
     rows = rows.filter((t) => want.has(t.category));
   }
-  // "Only labelled" keeps entries the user actually categorised. 'Other' is
-  // what every uncategorised transfer carries by default, so it counts as
-  // unlabelled rather than as a category someone chose.
-  if (opts.labelledOnly) rows = rows.filter((t) => t.category && t.category !== 'Other');
+  // 'Other' is what every uncategorised transfer carries by default, so it
+  // counts as unlabelled rather than as a category someone chose.
+  //
+  // Both directions are offered: "labelled" for a clean export of the entries
+  // worth reading, "unlabelled" to find the ones still needing a category —
+  // which is the more useful half, and was missing.
+  const labelled = (t) => Boolean(t.category) && t.category !== 'Other';
+  if (opts.labelState === 'labelled') rows = rows.filter(labelled);
+  else if (opts.labelState === 'unlabelled') rows = rows.filter((t) => !labelled(t));
+  // Back-compat with the boolean this replaced.
+  else if (opts.labelledOnly) rows = rows.filter(labelled);
 
   const groups = many(opts.group);
   if (groups.length) {
