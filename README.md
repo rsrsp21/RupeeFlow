@@ -35,61 +35,80 @@ A minimalist, offline-first budget and expense tracker built for busy profession
 ## Features
 
 **Capture, fast**
-- **Speak an expense**: "450 lunch with client, 120 auto to office" becomes two correctly categorized ledger entries in one shot (Gemini transcribes and parses; understands Hinglish).
+- **Speak an expense**: "450 lunch with client, 120 auto to office" becomes two correctly categorized ledger entries in one shot (Gemini transcribes and parses; understands Hinglish). Dates and accounts you mention are honoured, so "yesterday, 300 from HDFC" lands on yesterday in HDFC rather than today in your default account.
 - **Scan a receipt**: a photo fills in merchant, total (post-GST/discounts), date, and category; you just confirm.
-- **Quick add by text**: type a sentence instead of a form.
-- **Note-history autofill**: typing a note surfaces matching past entries (quantity and units are ignored, so "chicken 300g" and "chicken 300 grams" match) and fills category, account, and amount from what you picked last time.
+- **Quick add by text**: type a sentence instead of a form. Voice and text both understand withdrawals, transfers and transfer categories, not just spending.
+- **Share straight into the app**: share a receipt image from your gallery or another app to RupeeFlow (PWA share target) and it opens ready to scan.
+- **Home-screen shortcuts and a widget**: long-press the installed app for Add / Speak / Scan / Ledger, and on Windows add a "Spent today" widget with quick add.
+- **Note-history autofill**: typing a note surfaces matching past entries (quantity and units are ignored, so "chicken 300g" and "chicken 300 grams" match), reuses your past wording, and fills category, account, and amount from what you picked last time.
 - **AI auto-categorize**: instant keyword rules as you type, with a one-tap AI fallback for anything new, primed with your own categorization history so it stays consistent.
+- **Custom categories with AI icons**: name a new category and Gemini draws a matching icon for it (sanitised SVG).
+- **Groups for trips and events**: tag entries with a group like "Goa Trip"; groups are matched case-insensitively so the same trip never splits in two.
+- **Indian number formatting** everywhere: amounts group as ₹1,23,456 as you type and in every figure.
 
-**Understand your money**
-- **The AI sees the whole balance sheet**, not just spending: net worth, per-account balances, card utilisation, holdings with gains, savings rate, and recurring commitments. So it can answer "how much do I have?" and score financial health on savings and debt rather than overspending alone.
-- **Pay-cycle aware.** Income is measured over a trailing 30 days, so a salary landing on the last working day isn't read as "no income this month".
-- **Financial health score and coaching cards**, citing wins, risks, debt, and concrete savings ideas against your real numbers.
-- **Weekly AI review** grounded in your actual data, plus ask anything in plain English ("where do I spend more?", "what's unnecessary?").
-- **Where you stand**, computed locally with no API call: spendable, invested, card dues, savings rate, and runway — how many days your balance covers at your recent burn rate.
-- **Dashboard**: KPI strip, net worth, 7-day and 6-month trends, this-month vs last-month breakdowns, budget pace, and auto-computed insight cards.
-- **Push notifications**: a daily nudge if you haven't logged anything, plus budget-overspend alerts, sent via a scheduled cron job.
+**Insights, in three tabs**
+- **Overview, Breakdown, Coach**: one Insights screen, with the period selector pinned above the tabs because it scopes all of them.
+- **Analyse any period**: a single month, a quarter, a half-year or a full year, not just "this month".
+- **Computed locally, no API call**: month-over-month change, category shares and deltas, month-end projection, weekday patterns, price drift on things you buy often, recurring bills that haven't shown up yet, outliers, a 6-month trend, per-account spending and credit-card health (utilisation, dues). All of it lives in `src/lib/analytics.mjs` and works offline.
+- **Every category's spend and share**, alongside the money that only moved; tap a category to open its own entries in the Ledger.
+- **Where you stand**: spendable, invested, card dues, savings rate, and runway — how many days your balance covers at your recent burn rate.
+- **Financial health score and coaching cards** (save / risk / win / watch / debt), citing your real numbers. The AI sees the whole balance sheet — net worth, per-account balances, card utilisation, holdings with gains, savings rate, recurring commitments — and income is measured over a trailing 30 days so a month-end salary isn't read as "no income this month".
+- **Weekly AI review** grounded in your actual data.
+
+**Ask, the assistant**
+- A chat sheet reachable from every Insights tab, with **voice both ways**: speak your question, and have any answer read aloud.
+- **Answers questions about anything in your ledger**, not only what was pre-aggregated: "what did chicken cost in August?", "which shop do I spend most at on weekends?". The model writes a read-only SQL query that is checked against a strict allowlist and run against a single-user subquery, so it can't see anyone else's rows or change anything (`src/lib/askSql.js`). Item questions match the item itself, not every dish that merely contains the word.
+- **Records entries from the chat**: "add 200 for coffee" becomes a ledger entry, and the assistant asks only for what's missing (date, account) instead of guessing.
 
 **Savings, investments, and a real balance sheet**
 - **Holdings are not accounts.** Mutual funds, stocks, FDs, or cash kept at home live in their own list, so an FD never looks like money you can spend. Funding one is recorded as a transfer out of a real account: it leaves your spendable balance without ever counting as spending.
+- **Withdraw from a holding** right in the entry form. A partial withdrawal takes out the right share of cost basis, and a later valuation can't resurrect money already withdrawn.
 - **Market value, tracked honestly.** Each holding carries what it's worth and when you last said so, kept separate from cost basis, so gains and losses show as `value − contributed` and selling for more than you put in doesn't make the profit vanish. Stale valuations are flagged rather than quoted as fact.
 - **Credit cards are liabilities.** A card's balance is what you owe, its limit is stored separately and never counted as money, and net worth reads as spendable + invested − card dues.
+- **IOU accounts** track money you've fronted for others: it counts as owed to you, not as cash you can spend, and lending is reported separately from ordinary transfers.
+- Accounts can be **reordered**, one marked **primary**, and each account **reconciled** from its edit sheet.
 
 **Budgets and bulletproof math**
 - **Budgets with carry-forward**, per-category or overall, editable and deletable any time; unused budget rolls into next month.
-- **AI budget suggestions**, built from your real spending history in one tap, treating recurring commitments and investment contributions as fixed rather than things to trim.
+- **AI budget suggestions** built from your real month-by-month history (not one blended total), treating recurring commitments and investment contributions as fixed rather than things to trim.
 - Every amount is stored as **integer paise**. Balances are always recomputed from the ledger, so adding, editing, or deleting any entry mid-history can never corrupt totals.
-- Transfers between accounts (Cash/Bank/UPI/Credit Card/Other) are first-class entries, not a workaround.
+- Transfers between accounts (Cash/Bank/UPI/Credit Card/IOU/Other) are first-class entries, not a workaround, and can carry their own category (kept behind a button so a spending category never leaks onto a transfer).
+- **Uncategorised is a real state**, stored as an empty category rather than `Other`, so "show me what still needs a category" works and a deliberate "Other" stays distinct.
 - **Renaming an account, holding, or category rewrites every entry that referenced it**, so nothing is ever left pointing at a name that no longer exists.
 
 **Cross-device sync, offline-first**
 - Offline outbox plus incremental pull with last-write-wins merge; your own edits sync instantly, plus a periodic background pull (to pick up changes from another device) and immediate sync on focus/reconnect.
-- Installable PWA (Add to Home Screen), works fully offline via IndexedDB.
+- Installable PWA with an install banner until it's actually installed; works fully offline via IndexedDB.
 - A view crash shows a recoverable inline error instead of taking down the whole app.
 
 **Search, filter, export**
-- Free-text plus type/category/account/amount/date filters, works offline.
+- **Ledger filters match the export's**: free text, type (expense / income / transfer / invest / withdraw / lending), category (including uncategorised), account, group, amount and date — and every filter takes several values at once. Works offline.
+- Each day shows the balance as of that day alongside the current balance.
 - Search spans your whole history rather than the period tab you happen to be on, because that's what a search box is for.
-- Export CSV (a spreadsheet-ready ledger), a formatted PDF report, or a JSON backup, for any preset range or a custom from/to date. Real dates (not "this month") are printed in the document and filename so it still makes sense whenever you open it later.
+- **Export builder**: CSV (a spreadsheet-ready ledger), a formatted PDF report, or a JSON backup, for any preset range or a custom from/to date, narrowed to any mix of accounts, types, categories or groups, with your choice of columns. Real dates (not "this month") are printed in the document and filename so it still makes sense whenever you open it later.
+- The PDF carries your **position**, not just the ledger — spendable, invested, card dues, net worth and a per-holding value/contributed/gain table — and its summary splits **spending** from **money moved** (transfers, investments, lending), since money moved into savings is neither income nor spending. The JSON backup includes accounts, holdings, budgets and categories, so balances can actually be rebuilt from it.
 - **Reconcile against your bank.** Enter what the account actually shows and the gap is recorded as a dated adjustment entry, instead of editing the opening balance until the total looks right — which silently rewrites every past day's running total and makes figures agree by construction rather than because each entry is correct.
-- **Restore from a JSON backup** — a merge, not a wipe: entries keep their original ids and timestamps, so the same last-write-wins rules apply and anything edited or deleted since the backup stays that way. Accounts, holdings and categories union by name, so restoring can't overwrite your current setup. Makes moving to a new device, or pulling old data into a live account, a two-tap job.
-- The PDF carries your **position**, not just the ledger — spendable, invested, card dues, net worth and a per-holding value/contributed/gain table — and reports transfers separately, since money moved into savings is neither income nor spending. The JSON backup includes accounts, holdings, budgets and categories, so balances can actually be rebuilt from it.
+- **Restore from a JSON backup** — a merge, not a wipe: entries keep their original ids and timestamps, so the same last-write-wins rules apply and anything edited or deleted since the backup stays that way. Accounts, holdings and categories union by name, so restoring can't overwrite your current setup.
+
+**Notifications**
+- Four daily push slots, each saying something different: a **morning** recap of yesterday, an **afternoon** check-in with a bit of personality (today so far vs your own average), an **evening** summary with budget alerts (plus a weekly review on Sundays and a mid-month check), and a **late** nudge only if nothing has been logged since the evening one.
+- One toggle in Settings, and a gentle prompt after login to turn them on. Tapping a notification deep-links to the right screen.
 
 **Minimalist UI**
-- Dark mode (default) and light, tabular numerals, spring animations, donut and trend charts.
+- Dark mode (default) and light, tabular numerals, spring animations, donut and trend charts. The design system is written up in [design.md](design.md).
 - Every screen is a real route, so browser back and Android's swipe-back walk the screens you visited instead of closing the app, and back dismisses an open sheet before leaving the screen.
 
 ## Tech stack
 
 | Layer | Choice |
 |---|---|
-| Framework | [Next.js](https://nextjs.org) (App Router); frontend and API routes in one deploy |
+| Framework | [Next.js](https://nextjs.org) 15 (App Router); frontend and API routes in one deploy |
 | UI | React 19, [Framer Motion](https://www.framer.com/motion/), [Lucide](https://lucide.dev) icons, hand-written CSS (no UI kit) |
 | Database | [Cloudflare D1](https://developers.cloudflare.com/d1/) (SQLite) over its HTTP API, no driver needed, works from any host |
-| AI | [Google Gemini](https://ai.google.dev) (free tier) for speech/text parsing, receipt OCR, insights, and categorization |
+| AI | [Google Gemini](https://ai.google.dev) (free tier) for speech/text parsing, receipt OCR, insights, coaching, the Ask assistant, and category icons |
 | Auth | Stateless HS256 JWTs and PBKDF2 password hashing, both via Web Crypto, zero auth dependencies |
 | Offline | IndexedDB outbox with incremental last-write-wins sync |
-| Push | Web Push (VAPID) via `web-push`, sent from a scheduled cron route |
+| Push | Web Push (VAPID) via `web-push`, sent from a cron route hit by an external scheduler |
 | Hosting | [Vercel](https://vercel.com) or [Render](https://render.com), genuinely serverless, no persistent connections anywhere |
 
 ## Folder structure
@@ -97,10 +116,11 @@ A minimalist, offline-first budget and expense tracker built for busy profession
 ```
 ├── src/
 │   ├── app/
-│   │   ├── layout.jsx            # root layout, theme bootstrap
+│   │   ├── layout.jsx             # root layout, theme bootstrap
 │   │   ├── (app)/                 # one shared shell, one route per screen
 │   │   │   ├── layout.jsx         # store + nav + FAB + modals + auth gate
 │   │   │   └── {page,ledger,money,budgets,insights,settings}/…
+│   │   ├── share-target/route.js  # fallback for the PWA share target (the SW handles it first)
 │   │   ├── globals.css            # design system (dark/light tokens)
 │   │   └── api/                   # backend (route handlers)
 │   │       ├── auth/{register,login,profile}/route.js
@@ -112,29 +132,51 @@ A minimalist, offline-first budget and expense tracker built for busy profession
 │   │       ├── budgets/route.js          # GET/PUT/DELETE
 │   │       ├── export/csv/route.js
 │   │       ├── push/{key,subscribe}/route.js
-│   │       ├── cron/notify/route.js      # daily reminder + budget alerts
-│   │       └── ai/{voice,parse,receipt,categorize,insights,coach,budget-suggest,ask}/route.js
+│   │       ├── settings/notifications/route.js
+│   │       ├── cron/notify/route.js      # ?slot=morning|afternoon|evening|late
+│   │       ├── widget/today/route.js     # data for the "Spent today" widget
+│   │       ├── health/route.js
+│   │       └── ai/{voice,parse,receipt,categorize,category-icon,insights,coach,
+│   │              budget-suggest,ask,chat-entry}/route.js
 │   ├── lib/
 │   │   ├── db.js                  # Cloudflare D1 HTTP client + auto schema creation
 │   │   ├── auth.js                # PBKDF2 + JWT (Web Crypto, no deps)
+│   │   ├── passwordRules.js
 │   │   ├── transactions.js        # ledger ops, LWW sync, CSV
+│   │   ├── money.mjs              # pure balance math + sync merge rule (tested)
+│   │   ├── analytics.mjs          # local insights: trends, breakdowns, drift, outliers (tested)
+│   │   ├── askSql.js              # allowlist validator for assistant-written SQL (tested)
 │   │   ├── gemini.js              # all AI prompts/calls
 │   │   ├── push.js                # web-push sender
+│   │   ├── svgSanitize.js         # cleans AI-drawn category icons
 │   │   ├── noteMatch.js           # note normalization + history matching (shared client/server)
 │   │   └── client/                # browser-side
 │   │       ├── store.jsx          # React context: state + sync engine
 │   │       ├── idb.js             # IndexedDB (cache + offline outbox)
+│   │       ├── applyParsed.js     # turns parsed voice/text/receipt output into entries
 │   │       ├── exporters.js       # CSV/PDF/JSON export engine
-│   │       ├── pushClient.js       # push subscription helpers
-│   │       └── constants.js       # categories, money utils
+│   │       ├── period.js          # day/week/month/year ranges
+│   │       ├── speech.js          # speech in and out for the assistant
+│   │       ├── shareTarget.js     # picks up images shared into the app
+│   │       ├── dailyCache.js
+│   │       ├── pushClient.js      # push subscription helpers
+│   │       └── constants.js       # categories, account types, money utils
 │   └── components/
-│       ├── App.jsx  Nav.jsx  ErrorBoundary.jsx  TxItem.jsx
+│       ├── App.jsx  Nav.jsx  Landing.jsx  AuthView.jsx  ErrorBoundary.jsx
+│       ├── TxItem.jsx  FilterRow.jsx  AmountInput.jsx  InsightCarousel.jsx  Markdown.jsx
+│       ├── InstallPrompt.jsx  NotifyNudge.jsx  SyncBadge.jsx  ThemeToggle.jsx
+│       ├── AccountsSummary.jsx  BudgetsPanel.jsx  CategoriesPanel.jsx
+│       ├── AccountIcon.jsx  CategoryIcon.jsx  HoldingIcon.jsx
 │       ├── views/    Dashboard · Ledger · Money · Budgets · Insights · Settings
 │       ├── money/    AccountsPanel · SavingsPanel
 │       ├── modals/   TxModal · VoiceModal · PromptModal · BudgetModal · ExportModal
-│       │             AccountModal · HoldingModal · AddAccountModal · ConfirmModal
-│       └── charts/   Donut · TrendBars · CategoryBars
-└── public/                        # PWA: manifest, sw.js, icons
+│       │             AccountModal · AddAccountModal · HoldingModal · ReconcileModal · ConfirmModal
+│       └── charts/   Donut · TrendBars · CategoryBars · Bars
+├── test/                          # money · analytics · asksql (node:test)
+├── public/                        # PWA: manifest (shortcuts, share target, widget), sw.js, icons
+├── design.md                      # design system
+├── privacy-design.md              # end-to-end encrypted "private mode" (design only, not built)
+└── start-rupeeflow.bat            # Windows: install deps, open the browser, run dev
 ```
 
 ## Cloudflare D1 Setup
@@ -217,8 +259,10 @@ DELETE FROM transactions WHERE deleted = 1;
 npm install
 cp .env.example .env    # fill in the CLOUDFLARE_* vars, JWT_SECRET, GEMINI_API_KEY
 npm run dev              # http://localhost:3000
-npm test                 # money math + sync merge (node:test, no deps)
+npm test                 # money math, sync merge, analytics, Ask SQL guard (node:test, no deps)
 ```
+
+On Windows, double-click `start-rupeeflow.bat` instead: it installs dependencies, opens the browser and starts the dev server.
 
 The balance math and the sync merge rule live in `src/lib/money.mjs` as pure
 functions over plain data, deliberately outside React so they can be asserted
@@ -227,9 +271,11 @@ shipped — a deleted entry resurrected by its own pre-delete copy, a transfer
 to a non-existent account cancelling its own outflow, an investment counted
 as spending, a sale for more than cost basis losing the profit. Those are the
 failures that lose trust permanently, so they get assertions rather than
-vigilance.
+vigilance. The same goes for `test/analytics.test.mjs` (the local insights)
+and `test/asksql.test.mjs`, which checks that assistant-written SQL can never
+reach another user's rows or write anything.
 
-Push notifications and the daily reminder cron are optional. Leave their env vars blank to skip that setup (see `.env.example` for what each one does).
+Push notifications are optional. Leave the `VAPID_*` and `CRON_SECRET` vars blank to skip that setup (see `.env.example` for what each one does). To turn them on, generate keys with `npx web-push generate-vapid-keys`, then point four triggers from any external cron service at `/api/cron/notify?slot=morning`, `afternoon`, `evening` and `late`, each sending `Authorization: Bearer <CRON_SECRET>`. Set `NEXT_PUBLIC_SITE_URL` to your deployed origin so shared images and link previews resolve.
 
 ## Why it works on serverless
 
